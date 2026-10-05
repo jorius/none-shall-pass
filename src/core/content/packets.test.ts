@@ -46,10 +46,13 @@ describe('packet catalogue', () => {
     expect(STUFF_IP).toMatch(DOC_IP);
   });
 
-  it('anchors every hint in the text the player can see', () => {
+  it('anchors every hint in the text the player can see, in both languages', () => {
     for (const t of TEMPLATES) {
-      const visible = [t.card, ...t.request, t.context?.en ?? ''].join('\n');
-      for (const h of t.hints ?? []) expect(visible, `${t.id} hint ${h}`).toContain(h);
+      const shown = [t.card, ...t.request].join('\n');
+      for (const h of t.hints ?? []) {
+        const inBothContexts = !!t.context && t.context.en.includes(h) && t.context.es.includes(h);
+        expect(shown.includes(h) || inBothContexts, `${t.id} hint ${h}`).toBe(true);
+      }
       for (const h of t.decodedHints ?? []) expect(t.decoded, `${t.id} decoded hint`).toContain(h);
     }
   });
@@ -59,6 +62,7 @@ describe('packet catalogue', () => {
     expect(enc.decoded).toBe("GET /search?q=' OR 1=1--");
     expect(templateById('sqli-tautology').decoded).toBeUndefined();
     expect(enc.raw).toContain('%27%20OR%201%3D1--');
+    expect(() => templateById('nope')).toThrow('unknown packet template nope');
   });
 
   it('covers every family the waves need', () => {
