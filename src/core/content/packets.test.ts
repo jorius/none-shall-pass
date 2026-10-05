@@ -1,0 +1,70 @@
+// packages
+import { describe, expect, it } from 'vitest';
+
+// core
+import { STUFF_IP } from '../constants';
+import { TEMPLATES, templateById } from './packets';
+
+const DOC_IP = /^(192\.0\.2|198\.51\.100|203\.0\.113)\.\d{1,3}$/;
+const LANES_FOR: Record<string, number[]> = { scan: [4], brute: [0, 1], sqli: [2], xss: [3], flood: [1, 2, 3] };
+
+describe('packet catalogue', () => {
+  it('has unique ids and positive weights', () => {
+    const ids = TEMPLATES.map((t) => t.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const t of TEMPLATES) expect(t.weight).toBeGreaterThan(0);
+  });
+
+  it('gives every malicious packet a tier and no legit packet one', () => {
+    for (const t of TEMPLATES) {
+      if (t.kind === 'legit') expect(t.tier).toBeUndefined();
+      else expect([1, 2, 3]).toContain(t.tier);
+      if (t.decoy) expect(t.kind).toBe('legit');
+    }
+  });
+
+  it('puts each family on its lanes', () => {
+    for (const t of TEMPLATES) if (t.kind !== 'legit') expect(LANES_FOR[t.kind]).toContain(t.lane);
+  });
+
+  it('explains every packet in both languages', () => {
+    for (const t of TEMPLATES) {
+      expect(t.why.en.length).toBeGreaterThan(10);
+      expect(t.why.es.length).toBeGreaterThan(10);
+      if (t.context) { expect(t.context.en).not.toBe(''); expect(t.context.es).not.toBe(''); }
+    }
+  });
+
+  it('only uses documentation addresses and .example hosts', () => {
+    for (const t of TEMPLATES) {
+      if (t.fixedSrc) expect(t.fixedSrc).toMatch(DOC_IP);
+      for (const line of t.request) {
+        const host = /^Host: (.+)$/.exec(line);
+        if (host) expect(host[1]).toMatch(/\.example$/);
+      }
+    }
+    expect(STUFF_IP).toMatch(DOC_IP);
+  });
+
+  it('anchors every hint in the text the player can see', () => {
+    for (const t of TEMPLATES) {
+      const visible = [t.card, ...t.request, t.context?.en ?? ''].join('\n');
+      for (const h of t.hints ?? []) expect(visible, `${t.id} hint ${h}`).toContain(h);
+      for (const h of t.decodedHints ?? []) expect(t.decoded, `${t.id} decoded hint`).toContain(h);
+    }
+  });
+
+  it('derives raw and decoded text', () => {
+    const enc = templateById('sqli-encoded');
+    expect(enc.decoded).toBe("GET /search?q=' OR 1=1--");
+    expect(templateById('sqli-tautology').decoded).toBeUndefined();
+    expect(enc.raw).toContain('%27%20OR%201%3D1--');
+  });
+
+  it('covers every family the waves need', () => {
+    const kinds = new Set(TEMPLATES.map((t) => t.kind));
+    for (const k of ['legit', 'sqli', 'xss', 'brute', 'scan', 'flood']) expect(kinds.has(k as never)).toBe(true);
+    const scans = TEMPLATES.filter((t) => t.kind === 'scan').map((t) => t.port).sort((a, b) => a! - b!);
+    expect(scans).toEqual([23, 445, 3389]);
+  });
+});
