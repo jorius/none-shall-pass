@@ -107,7 +107,7 @@ export class RackView implements View {
     }
     // The fire steps at 30 Hz on the view clock, which keeps running outside play (drafts, debrief)
     // and stops while paused, so it burns at the same speed on any screen and any refresh rate.
-    if (time - this.lastFire >= 1 / 30) { this.lastFire = time; this.stepFire(); }
+    if (time - this.lastFire >= 1 / 30 - 1e-6) { this.lastFire = Math.max(this.lastFire + 1 / 30, time - 1 / 30); this.stepFire(); }
   }
 
   private stepFire(): void {

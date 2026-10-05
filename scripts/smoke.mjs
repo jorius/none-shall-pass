@@ -24,6 +24,47 @@ const CHECKS = {
     if (after.lane !== before - 1) throw new Error(`lane ${before} -> ${after.lane}`);
     await page.screenshot({ path: `${OUT}/loop.png` });
   },
+  async packets(page) {
+    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.some((p) => p.x > 200), null, { timeout: 20000 });
+    const lane = await page.evaluate(() => window.__nsp.app.run.state.packets.find((p) => p.x > 200).lane);
+    const here = await page.evaluate(() => window.__nsp.app.run.state.knight.lane);
+    for (let i = here; i > lane; i--) await page.keyboard.press('ArrowUp');
+    for (let i = here; i < lane; i++) await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Tab');
+    if (await page.evaluate(() => window.__nsp.app.run.state.locked) === null) throw new Error('Tab did not target');
+    await page.screenshot({ path: `${OUT}/packets-target.png` });
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(60);
+    // Pause so the shot catches the spear mid-arc however long the capture takes; resuming lets it land.
+    await page.keyboard.press('p');
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: `${OUT}/packets-spear.png` });
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => window.__nsp.app.run.state.log.some((e) => e.outcome === 'hit' || e.outcome === 'fp'), null, { timeout: 3000 });
+    await page.screenshot({ path: `${OUT}/packets-shatter.png` });
+  },
+  async resizeAndClick(page) {
+    const clickPacket = async () => {
+      await page.waitForFunction(() => window.__nsp.app.run.state.packets.some((p) => p.x > 250 && p.x < 550 && !p.entering), null, { timeout: 20000 });
+      const target = await page.evaluate(() => {
+        const s = window.__nsp.app.run.state;
+        const p = s.packets.find((q) => q.x > 250 && q.x < 550 && !q.entering);
+        const r = document.querySelector('#stage canvas').getBoundingClientRect();
+        const k = r.width / 1280;
+        return { id: p.id, x: r.left + (p.x + 145) * k, y: r.top + (56 + p.lane * 90 + 19 + 26) * k };
+      });
+      await page.mouse.click(target.x, target.y);
+      const locked = await page.evaluate(() => window.__nsp.app.run.state.locked);
+      if (locked !== target.id) throw new Error(`clicked ${target.id}, locked ${locked}`);
+      await page.keyboard.press('Escape');
+    };
+    await page.setViewportSize({ width: 1100, height: 700 });
+    await page.waitForTimeout(300);
+    await clickPacket();
+    await page.setViewportSize({ width: 1700, height: 960 });
+    await page.waitForTimeout(300);
+    await clickPacket();
+  },
 };
 
 const waitForServer = async () => {
