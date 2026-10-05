@@ -20,11 +20,13 @@ describe('waves', () => {
     expect(72 * w60.speedMult).toBeCloseTo(150, 5);
     expect(w5.tier3Mult).toBeGreaterThan(w1.tier3Mult);
     expect(w5.name.en).toBe('OVERTIME 5');
+    expect(overtimeWave(0).speedMult).toBe(1);
   });
 
   it('routes by mode', () => {
     expect(waveFor('campaign', 3).id).toBe('sqli');
     expect(waveFor('campaign', 99).id).toBe('finale');
+    expect(waveFor('campaign', 0).id).toBe('recon');
     expect(waveFor('overtime', 2).id).toBe('overtime');
   });
 });

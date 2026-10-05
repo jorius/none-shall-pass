@@ -7,6 +7,7 @@ import { CARDS, cardById, STARTING_LOADOUT } from './cards';
 describe('card catalogue', () => {
   it('has the sixteen v1 cards, unique', () => {
     const ids = CARDS.map((c) => c.id);
+    expect(ids).toHaveLength(16);
     expect(new Set(ids).size).toBe(16);
     expect(ids).toEqual(expect.arrayContaining(['destrier', 'squire', 'lens', 'obs1', 'obs2', 'obs3', 'lockdown', 'quote', 'f2b', 'tarpit', 'cdn', 'prepared', 'sortlist', 'mfa', 'csp', 'backup']));
   });

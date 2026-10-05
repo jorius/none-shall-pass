@@ -1,4 +1,5 @@
 // core
+import { BASE_SPEED } from '../constants';
 import type { Kind, Localized } from '../types';
 
 export type Mode = 'campaign' | 'overtime';
@@ -24,24 +25,27 @@ export const CAMPAIGN: readonly WaveDef[] = [
     only: ['legit', 'scan', 'brute', 'sqli'], boost: { sqli: 2.2 }, spawn: 1.15, secs: 60, speedMult: 1, tier3Mult: 1 },
   { id: 'xss', name: { en: 'XSS', es: 'XSS' }, intro: { en: 'The comments section is getting busy.', es: 'La sección de comentarios se está llenando.' },
     only: ['legit', 'scan', 'brute', 'sqli', 'xss'], boost: { xss: 3 }, spawn: 1.1, secs: 60, speedMult: 1, tier3Mult: 1 },
-  { id: 'flood', name: { en: 'BOTNET FLOOD', es: 'INUNDACIÓN BOTNET' }, intro: { en: 'A botnet just woke up.', es: 'Una botnet acaba de despertar.' },
+  { id: 'flood', name: { en: 'BOTNET FLOOD', es: 'INUNDACIÓN DE BOTNET' }, intro: { en: 'A botnet just woke up.', es: 'Una botnet acaba de despertar.' },
     boost: { flood: 4, brute: 1.5 }, spawn: 0.75, secs: 60, speedMult: 1, tier3Mult: 1 },
   { id: 'finale', name: { en: 'FINALE', es: 'FINAL' }, intro: { en: 'Everything, all at once.', es: 'Todo, al mismo tiempo.' },
     boost: {}, spawn: 0.8, secs: 60, speedMult: 1, tier3Mult: 1.5 },
 ];
 
-const MAX_SPEED_MULT = 150 / 72;
+const MAX_SPEED_MULT = 150 / BASE_SPEED;
 
-export const overtimeWave = (n: number): WaveDef => ({
-  id: 'overtime',
-  name: { en: `OVERTIME ${n}`, es: `TIEMPO EXTRA ${n}` },
-  intro: { en: 'They keep coming.', es: 'Siguen llegando.' },
-  boost: {},
-  spawn: Math.max(0.45, 0.8 * 0.95 ** (n - 1)),
-  secs: 45,
-  speedMult: Math.min(MAX_SPEED_MULT, 1.06 ** (n - 1)),
-  tier3Mult: 1 + 0.15 * (n - 1),
-});
+export const overtimeWave = (n: number): WaveDef => {
+  const w = Math.max(1, n);
+  return {
+    id: 'overtime',
+    name: { en: `OVERTIME ${w}`, es: `TIEMPO EXTRA ${w}` },
+    intro: { en: 'They keep coming.', es: 'Siguen llegando.' },
+    boost: {},
+    spawn: Math.max(0.45, 0.8 * 0.95 ** (w - 1)),
+    secs: 45,
+    speedMult: Math.min(MAX_SPEED_MULT, 1.06 ** (w - 1)),
+    tier3Mult: 1 + 0.15 * (w - 1),
+  };
+};
 
 export const waveFor = (mode: Mode, n: number): WaveDef =>
-  mode === 'campaign' ? CAMPAIGN[Math.min(n, CAMPAIGN.length) - 1] : overtimeWave(n);
+  mode === 'campaign' ? CAMPAIGN[Math.min(Math.max(1, n), CAMPAIGN.length) - 1] : overtimeWave(n);
