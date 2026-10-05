@@ -114,6 +114,16 @@ const CHECKS = {
     await page.waitForTimeout(100);
     if (await top() !== b) throw new Error('the released card did not go back under the newer one');
   },
+  async objects(page) {
+    await page.waitForFunction(() => !!window.__nsp?.app?.run);
+    await page.evaluate(() => {
+      const app = window.__nsp.app;
+      app.run.state.owned.push('quote', 'f2b', 'tarpit', 'cdn');
+      app.dispatch([{ type: 'owned', owned: [...app.run.state.owned] }]);
+    });
+    await page.waitForFunction(() => window.__nsp.app.run.state.log.some((e) => e.ruleId === 'lockdown'), null, { timeout: 30000 });
+    await page.screenshot({ path: `${OUT}/objects.png` });
+  },
 };
 
 const waitForServer = async () => {

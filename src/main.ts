@@ -13,6 +13,7 @@ import { App } from './app';
 import { FieldScene } from './game/FieldScene';
 import { ActorsView } from './game/views/actors';
 import { EffectsView } from './game/views/effects';
+import { FieldObjectsView } from './game/views/fieldObjects';
 import { FireWallView } from './game/views/fireWall';
 import { LanesView } from './game/views/lanes';
 import { PacketsView } from './game/views/packets';
@@ -49,7 +50,7 @@ const boot = async (): Promise<void> => {
   });
   const scene = await FieldScene.ready;
   const app = new App(scene, store);
-  app.add(new LanesView(scene), new FireWallView(scene), new RackView(scene), new ActorsView(scene));
+  app.add(new LanesView(scene), new FireWallView(scene), new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene));
   const effects = new EffectsView(scene);
   effects.reduced = !!store.prefs().reducedFx || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   app.add(
