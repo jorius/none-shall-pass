@@ -69,8 +69,10 @@ export class EffectsView implements View {
   }
 
   // The single owner of the scene clock: pausing here also freezes the other views' tweens and timers.
+  // A zero time scale stops tweens where they are; pauseAll would replay the paused gap on resume.
   pause(p: boolean): void {
-    if (p) { this.scene.tweens.pauseAll(); this.scene.time.paused = true; } else { this.scene.tweens.resumeAll(); this.scene.time.paused = false; }
+    this.scene.tweens.timeScale = p ? 0 : 1;
+    this.scene.time.paused = p;
     for (const em of [...Object.values(this.shatter), this.stream]) { if (p) em.pause(); else em.resume(); }
   }
 
@@ -104,14 +106,17 @@ export class EffectsView implements View {
     };
     const ghosts = this.reduced ? [] : [HEX.red, HEX.blue].map((c) => this.scene.add.image(from.x, from.y, key).setTint(c).setAlpha(0.45));
     const main = this.scene.add.image(from.x, from.y, key);
+    const place = (t: number): void => {
+      const p = pose(t);
+      main.setPosition(p.x, p.y).setRotation(p.rot);
+      ghosts.forEach((g, i) => { const q = pose(Math.max(0, t - 0.04 * (i + 1))); g.setPosition(q.x, q.y + (i ? 3 : -3)).setRotation(q.rot); });
+    };
+    // Start on the arc, already pointing along it, before the first tween step.
+    place(0);
     this.scene.layers.fx.add([...ghosts, main]);
     this.scene.tweens.addCounter({
       from: 0, to: 1, duration: duration * 1000,
-      onUpdate: (tw) => {
-        const t = tw.getValue() ?? 0, p = pose(t);
-        main.setPosition(p.x, p.y).setRotation(p.rot);
-        ghosts.forEach((g, i) => { const q = pose(Math.max(0, t - 0.04 * (i + 1))); g.setPosition(q.x, q.y + (i ? 3 : -3)).setRotation(q.rot); });
-      },
+      onUpdate: (tw) => place(tw.getValue() ?? 0),
       onComplete: () => {
         ghosts.forEach((g) => g.destroy());
         this.scene.tweens.add({ targets: main, alpha: 0, duration: 120, onComplete: () => main.destroy() });

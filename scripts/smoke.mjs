@@ -64,6 +64,55 @@ const CHECKS = {
     await page.setViewportSize({ width: 1700, height: 960 });
     await page.waitForTimeout(300);
     await clickPacket();
+    // Wider than 16:9, so the canvas is pillarboxed and offset horizontally.
+    await page.setViewportSize({ width: 1700, height: 700 });
+    await page.waitForTimeout(300);
+    await clickPacket();
+  },
+  async overlap(page) {
+    // Two cards forced to overlap in one lane: a click must land on the card drawn on top.
+    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.filter((p) => !p.entering && !p.doomed).length >= 2, null, { timeout: 20000 });
+    const [a, b] = await page.evaluate(() => {
+      const [older, newer] = window.__nsp.app.run.state.packets.filter((p) => !p.entering && !p.doomed);
+      newer.lane = older.lane;
+      older.x = 200;
+      newer.x = 80;
+      return [older.id, newer.id];
+    });
+    const top = async () => {
+      const [ia, ib] = await page.evaluate((ids) => {
+        const names = window.__nsp.game.scene.getScene('field').layers.packets.list.map((o) => o.name);
+        return ids.map((id) => names.indexOf(`packet-${id}`));
+      }, [a, b]);
+      if (ia < 0 || ib < 0) throw new Error(`cards ${a}/${b} not on the packets layer`);
+      return ia > ib ? a : b;
+    };
+    const clickOverlap = async () => {
+      const pt = await page.evaluate(([ida, idb]) => {
+        const s = window.__nsp.app.run.state;
+        const pa = s.packets.find((p) => p.id === ida), pb = s.packets.find((p) => p.id === idb);
+        const mid = (Math.max(pa.x, pb.x) + Math.min(pa.x, pb.x) + 290) / 2;
+        const r = document.querySelector('#stage canvas').getBoundingClientRect();
+        const k = r.width / 1280;
+        return { x: r.left + mid * k, y: r.top + (56 + pa.lane * 90 + 19 + 26) * k };
+      }, [a, b]);
+      await page.mouse.click(pt.x, pt.y);
+      return page.evaluate(() => window.__nsp.app.run.state.locked);
+    };
+    await page.waitForTimeout(100);
+    if (await top() !== b) throw new Error('the newer card is not drawn on top');
+    let locked = await clickOverlap();
+    if (locked !== b) throw new Error(`clicked the top card ${b}, locked ${locked}`);
+    await page.keyboard.press('Escape');
+    // Lock the older card: it rises above the newer one, and a click on it releases it.
+    await page.evaluate((id) => { const app = window.__nsp.app; app.dispatch(app.run.target(id)); }, a);
+    await page.waitForTimeout(100);
+    if (await top() !== a) throw new Error('the locked card is not drawn on top');
+    await page.screenshot({ path: `${OUT}/overlap-locked.png` });
+    locked = await clickOverlap();
+    if (locked !== null) throw new Error(`clicked the locked top card ${a}, locked ${locked}`);
+    await page.waitForTimeout(100);
+    if (await top() !== b) throw new Error('the released card did not go back under the newer one');
   },
 };
 
