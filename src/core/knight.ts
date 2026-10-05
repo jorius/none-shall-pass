@@ -19,9 +19,10 @@ export const setLane = (s: RunState, lane: number, ev: RunEvent[]): void => {
 
 export const target = (s: RunState, id: number | null, ev: RunEvent[]): void => {
   if (id === null) { untarget(s, ev); return; }
+  if (s.locked === id) return;
   const p = findPacket(s, id);
   if (!p || p.doomed || p.entering) return;
-  if (s.locked !== null && s.locked !== id) untarget(s, ev);
+  if (s.locked !== null) untarget(s, ev);
   s.locked = id;
   if (s.knight.lane !== p.lane) { s.knight.lane = p.lane; ev.push({ type: 'laneChanged', lane: p.lane }); }
   if (mounted(s)) { p.held = true; s.knight.hold = HOLD_SECS; }

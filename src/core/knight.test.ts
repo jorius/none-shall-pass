@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { FW_X, HOLD_SECS, KN_X, LANE_H, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, THROW_COOLDOWN } from './constants';
+import { HOLD_SECS, KN_X, LANE_H, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, THROW_COOLDOWN } from './constants';
 import type { RunEvent } from './events';
 import { cycleTarget, handPos, setLane, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
 import { freshState, place } from './testkit';
@@ -52,8 +52,12 @@ describe('targeting', () => {
     const p = place(s, 'brute-ssh-root', 300);
     target(s, p.id, ev);
     expect(s.knight.lane).toBe(0);
+    expect(p.held).toBe(false);
     const q = place(s, 'brute-admin', 300); q.doomed = true;
     target(s, q.id, ev);
+    expect(s.locked).toBe(p.id);
+    const r = place(s, 'brute-admin', 400); r.entering = true;
+    target(s, r.id, ev);
     expect(s.locked).toBe(p.id);
   });
 
@@ -137,13 +141,25 @@ describe('stepKnight', () => {
     expect(p.held).toBe(false);
   });
 
+  it('does not refresh the hold when the same packet is targeted again', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.owned.push('destrier');
+    const p = place(s, 'sqli-union', 200);
+    target(s, p.id, ev);
+    stepKnight(s, 3, ev);
+    target(s, p.id, ev);
+    stepKnight(s, 2.1, ev);
+    expect(s.locked).toBeNull();
+    expect(p.held).toBe(false);
+  });
+
   it('never rides past his post', () => {
     const s = freshState(), ev: RunEvent[] = [];
     s.owned.push('destrier');
-    const p = place(s, 'sqli-union', FW_X - PKT_W - 2);
+    const p = place(s, 'sqli-union', KN_X - PKT_W);
     target(s, p.id, ev);
     for (let i = 0; i < 60; i++) stepKnight(s, 1 / 60, ev);
-    expect(s.knight.x).toBeLessThanOrEqual(KN_X);
+    expect(s.knight.x).toBe(KN_X);
   });
 });
 
@@ -163,6 +179,9 @@ describe('squire', () => {
     expect(obvious.doomed).toBe(true);
     expect(s.squire.cd).toBeCloseTo(SQUIRE_COOLDOWN);
     expect(ev).toContainEqual(expect.objectContaining({ type: 'thrown', by: 'squire' }));
+    place(s, 'brute-admin', 300);
+    stepSquire(s, 0.01, ev);
+    expect(s.spears.length).toBe(1);
   });
 
   it('does nothing without the card', () => {
