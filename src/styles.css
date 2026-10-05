@@ -15,6 +15,8 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 /* Opacity just under 1 keeps Chrome from culling bands of the WebGL canvas under the opaque, animated panels. */
 #ui { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; pointer-events: none; font-family: var(--mono); color: var(--ink); opacity: .999; }
 #ui button, #ui .hit { pointer-events: auto; }
+/* The opaque panels swallow clicks, so nothing behind them (a card under the gutter) can be clicked or released. */
+#ui .hud, #ui .gutter, #ui .hpstrip { pointer-events: auto; }
 #ui.paused * { animation-play-state: paused !important; }
 #ui img.px { image-rendering: pixelated; }
 .scanlines { position: absolute; inset: 0; z-index: 90; pointer-events: none; background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(0,0,0,.16) 2px 3px); }

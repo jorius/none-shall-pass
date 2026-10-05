@@ -155,6 +155,49 @@ const CHECKS = {
     if (fit.tall || fit.room < 8 || fit.over > 0) throw new Error(`Spanish HUD does not fit: ${JSON.stringify(fit)}`);
     await page.screenshot({ path: `${OUT}/hud-es.png` });
   },
+  async panels(page) {
+    // The HUD, gutter and uptime strip are opaque: a click on them must not reach the field behind them.
+    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.filter((p) => !p.entering && !p.doomed).length >= 2, null, { timeout: 20000 });
+    const [a, lane] = await page.evaluate(() => {
+      const app = window.__nsp.app;
+      const [held, hidden] = app.run.state.packets.filter((p) => !p.entering && !p.doomed);
+      held.x = 300;
+      hidden.x = -150;
+      app.dispatch(app.run.target(held.id));
+      return [held.id, hidden.lane];
+    });
+    const clickAt = async (x, y) => {
+      const pt = await page.evaluate(([lx, ly]) => {
+        const r = document.querySelector('#stage canvas').getBoundingClientRect(), k = r.width / 1280;
+        return { x: r.left + lx * k, y: r.top + ly * k };
+      }, [x, y]);
+      await page.mouse.click(pt.x, pt.y);
+      return page.evaluate(() => window.__nsp.app.run.state.locked);
+    };
+    const spots = { 'gutter over a hidden card': [60, 56 + lane * 90 + 45], hud: [60, 28], 'uptime strip': [640, 521] };
+    for (const [name, [x, y]] of Object.entries(spots)) {
+      const locked = await clickAt(x, y);
+      if (locked !== a) throw new Error(`a click on the ${name} changed the target from ${a} to ${locked}`);
+    }
+  },
+  async floats(page) {
+    // A float freezes with the game: paused mid-rise it stays put, and on resume it finishes and goes away.
+    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
+    const top = () => page.evaluate(() => {
+      const f = [...document.querySelectorAll('#ui .float')].find((e) => e.textContent === '+777');
+      return f ? f.getBoundingClientRect().top : null;
+    });
+    await page.evaluate(() => window.__nsp.app.dispatch([{ type: 'float', at: 'packet', x: 400, y: 200, kind: 'points', value: 777 }]));
+    const start = await top();
+    await page.waitForTimeout(300);
+    await page.keyboard.press('p');
+    const paused = await top();
+    await page.waitForTimeout(1500);
+    const later = await top();
+    if (paused === null || paused === start || later !== paused) throw new Error(`paused float: ${start} -> ${paused} -> ${later}`);
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => ![...document.querySelectorAll('#ui .float')].some((e) => e.textContent === '+777'), null, { timeout: 3000 });
+  },
 };
 
 const waitForServer = async () => {

@@ -13,17 +13,25 @@ import { el } from './dom';
 
 const SEGS = 50;
 const GARBAGE = '█▓▒░#%&@$!?¿¥§¤ØÆ';
+const SCRAMBLE_SECS = 0.5;
+const GLITCH_SECS = 0.045;
 const segOf = (u: number): number => Math.ceil((u / 100) * SEGS);
+const glyph = (): string => GARBAGE[Math.floor(Math.random() * GARBAGE.length)];
+const garbage = (u: number): string =>
+  Math.random() < 0.4 ? `${glyph()}${String(u).slice(-1)}${glyph()}` : `${glyph()}${glyph()}${Math.random() < 0.5 ? '%' : glyph()}`;
 
 // Full-width uptime bar that tears, scrambles and turns to static on every breach.
+// The scramble and the settle run on the view clock, so they freeze with the game when it pauses.
 export class UptimeStrip implements View {
   private readonly box: HTMLElement;
   private readonly label: HTMLElement;
   private readonly segs: HTMLElement;
   private readonly num: HTMLElement;
   private uptime = 100;
-  private scramble: number | null = null;
-  private settle: number | null = null;
+  private now = 0;
+  private scrambleEnd: number | null = null;
+  private nextGlitch = 0;
+  private settleAt: number | null = null;
 
   constructor(ui: HTMLElement) {
     this.box = el('div', 'hpstrip', ui);
@@ -39,17 +47,10 @@ export class UptimeStrip implements View {
 
   // A new run must not inherit the last run's scramble or a pending settle.
   start(): void {
-    this.stopScramble();
-    if (this.settle !== null) clearTimeout(this.settle);
-    this.settle = null;
+    this.scrambleEnd = null;
     this.box.classList.remove('hit');
     this.uptime = 100;
     this.render();
-  }
-
-  private stopScramble(): void {
-    if (this.scramble !== null) clearInterval(this.scramble);
-    this.scramble = null;
   }
 
   // With `before`, the segments just lost (or healed) flash first, then settle into the plain bar.
@@ -59,11 +60,8 @@ export class UptimeStrip implements View {
       if (healed) return `<i class="${i < had ? '' : i < full ? 'healed' : 'lost'}"></i>`;
       return `<i class="${i < full ? '' : i < had ? 'lost fresh' : 'lost'}"></i>`;
     }).join('');
-    if (before !== undefined) {
-      if (this.settle !== null) clearTimeout(this.settle);
-      this.settle = window.setTimeout(() => { this.settle = null; this.render(); }, healed ? 900 : 650);
-    }
-    if (this.scramble === null) this.num.textContent = `${this.uptime}%`;
+    this.settleAt = before === undefined ? null : this.now + (healed ? 0.9 : 0.65);
+    if (this.scrambleEnd === null) this.num.textContent = `${this.uptime}%`;
     this.box.classList.toggle('low', this.uptime < 35);
   }
 
@@ -75,17 +73,19 @@ export class UptimeStrip implements View {
     this.box.classList.remove('hit');
     void this.box.offsetWidth;
     this.box.classList.add('hit');
-    let n = 0;
-    this.stopScramble();
-    this.scramble = window.setInterval(() => {
-      if (++n > 10) { this.stopScramble(); this.num.textContent = `${this.uptime}%`; return; }
-      const g = (): string => GARBAGE[Math.floor(Math.random() * GARBAGE.length)];
-      this.num.textContent = Math.random() < 0.4 ? `${g()}${String(this.uptime).slice(-1)}${g()}` : `${g()}${g()}${Math.random() < 0.5 ? '%' : g()}`;
-    }, 45);
+    this.scrambleEnd = this.now + SCRAMBLE_SECS;
+    this.nextGlitch = this.now + GLITCH_SECS;
+    this.num.textContent = garbage(this.uptime);
     this.render(before);
   }
 
-  frame(run: Run | null): void {
-    if (run && run.state.uptime !== this.uptime && this.scramble === null) { this.uptime = run.state.uptime; this.render(); }
+  frame(run: Run | null, _dt: number, time: number): void {
+    this.now = time;
+    if (this.scrambleEnd !== null) {
+      if (time >= this.scrambleEnd) { this.scrambleEnd = null; this.num.textContent = `${this.uptime}%`; }
+      else if (time >= this.nextGlitch) { this.nextGlitch = time + GLITCH_SECS; this.num.textContent = garbage(this.uptime); }
+    }
+    if (this.settleAt !== null && time >= this.settleAt) this.render();
+    if (run && run.state.uptime !== this.uptime && this.scrambleEnd === null) { this.uptime = run.state.uptime; this.render(); }
   }
 }

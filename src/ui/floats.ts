@@ -19,6 +19,11 @@ const CLS: Record<FloatKind, string> = {
 export class Floats implements View {
   constructor(private readonly ui: HTMLElement) {}
 
+  // A new run starts without the last run's pop-ups.
+  start(): void {
+    this.ui.querySelectorAll('.float').forEach((f) => f.remove());
+  }
+
   event(ev: RunEvent): void {
     if (ev.type !== 'float') return;
     const text = {
@@ -34,6 +39,7 @@ export class Floats implements View {
     const f = el('div', `float ${CLS[ev.kind]}`, this.ui, text);
     if (ev.at === 'rack') { f.style.right = '14px'; f.style.top = `${FIELD_TOP + 36 + Math.random() * 110}px`; }
     else { f.style.left = `${Math.max(116, Math.min(ev.x, 1100))}px`; f.style.top = `${FIELD_TOP + ev.y}px`; }
-    setTimeout(() => f.remove(), 1200);
+    // Gone when its rise ends, not on a wall clock: a paused game freezes the rise and keeps it on screen.
+    f.addEventListener('animationend', () => f.remove());
   }
 }
