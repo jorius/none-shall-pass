@@ -1,0 +1,87 @@
+// core
+import { BRUTE_IPS, ENTER_MULT, FW_X, HOLD_MULT, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, TAR_MULT } from './constants';
+import { TEMPLATES } from './content/packets';
+import { waveFor, type WaveDef } from './content/waves';
+import type { RunEvent } from './events';
+import { kill, resolve, untarget } from './outcomes';
+import { docIp, pick, type Rng } from './rng';
+import { firewallRule, lockdownBlocks, tarpitSlows } from './rules';
+import { packetSpeed, type Packet, type RunState } from './state';
+import type { Template } from './types';
+
+const weightIn = (def: WaveDef, t: Template): number => {
+  if (def.only && !def.only.includes(t.kind)) return 0;
+  return t.weight * (def.boost[t.kind] ?? 1) * (t.tier === 3 ? def.tier3Mult : 1);
+};
+
+export const pickTemplate = (rng: Rng, def: WaveDef): Template => {
+  const total = TEMPLATES.reduce((a, t) => a + weightIn(def, t), 0);
+  let r = rng() * total;
+  for (const t of TEMPLATES) {
+    const w = weightIn(def, t);
+    if (w <= 0) continue;
+    r -= w;
+    if (r < 0) return t;
+  }
+  return TEMPLATES.filter((t) => weightIn(def, t) > 0).at(-1)!;
+};
+
+export const spawn = (s: RunState, rng: Rng, ev: RunEvent[]): Packet | null => {
+  const def = waveFor(s.cfg.mode, s.wave);
+  const startX = LANE_X0 - PKT_W;
+  for (let tries = 0; tries < 5; tries++) {
+    const t = pickTemplate(rng, def);
+    if (s.packets.some((p) => !p.dead && p.lane === t.lane && p.x < startX + PKT_W + SPAWN_GAP)) continue;
+    const src = t.fixedSrc ?? (t.kind === 'brute' && rng() < 0.6 ? pick(rng, BRUTE_IPS) : docIp(rng));
+    if (t.lane <= 1) s.seen[src] = (s.seen[src] ?? 0) + 1;
+    const p: Packet = { id: s.nextId++, t, src, lane: t.lane, x: startX, checked: false, entering: false, doomed: false, held: false, slowed: false, dead: false };
+    s.packets.push(p);
+    ev.push({ type: 'spawned', packet: p });
+    return p;
+  }
+  return null;
+};
+
+export const stepPackets = (s: RunState, dt: number, ev: RunEvent[]): void => {
+  const base = packetSpeed(s);
+  for (const p of s.packets) {
+    if (s.phase !== 'playing') return;
+    if (p.dead) continue;
+    let v = base;
+    if (p.entering) v *= ENTER_MULT;
+    else {
+      if (p.held) v *= HOLD_MULT;
+      p.slowed = tarpitSlows(p, s.owned, s.seen);
+      if (p.slowed) v *= TAR_MULT;
+    }
+    p.x += v * dt;
+    if (!p.checked && lockdownBlocks(p.t, s.owned) && p.x + PKT_W >= LOCK_X) {
+      p.checked = true;
+      kill(s, p, 'rule', ev, 'lockdown');
+      continue;
+    }
+    if (!p.checked && p.x + PKT_W >= FW_X) {
+      p.checked = true;
+      const rule = firewallRule(p, s.owned, s.fails);
+      if (rule) { kill(s, p, 'rule', ev, rule); continue; }
+      p.entering = true;
+      if (s.locked === p.id) untarget(s, ev);
+      ev.push({ type: 'entered', packetId: p.id });
+    }
+    if (p.entering && p.x >= FW_X) {
+      p.dead = true;
+      s.pending.push({ packet: p, t: RESOLVE_DELAY });
+      ev.push({ type: 'consumed', packetId: p.id });
+    }
+  }
+};
+
+export const stepPending = (s: RunState, dt: number, ev: RunEvent[]): void => {
+  for (const q of s.pending) q.t -= dt;
+  const due = s.pending.filter((q) => q.t <= 0);
+  s.pending = s.pending.filter((q) => q.t > 0);
+  for (const q of due) {
+    if (s.phase !== 'playing') return;
+    resolve(s, q.packet, ev);
+  }
+};
