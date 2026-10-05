@@ -65,6 +65,7 @@ export const stepPackets = (s: RunState, dt: number, ev: RunEvent[]): void => {
       const rule = firewallRule(p, s.owned, s.fails);
       if (rule) { kill(s, p, 'rule', ev, rule); continue; }
       p.entering = true;
+      p.slowed = false;
       if (s.locked === p.id) untarget(s, ev);
       ev.push({ type: 'entered', packetId: p.id });
     }

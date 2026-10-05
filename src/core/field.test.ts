@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { BASE_SPEED, ENTER_MULT, FW_X, HOLD_MULT, LANE_X0, PKT_W, RESOLVE_DELAY } from './constants';
+import { BASE_SPEED, ENTER_MULT, FW_X, HOLD_MULT, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY } from './constants';
 import { CAMPAIGN } from './content/waves';
 import type { RunEvent } from './events';
 import { pickTemplate, spawn, stepPackets, stepPending } from './field';
@@ -54,7 +54,7 @@ describe('stepPackets', () => {
 
   it('stops scans at the port panel', () => {
     const s = freshState(), ev: RunEvent[] = [];
-    const p = place(s, 'scan-rdp', 826 - PKT_W - 1);
+    const p = place(s, 'scan-rdp', LOCK_X - PKT_W - 1);
     stepPackets(s, 0.1, ev);
     expect(p.dead).toBe(true);
     expect(ev).toContainEqual(expect.objectContaining({ type: 'shattered', by: 'rule', ruleId: 'lockdown' }));
@@ -67,6 +67,7 @@ describe('stepPackets', () => {
     const passes = place(s, 'sqli-encoded', FW_X - PKT_W - 1);
     stepPackets(s, 0.1, ev);
     expect(blocked.dead).toBe(true);
+    expect(ev).toContainEqual(expect.objectContaining({ type: 'shattered', packet: blocked, by: 'rule', ruleId: 'quote' }));
     expect(passes.entering).toBe(true);
     expect(ev).toContainEqual({ type: 'entered', packetId: passes.id });
   });
@@ -77,7 +78,10 @@ describe('stepPackets', () => {
     stepPackets(s, 0.01, ev);
     expect(p.entering).toBe(true);
     const secs = PKT_W / (BASE_SPEED * ENTER_MULT) + 0.05;
-    for (let t = 0; t < secs; t += 1 / 60) stepPackets(s, 1 / 60, ev);
+    let t = 0;
+    for (; t < 0.4; t += 1 / 60) stepPackets(s, 1 / 60, ev);
+    expect(p.dead).toBe(false);
+    for (; t < secs; t += 1 / 60) stepPackets(s, 1 / 60, ev);
     expect(p.dead).toBe(true);
     expect(s.pending.length).toBe(1);
     expect(ev).toContainEqual({ type: 'consumed', packetId: p.id });
@@ -104,6 +108,10 @@ describe('stepPackets', () => {
     stepPackets(s, 1, ev);
     expect(p.slowed).toBe(true);
     expect(p.x).toBeCloseTo(400 + BASE_SPEED * 0.4);
+    p.x = FW_X - PKT_W - 1;
+    stepPackets(s, 0.1, ev);
+    expect(p.entering).toBe(true);
+    expect(p.slowed).toBe(false);
   });
 
   it('stops processing once the run ends mid-step', () => {
@@ -114,5 +122,33 @@ describe('stepPackets', () => {
     stepPackets(s, 0.1, ev);
     stepPending(s, 1, ev);
     expect(s.phase).toBe('ended');
+  });
+
+  it('leaves later packets alone once a rule ends the run', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.owned.push('quote');
+    s.rep = 1;
+    place(s, 'legit-oreilly', FW_X - PKT_W - 1);
+    const next = place(s, 'legit-socks', FW_X - PKT_W - 1);
+    stepPackets(s, 0.1, ev);
+    expect(s.endReason).toBe('usersGone');
+    expect(next.x).toBe(FW_X - PKT_W - 1);
+    expect(next.checked).toBe(false);
+    expect(next.entering).toBe(false);
+    expect(ev.some((e) => e.type === 'entered')).toBe(false);
+  });
+});
+
+describe('stepPending', () => {
+  it('stops resolving once a breach ends the run', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.uptime = 1;
+    const a = place(s, 'sqli-union', FW_X), b = place(s, 'sqli-tautology', FW_X);
+    a.dead = true; b.dead = true;
+    s.pending.push({ packet: a, t: 0.1 }, { packet: b, t: 0.1 });
+    stepPending(s, 1, ev);
+    expect(s.endReason).toBe('serverDown');
+    expect(ev.filter((e) => e.type === 'resolved').length).toBe(1);
+    expect(s.stats.breaches.sqli).toBe(1);
   });
 });
