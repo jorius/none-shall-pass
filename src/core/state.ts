@@ -18,6 +18,7 @@ export interface Packet {
   entering: boolean;
   doomed: boolean;
   held: boolean;
+  heldOnce: boolean;
   slowed: boolean;
   dead: boolean;
 }

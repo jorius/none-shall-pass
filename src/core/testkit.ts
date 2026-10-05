@@ -8,7 +8,7 @@ export const freshState = (over: Partial<RunConfig> = {}): RunState => createSta
 
 export const place = (s: RunState, templateId: string, x: number, src = '192.0.2.10'): Packet => {
   const t = templateById(templateId);
-  const p: Packet = { id: s.nextId++, t, src, lane: t.lane, x, checked: false, entering: false, doomed: false, held: false, slowed: false, dead: false };
+  const p: Packet = { id: s.nextId++, t, src, lane: t.lane, x, checked: false, entering: false, doomed: false, held: false, heldOnce: false, slowed: false, dead: false };
   s.packets.push(p);
   return p;
 };

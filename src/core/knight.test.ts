@@ -146,11 +146,51 @@ describe('stepKnight', () => {
     s.owned.push('destrier');
     const p = place(s, 'sqli-union', 200);
     target(s, p.id, ev);
-    stepKnight(s, 3, ev);
+    stepKnight(s, HOLD_SECS * 0.6, ev);
     target(s, p.id, ev);
-    stepKnight(s, 2.1, ev);
+    stepKnight(s, HOLD_SECS * 0.4 + 0.1, ev);
     expect(s.locked).toBeNull();
     expect(p.held).toBe(false);
+  });
+
+  it('holds a packet only once: Tab after the hold runs out re-targets without holding', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.owned.push('destrier');
+    const p = place(s, 'sqli-union', 200);
+    target(s, p.id, ev);
+    stepKnight(s, HOLD_SECS + 0.1, ev);
+    cycleTarget(s, 1, ev);
+    expect(s.locked).toBe(p.id);
+    expect(p.held).toBe(false);
+    expect(s.knight.hold).toBe(0);
+  });
+
+  it('cannot renew a hold by cycling away and back', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.owned.push('destrier');
+    const p = place(s, 'sqli-union', 300), o = place(s, 'sqli-sleep', 100);
+    target(s, p.id, ev);
+    stepKnight(s, HOLD_SECS * 0.5, ev);
+    cycleTarget(s, 1, ev);
+    expect(s.locked).toBe(o.id);
+    cycleTarget(s, -1, ev);
+    expect(s.locked).toBe(p.id);
+    expect(p.held).toBe(false);
+    expect(s.knight.hold).toBe(0);
+  });
+
+  it('keeps the lock on a packet he already held and throws from his post', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.owned.push('destrier');
+    const p = place(s, 'sqli-union', 200);
+    target(s, p.id, ev);
+    stepKnight(s, HOLD_SECS + 0.1, ev);
+    cycleTarget(s, 1, ev);
+    for (let i = 0; i < 120; i++) stepKnight(s, 1 / 60, ev);
+    expect(s.locked).toBe(p.id);
+    expect(s.knight.x).toBe(KN_X);
+    throwSpear(s, ev);
+    expect(p.doomed).toBe(true);
   });
 
   it('never rides past his post', () => {

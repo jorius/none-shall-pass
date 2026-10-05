@@ -34,7 +34,7 @@ export const spawn = (s: RunState, rng: Rng, ev: RunEvent[]): Packet | null => {
     if (s.packets.some((p) => !p.dead && p.lane === t.lane && p.x < startX + PKT_W + SPAWN_GAP)) continue;
     const src = t.fixedSrc ?? (t.kind === 'brute' && rng() < 0.6 ? pick(rng, BRUTE_IPS) : docIp(rng));
     if (t.lane <= 1) s.seen[src] = (s.seen[src] ?? 0) + 1;
-    const p: Packet = { id: s.nextId++, t, src, lane: t.lane, x: startX, checked: false, entering: false, doomed: false, held: false, slowed: false, dead: false };
+    const p: Packet = { id: s.nextId++, t, src, lane: t.lane, x: startX, checked: false, entering: false, doomed: false, held: false, heldOnce: false, slowed: false, dead: false };
     s.packets.push(p);
     ev.push({ type: 'spawned', packet: p });
     return p;

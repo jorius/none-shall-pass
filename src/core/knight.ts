@@ -25,7 +25,7 @@ export const target = (s: RunState, id: number | null, ev: RunEvent[]): void => 
   if (s.locked !== null) untarget(s, ev);
   s.locked = id;
   if (s.knight.lane !== p.lane) { s.knight.lane = p.lane; ev.push({ type: 'laneChanged', lane: p.lane }); }
-  if (mounted(s)) { p.held = true; s.knight.hold = HOLD_SECS; }
+  if (mounted(s) && !p.heldOnce) { p.held = true; p.heldOnce = true; s.knight.hold = HOLD_SECS; }
   ev.push({ type: 'targeted', packetId: id });
 };
 
@@ -64,7 +64,8 @@ export const stepKnight = (s: RunState, dt: number, ev: RunEvent[]): void => {
   k.cooldown = Math.max(0, k.cooldown - dt);
   k.throwT = Math.max(0, k.throwT - dt);
   const isMounted = mounted(s);
-  let ride = isMounted && s.locked !== null ? findPacket(s, s.locked) : undefined;
+  const lockedP = isMounted && s.locked !== null ? findPacket(s, s.locked) : undefined;
+  let ride = lockedP?.held ? lockedP : undefined;
   if (ride) {
     k.hold -= dt;
     if (k.hold <= 0) { untarget(s, ev); ride = undefined; }
