@@ -1,0 +1,50 @@
+{
+  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0.75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT" },
+  "lane": { "0": "ssh", "1": "acceso", "2": "búsqueda", "3": "comentarios", "4": "otros puertos" },
+  "uptime": "DISPONIBILIDAD",
+  "actor": { "you": "TÚ", "squire": "ESCUDERO", "target": "OBJETIVO · ESPACIO" },
+  "float": { "tricky": "ENGAÑOSO", "sneaky": "SIGILOSO", "squire": "ESCUDERO", "notFooled": "NO TE ENGAÑARON", "neutralized": "◆ NEUTRALIZADO", "falsePositive": "☹ FALSO POSITIVO", "damage": "−{n}% DISPONIBILIDAD" },
+  "field": { "lockdown": "PUERTOS CERRADOS", "banned": "BLOQUEADAS {n}", "tarpit": "BREA · las IP repetidas se arrastran", "cdn": "CDN · LÍMITE DE PETICIONES", "coach": "↑ ↓ carril · Tab siguiente paquete · Espacio lanza · si no haces nada, pasa" },
+  "family": { "legit": "USUARIO REAL", "sqli": "INYECCIÓN SQL", "xss": "XSS", "brute": "FUERZA BRUTA", "scan": "ESCANEO DE PUERTOS", "flood": "INUNDACIÓN DE BOTNET" },
+  "tier": { "1": "obvio", "2": "engañoso", "3": "sigiloso" },
+  "bug": { "spider": "araña", "worm": "gusano", "beetle": "escarabajo", "fly": "mosca", "gnat": "mosquitos" },
+  "inspector": {
+    "title": "INSPECTOR", "target": "OBJETIVO", "held": "RETENIDO", "bugged": "CON BICHOS · {bug}", "src": "ORIGEN {ip}", "lane": "CARRIL {lane}",
+    "decoded": "DECODIFICADO", "ask": "¿Malicioso o legítimo? Tab o clic para apuntarle.", "askLocked": "Espacio para lanzar. Esc para soltarlo. Si no haces nada, pasa.",
+    "empty1": "↑ ↓ elige un carril, Tab recorre los paquetes que bajan por él, Espacio lanza una lanza.",
+    "empty2": "Pasa el cursor por un paquete para leerlo, por el registro para ver veredictos, o por una mejora para ver qué hace.",
+    "verdict": "VEREDICTO · {family}", "decoy": "parecía peligroso, estaba bien", "loadout": "EQUIPO", "irl": "EN LA VIDA REAL", "catch": "LA TRAMPA"
+  },
+  "log": {
+    "title": "REGISTRO", "hint": "pasa el cursor por una línea para ver el veredicto", "count": "{n} eventos · {m} errores", "all": "TODO", "mistakes": "ERRORES",
+    "hit": "IMPACTO", "squire": "ESCUDERO", "rule": "BLOQUEADO", "served": "ATENDIDO", "neutralized": "NEUTRALIZADO", "breach": "BRECHA", "fp": "FALSO POSITIVO",
+    "youHit": "le diste a un usuario real", "squireHit": "el escudero le dio a un usuario real", "by": "por {rule}", "notFooled": "no te engañaron", "uptimeLoss": "−{n}% disponibilidad"
+  },
+  "draft": {
+    "waveClear": "OLEADA {n} SUPERADA", "stats": "Disponibilidad {u}% · reputación {r}/10 · {c} créditos", "choose": "ELIGE UNA MEJORA", "freeNote": "la primera es gratis",
+    "buyNote": "compra más con créditos, o sigue", "take": "TOMAR · GRATIS", "buy": "COMPRAR · {n} cr", "taken": "TOMADA ✓", "reroll": "BARAJAR · {n} cr", "next": "SIGUIENTE OLEADA ▸",
+    "cat": { "KNIGHT": "CABALLERO", "FIREWALL": "FIREWALL", "SERVER": "SERVIDOR" },
+    "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }
+  },
+  "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "reducedOn": "EFECTOS REDUCIDOS · ON", "reducedOff": "EFECTOS REDUCIDOS · OFF" },
+  "title": {
+    "tagline": "Protege el servidor. Lee los paquetes. Deja pasar a los usuarios reales.", "play": "JUGAR CAMPAÑA", "overtime": "TIEMPO EXTRA",
+    "overtimeLocked": "gana la campaña para desbloquearlo", "howto": "CÓMO JUGAR", "best": "MEJOR", "bestCampaign": "Campaña · nota {g} · {s} pts",
+    "bestOvertime": "Tiempo extra · oleada {w} · {s} pts", "rootOn": "MODO ROOT · paquetes más rápidos, sin pistas, puntaje ×1.5", "site": "jorius.github.io ↗"
+  },
+  "howto": {
+    "title": "CÓMO JUGAR", "back": "VOLVER",
+    "k1": "elige un carril", "k2": "siguiente paquete en ese carril (Shift: anterior)", "k3": "lanza una lanza al objetivo", "k4": "suelta el objetivo",
+    "k5": "haz clic en un paquete para apuntarle", "k6": "pistas: subraya las señales (puntaje ×0.75)", "k7": "pausa",
+    "lesson": "Los paquetes que llegan al muro de fuego se queman dentro de tu servidor. Lancea los ataques, deja pasar a los usuarios reales y gasta los créditos de cada oleada en mejoras que enseñan defensas reales. Las reglas baratas fallan y se equivocan; las soluciones de raíz cuestan más y no dejan fugas."
+  },
+  "debrief": {
+    "won": "SERVIDOR A SALVO", "serverDown": "SERVIDOR CAÍDO", "usersGone": "SIN USUARIOS", "overtimeOver": "FIN DEL TIEMPO EXTRA", "grade": "NOTA", "score": "PUNTAJE", "waves": "OLEADAS",
+    "newBest": "NUEVO RÉCORD", "tampered": "TAMPERED · no se guarda", "hits": "Impactos · obvios / engañosos / sigilosos", "decoys": "Señuelos que dejaste pasar", "squire": "Impactos del escudero",
+    "rules": "Bloqueos por reglas", "served": "Usuarios atendidos", "neutralized": "Neutralizados en el servidor", "fps": "Falsos positivos", "breaches": "Brechas", "uptime": "Disponibilidad restante",
+    "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
+  },
+  "phone": { "title": "Este necesita un teclado.", "body": "None Shall Pass es un juego de escritorio que se juega con las flechas, Tab y Espacio. Envíate el enlace y juégalo en un computador.", "copy": "COPIAR ENLACE", "copied": "COPIADO ✓" },
+  "console": { "title": "root@firewall:~", "greeting": "Escribe help." },
+  "lang": { "toggle": "EN" }
+}

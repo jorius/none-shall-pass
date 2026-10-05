@@ -1,0 +1,50 @@
+{
+  "hud": { "score": "SCORE", "credits": "CREDITS", "reputation": "REPUTATION", "wave": "WAVE", "hintsOn": "HINTS ON ×0.75", "hintsOff": "HINTS OFF", "pause": "PAUSE · P", "root": "ROOT" },
+  "lane": { "0": "ssh", "1": "auth", "2": "query", "3": "user posts", "4": "other ports" },
+  "uptime": "UPTIME",
+  "actor": { "you": "YOU", "squire": "SQUIRE", "target": "TARGET · SPACE" },
+  "float": { "tricky": "TRICKY", "sneaky": "SNEAKY", "squire": "SQUIRE", "notFooled": "NOT FOOLED", "neutralized": "◆ NEUTRALIZED", "falsePositive": "☹ FALSE POSITIVE", "damage": "−{n}% UPTIME" },
+  "field": { "lockdown": "PORT LOCKDOWN", "banned": "BANNED {n}", "tarpit": "TARPIT · repeat IPs crawl", "cdn": "CDN · RATE LIMIT", "coach": "↑ ↓ lane · Tab next packet · Space spear · do nothing and it passes" },
+  "family": { "legit": "REAL USER", "sqli": "SQL INJECTION", "xss": "XSS", "brute": "BRUTE FORCE", "scan": "PORT SCAN", "flood": "BOTNET FLOOD" },
+  "tier": { "1": "obvious", "2": "tricky", "3": "sneaky" },
+  "bug": { "spider": "spider", "worm": "worm", "beetle": "beetle", "fly": "fly", "gnat": "gnats" },
+  "inspector": {
+    "title": "INSPECTOR", "target": "TARGET", "held": "HELD", "bugged": "BUGGED · {bug}", "src": "SRC {ip}", "lane": "LANE {lane}",
+    "decoded": "DECODED", "ask": "Malicious or legit? Tab or click to target it.", "askLocked": "Space to throw. Esc to let it go. Do nothing and it passes.",
+    "empty1": "↑ ↓ pick a lane, Tab cycles the packets coming down it, Space throws a spear.",
+    "empty2": "Hover a packet to read it, the event log for verdicts, or a loadout tile to see what it does.",
+    "verdict": "VERDICT · {family}", "decoy": "looked scary, was fine", "loadout": "LOADOUT", "irl": "IN REAL LIFE", "catch": "THE CATCH"
+  },
+  "log": {
+    "title": "EVENT LOG", "hint": "hover a line for the verdict", "count": "{n} events · {m} mistakes", "all": "ALL", "mistakes": "MISTAKES",
+    "hit": "HIT", "squire": "SQUIRE HIT", "rule": "RULE BLOCKED", "served": "SERVED", "neutralized": "NEUTRALIZED", "breach": "BREACH", "fp": "FALSE POSITIVE",
+    "youHit": "you hit a real user", "squireHit": "the squire hit a real user", "by": "by {rule}", "notFooled": "not fooled", "uptimeLoss": "−{n}% uptime"
+  },
+  "draft": {
+    "waveClear": "WAVE {n} CLEAR", "stats": "Uptime {u}% · reputation {r}/10 · {c} credits", "choose": "CHOOSE AN UPGRADE", "freeNote": "the first pick is free",
+    "buyNote": "buy more with credits, or move on", "take": "TAKE · FREE", "buy": "BUY · {n} cr", "taken": "TAKEN ✓", "reroll": "REROLL · {n} cr", "next": "NEXT WAVE ▸",
+    "cat": { "KNIGHT": "KNIGHT", "FIREWALL": "FIREWALL", "SERVER": "SERVER" },
+    "rarity": { "COMMON": "COMMON", "RARE": "RARE", "LEGENDARY": "LEGENDARY" }
+  },
+  "pause": { "title": "PAUSED", "hint": "P to resume", "resume": "RESUME", "quit": "QUIT TO TITLE", "reducedOn": "REDUCED EFFECTS · ON", "reducedOff": "REDUCED EFFECTS · OFF" },
+  "title": {
+    "tagline": "Guard the server. Read the packets. Let the real users through.", "play": "PLAY CAMPAIGN", "overtime": "OVERTIME",
+    "overtimeLocked": "win the campaign to unlock", "howto": "HOW TO PLAY", "best": "BEST", "bestCampaign": "Campaign · grade {g} · {s} pts",
+    "bestOvertime": "Overtime · wave {w} · {s} pts", "rootOn": "ROOT MODE · faster packets, no hints, ×1.5 score", "site": "jorius.github.io ↗"
+  },
+  "howto": {
+    "title": "HOW TO PLAY", "back": "BACK",
+    "k1": "pick a lane", "k2": "next packet in that lane (Shift: previous)", "k3": "throw a spear at the target", "k4": "let the target go",
+    "k5": "click a packet to target it", "k6": "hints: underline the tells (score ×0.75)", "k7": "pause",
+    "lesson": "Packets that reach the wall of fire burn into your server. Spear the attacks, let real users through, and spend each wave's credits on upgrades that teach real defences. Cheap rules leak and misfire; root-cause fixes cost more and stay clean."
+  },
+  "debrief": {
+    "won": "SERVER HELD", "serverDown": "SERVER DOWN", "usersGone": "USERS GONE", "overtimeOver": "OVERTIME OVER", "grade": "GRADE", "score": "SCORE", "waves": "WAVES",
+    "newBest": "NEW BEST", "tampered": "TAMPERED · not saved", "hits": "Hits · obvious / tricky / sneaky", "decoys": "Decoys let through", "squire": "Squire hits",
+    "rules": "Rule blocks", "served": "Users served", "neutralized": "Neutralized at the server", "fps": "False positives", "breaches": "Breaches", "uptime": "Uptime left",
+    "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "again": "PLAY AGAIN", "toTitle": "TITLE"
+  },
+  "phone": { "title": "This one needs a keyboard.", "body": "None Shall Pass is a desktop game played with the arrow keys, Tab and Space. Send yourself the link and play it on a computer.", "copy": "COPY LINK", "copied": "COPIED ✓" },
+  "console": { "title": "root@firewall:~", "greeting": "Type help." },
+  "lang": { "toggle": "ES" }
+}
