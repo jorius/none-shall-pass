@@ -7,7 +7,7 @@ export interface Bests {
   overtime: Partial<Record<'normal' | 'root', { wave: number; score: number }>>;
   won: boolean;
 }
-export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean }
+export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean; coached?: boolean }
 interface Saved { bests: Bests; prefs: Prefs }
 
 const KEY = 'nsp.v1';

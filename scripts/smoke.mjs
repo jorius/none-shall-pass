@@ -124,6 +124,37 @@ const CHECKS = {
     await page.waitForFunction(() => window.__nsp.app.run.state.log.some((e) => e.ruleId === 'lockdown'), null, { timeout: 30000 });
     await page.screenshot({ path: `${OUT}/objects.png` });
   },
+  async hud(page) {
+    await page.waitForSelector('#ui .hud .title');
+    await page.waitForFunction(() => document.querySelector('#ui .bubble.show'));
+    const text = await page.textContent('#ui .hud');
+    if (!/NONE SHALL PASS/.test(text)) throw new Error('hud missing title');
+    await page.evaluate(() => {
+      const app = window.__nsp.app;
+      app.dispatch([{ type: 'uptime', before: 100, after: 64 }]);
+    });
+    await page.waitForTimeout(120);
+    // An RGBA shot means holes: Chrome once culled bands of the canvas under the UI layer's animated panels.
+    const shot = await page.screenshot({ path: `${OUT}/hud.png` });
+    if (shot[25] === 6) throw new Error('part of the canvas did not draw under the UI layer');
+    const cur = await page.$$eval('#ui .glabel.cur', (a) => a.length);
+    if (cur !== 1) throw new Error('lane highlight missing');
+    // Spanish runs about 110px longer: at its widest (wave 5, hints on, five-digit score) the HUD stays on one line.
+    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForFunction(() => !!window.__nsp?.app?.run);
+    const fit = await page.evaluate(() => {
+      const app = window.__nsp.app;
+      Object.assign(app.run.state, { wave: 5, score: 88888, credits: 8888, hints: true });
+      app.refresh();
+      const hud = document.querySelector('#ui .hud'), k = hud.getBoundingClientRect().width / 1280;
+      const l = hud.querySelector('.hud-l').getBoundingClientRect(), r = hud.querySelector('.hud-r').getBoundingClientRect();
+      const tall = [...hud.querySelectorAll('.hud-l > *, .hud-r > *')].filter((e) => e.getBoundingClientRect().height / k > 32).length;
+      return { tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - hud.getBoundingClientRect().right) / k) };
+    });
+    if (fit.tall || fit.room < 8 || fit.over > 0) throw new Error(`Spanish HUD does not fit: ${JSON.stringify(fit)}`);
+    await page.screenshot({ path: `${OUT}/hud-es.png` });
+  },
 };
 
 const waitForServer = async () => {

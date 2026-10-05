@@ -18,9 +18,17 @@ import { FireWallView } from './game/views/fireWall';
 import { LanesView } from './game/views/lanes';
 import { PacketsView } from './game/views/packets';
 import { RackView } from './game/views/rack';
-import { detectLang, setLang } from './i18n';
+import { detectLang, onLang, setLang } from './i18n';
 import { RENDER_SCALE, SCREEN_H, SCREEN_W } from './stage';
 import { createStore } from './storage';
+import { Bubble } from './ui/bubble';
+import { Coach } from './ui/coach';
+import { el } from './ui/dom';
+import { Floats } from './ui/floats';
+import { Gutter } from './ui/gutter';
+import { Hud } from './ui/hud';
+import { createUiLayer } from './ui/layer';
+import { UptimeStrip } from './ui/uptime';
 
 const loadFonts = (): Promise<unknown> => Promise.race([
   Promise.all([
@@ -61,6 +69,11 @@ const boot = async (): Promise<void> => {
     }),
     effects,
   );
+  const ui = createUiLayer(document.getElementById('stage')!, game.canvas);
+  app.add(new Hud(ui, app), new Gutter(ui), new UptimeStrip(ui), new Bubble(ui), new Floats(ui), new Coach(ui, store));
+  el('div', 'scanlines', ui);
+  app.add({ pause: (p) => ui.classList.toggle('paused', p) });
+  onLang(() => app.refresh());
   (window as unknown as { __nsp: unknown }).__nsp = { game, app };
   // Until the title screen exists (Task 18), boot straight into a campaign.
   app.startRun('campaign');
