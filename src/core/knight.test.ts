@@ -231,4 +231,16 @@ describe('squire', () => {
     stepSquire(s, 0.01, ev);
     expect(s.spears.length).toBe(0);
   });
+
+  it('stops throwing once the run has ended', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.owned.push('squire');
+    s.squire.cd = 0;
+    const obvious = place(s, 'sqli-tautology', 300);
+    s.phase = 'ended';
+    stepSquire(s, 0.01, ev);
+    expect(s.spears.length).toBe(0);
+    expect(obvious.doomed).toBe(false);
+    expect(ev).toEqual([]);
+  });
 });

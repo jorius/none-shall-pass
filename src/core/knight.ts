@@ -95,6 +95,7 @@ export const stepSpears = (s: RunState, dt: number, ev: RunEvent[]): void => {
 };
 
 export const stepSquire = (s: RunState, dt: number, ev: RunEvent[]): void => {
+  if (s.phase !== 'playing') return;
   if (!s.owned.includes('squire')) return;
   s.squire.throwT = Math.max(0, s.squire.throwT - dt);
   s.squire.cd -= dt;

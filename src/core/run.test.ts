@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { STEP } from './constants';
+import { LOCK_X, PKT_W, STEP } from './constants';
 import type { RunEvent } from './events';
 import { Run } from './run';
 import { cfg, place } from './testkit';
@@ -58,6 +58,9 @@ describe('Run', () => {
     run.pick(1);
     expect(s.owned).toContain('obs1');
     expect(s.credits).toBe(450);
+    run.pick(1);
+    expect(s.owned.filter((c) => c === 'obs1').length).toBe(1);
+    expect(s.credits).toBe(450);
     const third = s.draft!.picks[2];
     s.credits = 10;
     run.pick(2);
@@ -76,6 +79,13 @@ describe('Run', () => {
     run.reroll();
     expect(s.credits).toBe(250);
     expect(s.draft!.picks.map((c) => c.id)).not.toContain('destrier');
+    s.draft!.picks[0] = { ...s.draft!.picks[0], id: 'backup', rarity: 'COMMON' };
+    s.credits = 250 + 150 * 20;
+    run.pick(0);
+    for (let i = 0; i < 20; i++) {
+      run.reroll();
+      expect(s.draft!.picks.map((c) => c.id)).not.toContain('backup');
+    }
   });
 
   it('restores uptime with a backup without adding it to the loadout', () => {
@@ -94,11 +104,12 @@ describe('Run', () => {
     run.start();
     run.cheat('god');
     for (let w = 1; w <= 6; w++) {
-      playWave(run);
+      expect(playWave(run).some((e) => e.type === 'spawned')).toBe(true);
       if (w < 6) {
         expect(run.state.phase).toBe('draft');
         const ev = run.nextWave();
         expect(ev[0]).toEqual({ type: 'waveStarted', wave: w + 1 });
+        expect(run.state.draft).toBeNull();
       }
     }
     expect(run.state.phase).toBe('ended');
@@ -132,8 +143,11 @@ describe('Run', () => {
     const ev = run.cheat('skip');
     expect(run.state.tampered).toBe(true);
     expect(ev).toContainEqual({ type: 'waveCleared', wave: 1 });
+    expect(run.state.phase).toBe('draft');
+    expect(run.state.packets).toEqual([]);
+    const before = run.state.credits;
     run.cheat('credits', 900);
-    expect(run.state.credits).toBeGreaterThanOrEqual(900);
+    expect(run.state.credits).toBe(before + 900);
   });
 
   it('applies the hints multiplier from the moment it is switched on', () => {
@@ -146,5 +160,44 @@ describe('Run', () => {
     run.throwSpear();
     for (let i = 0; i < 60; i++) run.step(STEP);
     expect(s.score).toBe(Math.round(50 * 0.75));
+    expect(s.knight.cooldown).toBe(0);
+  });
+
+  it('keeps the wave clock: spawns on cadence, none in the last 4 s, clears only an empty field', () => {
+    const run = new Run(cfg({ seed: 42 }));
+    run.start();
+    const spawnSteps: number[] = [];
+    let i = 0, lastSpawnLeft = Infinity;
+    const ev = playWave(run, (r, e) => {
+      i++;
+      if (e.some((x) => x.type === 'spawned')) { spawnSteps.push(i); lastSpawnLeft = r.state.timeLeft; }
+    });
+    const gaps = spawnSteps.slice(1).map((n, k) => (n - spawnSteps[k]) * STEP);
+    expect(Math.min(...gaps)).toBeGreaterThan(1.4 - 2 * STEP);
+    expect(lastSpawnLeft).toBeGreaterThan(4);
+    expect(run.state.log.length).toBe(ev.filter((e) => e.type === 'spawned').length);
+  });
+
+  it('waits for a spear still in flight before clearing the wave', () => {
+    const run = new Run(cfg({ seed: 1 }));
+    run.start();
+    const s = run.state;
+    s.timeLeft = 0;
+    const scan = place(s, 'scan-telnet', LOCK_X - PKT_W - 1);
+    run.target(scan.id);
+    run.throwSpear();
+    const ev = playWave(run);
+    const missed = ev.findIndex((e) => e.type === 'missed' && e.packetId === scan.id);
+    expect(missed).toBeGreaterThanOrEqual(0);
+    expect(missed).toBeLessThan(ev.findIndex((e) => e.type === 'waveCleared'));
+    expect(s.spears).toEqual([]);
+  });
+
+  it('steps the squire as part of the run', () => {
+    const run = new Run(cfg({ seed: 42 }));
+    run.start();
+    run.state.owned.push('squire');
+    playWave(run);
+    expect(run.state.stats.squireHits).toBeGreaterThan(0);
   });
 });
