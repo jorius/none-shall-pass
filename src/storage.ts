@@ -11,24 +11,44 @@ export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean }
 interface Saved { bests: Bests; prefs: Prefs }
 
 const KEY = 'nsp.v1';
+const SLOTS = ['normal', 'root'] as const;
+const GRADES: readonly string[] = ['S', 'A', 'B', 'C', 'D', 'F'] satisfies Grade[];
 const empty = (): Saved => ({ bests: { campaign: {}, overtime: {}, won: false }, prefs: {} });
 
+const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
+const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+
+// A hand-edited or corrupted save keeps only the fields that still have the right shape.
 const parse = (raw: string | null): Saved => {
-  if (!raw) return empty();
-  try {
-    const v = JSON.parse(raw) as Partial<Saved>;
-    const e = empty();
-    return {
-      bests: { campaign: { ...v.bests?.campaign }, overtime: { ...v.bests?.overtime }, won: v.bests?.won === true },
-      prefs: { ...e.prefs, ...v.prefs },
-    };
-  } catch {
-    return empty();
+  const out = empty();
+  let v: unknown;
+  try { v = raw ? JSON.parse(raw) : null; } catch { return out; }
+  if (!isObj(v)) return out;
+  const b = isObj(v.bests) ? v.bests : {};
+  const camp = isObj(b.campaign) ? b.campaign : {}, over = isObj(b.overtime) ? b.overtime : {};
+  for (const slot of SLOTS) {
+    const c = camp[slot], o = over[slot];
+    if (isObj(c) && isNum(c.score) && typeof c.grade === 'string' && GRADES.includes(c.grade)) {
+      out.bests.campaign[slot] = { score: c.score, grade: c.grade as Grade };
+    }
+    if (isObj(o) && isNum(o.wave) && isNum(o.score)) out.bests.overtime[slot] = { wave: o.wave, score: o.score };
   }
+  out.bests.won = b.won === true;
+  // Every pref except the language is a flag, including ones added later.
+  const prefs = out.prefs as Record<string, unknown>;
+  for (const [k, x] of Object.entries(isObj(v.prefs) ? v.prefs : {})) {
+    if (k === 'lang' ? x === 'en' || x === 'es' : typeof x === 'boolean') prefs[k] = x;
+  }
+  return out;
+};
+
+// Merely reading `localStorage` throws when the browser blocks site data or sandboxes the page.
+const browserStorage = (): Storage | null => {
+  try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; }
 };
 
 // localStorage can be missing, blocked, full or hold garbage; the game must play anyway.
-export const createStore = (backend: Storage | null = typeof localStorage === 'undefined' ? null : localStorage) => {
+export const createStore = (backend: Storage | null = browserStorage()) => {
   let data: Saved;
   try { data = parse(backend?.getItem(KEY) ?? null); } catch { data = empty(); }
   const save = (): void => { try { backend?.setItem(KEY, JSON.stringify(data)); } catch { /* keep in memory */ } };

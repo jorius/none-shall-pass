@@ -71,4 +71,81 @@ describe('store', () => {
     createStore(m).setPrefs({ hints: true, lang: 'en' });
     expect(createStore(m).prefs()).toEqual({ hints: true, lang: 'en' });
   });
+
+  it('remembers bests and their grade across instances, and only a win marks the campaign won', () => {
+    const m = memory();
+    const st = createStore(m);
+    st.recordResult(result({ won: false, reason: 'serverDown', uptime: 0, score: 700 }));
+    expect(st.bests().won).toBe(false);
+    st.recordResult(result({ score: 1200 }));
+    st.recordResult(result({ mode: 'overtime', wave: 3, score: 50, won: false, reason: 'serverDown' }));
+    expect(createStore(m).bests()).toEqual({ campaign: { normal: { score: 1200, grade: 'S' } }, overtime: { normal: { wave: 3, score: 50 } }, won: true });
+  });
+
+  it('breaks an overtime wave tie on score', () => {
+    const st = createStore(memory());
+    const ot = (wave: number, score: number): RunResult => result({ mode: 'overtime', wave, score, won: false, reason: 'serverDown' });
+    st.recordResult(ot(5, 100));
+    expect(st.recordResult(ot(5, 90)).newBest).toBe(false);
+    expect(st.recordResult(ot(5, 200)).newBest).toBe(true);
+    expect(st.recordResult(ot(4, 9000)).newBest).toBe(false);
+    expect(st.bests().overtime.normal).toEqual({ wave: 5, score: 200 });
+  });
+});
+
+// Swaps the global localStorage for one test and always puts the original back.
+const withGlobalStorage = (desc: PropertyDescriptor, fn: () => void): void => {
+  const prev = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, ...desc });
+  try {
+    fn();
+  } finally {
+    if (prev) Object.defineProperty(globalThis, 'localStorage', prev);
+    else Reflect.deleteProperty(globalThis, 'localStorage');
+  }
+};
+
+describe('store against a hostile browser', () => {
+  it('uses the browser localStorage by default', () => {
+    const m = memory();
+    withGlobalStorage({ value: m }, () => { createStore().setPrefs({ hints: true }); });
+    expect(createStore(m).prefs()).toEqual({ hints: true });
+  });
+
+  it('plays on when merely reading localStorage throws', () => {
+    // Sandboxed iframes and blocked site data throw from the localStorage getter itself, before any call.
+    withGlobalStorage({ get() { throw new DOMException('denied', 'SecurityError'); } }, () => {
+      const st = createStore();
+      expect(st.recordResult(result({})).newBest).toBe(true);
+      expect(st.bests().campaign.normal?.score).toBe(1000);
+    });
+  });
+
+  it('drops saved values of the wrong shape and keeps the rest', () => {
+    const m = memory();
+    m.setItem('nsp.v1', JSON.stringify({
+      bests: {
+        campaign: { normal: { score: 'lots', grade: 'S' }, root: { score: 4000, grade: 'A' } },
+        overtime: { normal: { wave: null, score: 1 }, root: 7 },
+        won: 'yes',
+      },
+      prefs: { lang: 'fr', hints: 'yes', reducedFx: true },
+    }));
+    const st = createStore(m);
+    expect(st.bests()).toEqual({ campaign: { root: { score: 4000, grade: 'A' } }, overtime: {}, won: false });
+    expect(st.prefs()).toEqual({ reducedFx: true });
+    expect(st.recordResult(result({ score: 10 })).newBest).toBe(true);
+    for (const raw of ['null', '[]', '"x"', '42', '{"bests":"x","prefs":[true]}', '{"bests":{"campaign":{"normal":{"score":5,"grade":"Z"}}}}']) {
+      m.setItem('nsp.v1', raw);
+      expect(createStore(m).bests()).toEqual({ campaign: {}, overtime: {}, won: false });
+      expect(createStore(m).prefs()).toEqual({});
+    }
+  });
+
+  it('keeps boolean prefs it does not know yet', () => {
+    // Later prefs (the coach's seen-flag) are booleans too, so they survive without touching the validator.
+    const m = memory();
+    m.setItem('nsp.v1', '{"prefs":{"lang":"es","coached":true}}');
+    expect(createStore(m).prefs()).toEqual({ lang: 'es', coached: true });
+  });
 });

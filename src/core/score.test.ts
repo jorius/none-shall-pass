@@ -25,6 +25,18 @@ describe('grade', () => {
     expect(grade(base({ won: false, reason: 'serverDown', uptime: 0 }))).toBe('F');
     expect(grade(base({ won: false, reason: 'usersGone' }))).toBe('F');
   });
+  it('applies each threshold at its exact edge', () => {
+    const oneBreach = base({ uptime: 90 });
+    oneBreach.stats = { ...oneBreach.stats, breaches: { ...oneBreach.stats.breaches, scan: 1 } };
+    expect(grade(oneBreach)).toBe('S');
+    const twoFps = base({ uptime: 75 }); twoFps.stats = { ...twoFps.stats, falsePositives: 2 };
+    expect(grade(twoFps)).toBe('A');
+    expect(grade(base({ uptime: 74 }))).toBe('B');
+    expect(grade(base({ uptime: 50 }))).toBe('B');
+    expect(grade(base({ uptime: 49 }))).toBe('C');
+    expect(grade(base({ uptime: 25 }))).toBe('C');
+    expect(grade(base({ uptime: 24 }))).toBe('D');
+  });
   it('has no grade in overtime', () => {
     expect(grade(base({ mode: 'overtime' }))).toBeNull();
   });
