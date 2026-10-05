@@ -11,9 +11,9 @@
   "inspector": {
     "title": "INSPECTOR", "target": "OBJETIVO", "held": "RETENIDO", "bugged": "CON BICHOS · {bug}", "src": "ORIGEN {ip}", "lane": "CARRIL {lane}",
     "decoded": "DECODIFICADO", "ask": "¿Malicioso o legítimo? Tab o clic para apuntarle.", "askLocked": "Espacio para lanzar. Esc para soltarlo. Si no haces nada, pasa.",
-    "empty1": "↑ ↓ elige un carril, Tab recorre los paquetes que bajan por él, Espacio lanza una lanza.",
+    "empty1": "↑ ↓ elige un carril, Tab recorre los paquetes que bajan por él, Espacio arroja una lanza.",
     "empty2": "Pasa el cursor por un paquete para leerlo, por el registro para ver veredictos, o por una mejora para ver qué hace.",
-    "verdict": "VEREDICTO · {family}", "decoy": "parecía peligroso, estaba bien", "loadout": "EQUIPO", "irl": "EN LA VIDA REAL", "catch": "LA TRAMPA"
+    "verdict": "VEREDICTO · {family}", "decoy": "parecía peligroso, estaba bien", "loadout": "EQUIPO", "irl": "EN LA VIDA REAL", "catch": "EL PERO"
   },
   "log": {
     "title": "REGISTRO", "hint": "pasa el cursor por una línea para ver el veredicto", "count": "{n} eventos · {m} errores", "all": "TODO", "mistakes": "ERRORES",
@@ -34,7 +34,7 @@
   },
   "howto": {
     "title": "CÓMO JUGAR", "back": "VOLVER",
-    "k1": "elige un carril", "k2": "siguiente paquete en ese carril (Shift: anterior)", "k3": "lanza una lanza al objetivo", "k4": "suelta el objetivo",
+    "k1": "elige un carril", "k2": "siguiente paquete en ese carril (Shift: anterior)", "k3": "arroja una lanza al objetivo", "k4": "suelta el objetivo",
     "k5": "haz clic en un paquete para apuntarle", "k6": "pistas: subraya las señales (puntaje ×0.75)", "k7": "pausa",
     "lesson": "Los paquetes que llegan al muro de fuego se queman dentro de tu servidor. Lancea los ataques, deja pasar a los usuarios reales y gasta los créditos de cada oleada en mejoras que enseñan defensas reales. Las reglas baratas fallan y se equivocan; las soluciones de raíz cuestan más y no dejan fugas."
   },
