@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { isCheat, runCommand } from './console';
+import { HELP, isCheat, MAN, runCommand } from './console';
 
 const en = { lang: 'en' as const, owned: ['lockdown'] as const };
 const es = { lang: 'es' as const, owned: [] as const };
@@ -23,6 +23,30 @@ describe('runCommand', () => {
     expect(runCommand('man xss', es).lines.join(' ')).toContain('Content-Security-Policy');
     expect(runCommand('man', en).lines[0]).toContain('man sqli');
     expect(runCommand('man nothing', en).lines[0]).toContain('man sqli');
+    expect(runCommand('man xss', en).lines.join(' ')).toContain('encode for the output context; allow only http(s) links');
+    expect(runCommand('man xss', es).lines.join(' ')).toContain('codifica según el contexto de salida; permite solo enlaces http(s)');
+  });
+
+  it('does not read man pages off the object prototype', () => {
+    for (const name of ['constructor', '__proto__', 'CONSTRUCTOR', '__PROTO__']) {
+      expect(runCommand(`man ${name}`, en).lines, name).toEqual(['What manual page do you want? Try: man sqli']);
+    }
+  });
+
+  it('hands out copies, so a caller editing a reply cannot change the next one', () => {
+    for (const cmd of ['help', 'man sqli']) {
+      const first = runCommand(cmd, en);
+      const before = [...first.lines];
+      first.lines.push('tampered');
+      first.lines[0] = 'tampered';
+      expect(runCommand(cmd, en).lines, cmd).toEqual(before);
+    }
+  });
+
+  it('has every console table in both languages, line for line', () => {
+    expect(Object.keys(MAN).length).toBeGreaterThan(0);
+    expect(HELP.es.length).toBe(HELP.en.length);
+    for (const [name, page] of Object.entries(MAN)) expect(page.es.length, name).toBe(page.en.length);
   });
 
   it('reflects port lockdown in nmap', () => {

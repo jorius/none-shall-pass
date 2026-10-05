@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 // core
 import { konamiMatcher, KONAMI, routeKey } from './keys';
 
-const k = (key: string, over: { shiftKey?: boolean; inField?: boolean } = {}) => ({ key, shiftKey: false, inField: false, ...over });
+type KeyOver = Partial<{ code: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; repeat: boolean; inField: boolean }>;
+const k = (key: string, over: KeyOver = {}) => ({ key, shiftKey: false, inField: false, ...over });
 
 describe('routeKey', () => {
   it('maps play keys', () => {
@@ -40,6 +41,38 @@ describe('routeKey', () => {
     expect(routeKey(k(' '), 'draft')).toBeNull();
     expect(routeKey(k('`'), 'title')).toBeNull();
   });
+
+  it('finds the backtick by its physical key on layouts where it is a dead key', () => {
+    const dead = (over: KeyOver = {}) => k('Dead', { code: 'Backquote', ...over });
+    expect(routeKey(dead(), 'playing')).toBe('console');
+    expect(routeKey(dead(), 'paused')).toBe('console');
+    expect(routeKey(dead(), 'console')).toBe('closeConsole');
+    expect(routeKey(dead({ inField: true }), 'console')).toBe('closeConsole');
+    expect(routeKey(dead(), 'title')).toBeNull();
+    expect(routeKey(dead({ inField: true }), 'playing')).toBeNull();
+    expect(routeKey(k('Dead'), 'playing')).toBeNull();
+  });
+
+  it('ignores shortcuts held with Ctrl or Meta', () => {
+    for (const mod of [{ ctrlKey: true }, { metaKey: true }]) {
+      expect(routeKey(k('p', mod), 'playing')).toBeNull();
+      expect(routeKey(k('p', mod), 'paused')).toBeNull();
+      expect(routeKey(k('`', mod), 'playing')).toBeNull();
+      expect(routeKey(k('ArrowUp', mod), 'playing')).toBeNull();
+    }
+    expect(routeKey(k('p', { ctrlKey: false, metaKey: false }), 'playing')).toBe('pause');
+  });
+
+  it('lets held keys move and cycle but never toggle or fire twice', () => {
+    const held = (key: string, over: KeyOver = {}) => k(key, { repeat: true, ...over });
+    expect(routeKey(held('ArrowUp'), 'playing')).toBe('laneUp');
+    expect(routeKey(held('ArrowDown'), 'playing')).toBe('laneDown');
+    expect(routeKey(held('Tab'), 'playing')).toBe('next');
+    expect(routeKey(held('Tab', { shiftKey: true }), 'playing')).toBe('prev');
+    for (const key of [' ', 'h', 'p', '`']) expect(routeKey(held(key), 'playing'), key).toBeNull();
+    for (const key of ['p', 'Escape', '`']) expect(routeKey(held(key), 'paused'), key).toBeNull();
+    for (const key of ['Escape', '`']) expect(routeKey(held(key), 'console'), key).toBeNull();
+  });
 });
 
 describe('konamiMatcher', () => {
@@ -53,5 +86,9 @@ describe('konamiMatcher', () => {
   it('does not fire on a broken code', () => {
     const m = konamiMatcher();
     expect(['ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'].some((key) => m(key))).toBe(false);
+  });
+  it('does not fire when the letters come in the wrong order', () => {
+    const m = konamiMatcher();
+    expect([...KONAMI.slice(0, 8), 'a', 'b'].some((key) => m(key))).toBe(false);
   });
 });

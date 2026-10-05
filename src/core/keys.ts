@@ -1,10 +1,17 @@
 export type Screen = 'title' | 'howto' | 'playing' | 'paused' | 'draft' | 'console' | 'debrief';
 export type Action = 'laneUp' | 'laneDown' | 'next' | 'prev' | 'throw' | 'release' | 'hints' | 'pause' | 'console' | 'closeConsole' | null;
+export type KeyInput = { key: string; code?: string; shiftKey: boolean; ctrlKey?: boolean; metaKey?: boolean; repeat?: boolean; inField: boolean };
 
-export const routeKey = (k: { key: string; shiftKey: boolean; inField: boolean }, screen: Screen): Action => {
-  if (screen === 'console') return k.key === 'Escape' || k.key === '`' ? 'closeConsole' : null;
+// A held key may keep moving lanes or cycling targets, but must not toggle a screen or throw again.
+const NO_REPEAT: ReadonlySet<Action> = new Set<Action>(['console', 'closeConsole', 'pause', 'hints', 'throw']);
+
+// Spanish and Latin American layouts report the backtick as a 'Dead' key, so the physical key counts too.
+const isBacktick = (k: KeyInput): boolean => k.key === '`' || k.code === 'Backquote';
+
+const route = (k: KeyInput, screen: Screen): Action => {
+  if (screen === 'console') return k.key === 'Escape' || isBacktick(k) ? 'closeConsole' : null;
   if (k.inField) return null;
-  if (k.key === '`') return screen === 'playing' || screen === 'paused' ? 'console' : null;
+  if (isBacktick(k)) return screen === 'playing' || screen === 'paused' ? 'console' : null;
   if (screen === 'paused') return k.key === 'p' || k.key === 'P' || k.key === 'Escape' ? 'pause' : null;
   if (screen !== 'playing') return null;
   switch (k.key) {
@@ -17,6 +24,13 @@ export const routeKey = (k: { key: string; shiftKey: boolean; inField: boolean }
     case 'p': case 'P': return 'pause';
     default: return null;
   }
+};
+
+export const routeKey = (k: KeyInput, screen: Screen): Action => {
+  // Browser and OS shortcuts (Ctrl+P prints, Cmd+H hides) are never game input.
+  if (k.ctrlKey || k.metaKey) return null;
+  const action = route(k, screen);
+  return k.repeat && NO_REPEAT.has(action) ? null : action;
 };
 
 export const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a'] as const;

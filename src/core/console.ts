@@ -5,21 +5,21 @@ import type { Lang } from './types';
 export type ConsoleEffect = { kind: 'clear' } | { kind: 'exit' } | { kind: 'glitch' } | { kind: 'god' } | { kind: 'skip' } | { kind: 'credits'; amount: number };
 export interface ConsoleReply { lines: string[]; effect?: ConsoleEffect }
 
-const T = <A extends string[]>(en: A, es: A) => ({ en, es });
+const T = <A extends readonly string[]>(en: A, es: A) => ({ en, es });
 
-const HELP = T(
+export const HELP = T(
   ['commands:', '  help                 this list', '  whoami               who you are', '  man <attack>         sqli · xss · brute · scan · flood', '  nmap shop.example    what answers from outside', '  clear · exit'],
   ['comandos:', '  help                 esta lista', '  whoami               quién eres', '  man <ataque>         sqli · xss · brute · scan · flood', '  nmap shop.example    qué responde desde afuera', '  clear · exit'],
 );
 
-const MAN: Record<string, { en: string[]; es: string[] }> = {
+export const MAN: Record<string, { en: readonly string[]; es: readonly string[] }> = {
   sqli: T(
     ['SQLI(7)  SQL injection', "Input spliced into a query becomes part of it: ' OR 1=1-- matches every row.", 'Fix: prepared statements; allow-list identifiers such as sort columns.'],
     ['SQLI(7)  inyección SQL', "La entrada pegada en una consulta se vuelve parte de ella: ' OR 1=1-- coincide con todas las filas.", 'Solución: sentencias preparadas; listas permitidas para identificadores como columnas de orden.'],
   ),
   xss: T(
-    ['XSS(7)  cross-site scripting', "Markup from users runs as code in other users' browsers: <script>, onerror=, javascript: links.", 'Fix: encode on output; add a Content-Security-Policy.'],
-    ['XSS(7)  cross-site scripting', 'El marcado de usuarios se ejecuta como código en los navegadores de otros: <script>, onerror=, enlaces javascript:.', 'Solución: codifica al mostrar; agrega una Content-Security-Policy.'],
+    ['XSS(7)  cross-site scripting', "Markup from users runs as code in other users' browsers: <script>, onerror=, javascript: links.", 'Fix: encode for the output context; allow only http(s) links; add a Content-Security-Policy.'],
+    ['XSS(7)  cross-site scripting', 'El marcado de usuarios se ejecuta como código en los navegadores de otros: <script>, onerror=, enlaces javascript:.', 'Solución: codifica según el contexto de salida; permite solo enlaces http(s); agrega una Content-Security-Policy.'],
   ),
   brute: T(
     ['BRUTE(7)  password guessing, spraying, stuffing', 'Lists of common or leaked passwords, tried until one works.', 'Fix: MFA, SSH keys, rate limits, fail2ban.'],
@@ -63,11 +63,13 @@ export const runCommand = (input: string, ctx: { lang: Lang; owned: readonly Car
   const [cmd, ...args] = line.split(' ');
   const c = cmd.toLowerCase();
   switch (c) {
-    case 'help': return { lines: HELP[lang] };
+    case 'help': return { lines: [...HELP[lang]] };
     case 'whoami': return { lines: [lang === 'es' ? 'el Caballero Negro. Brazos: los dos, por ahora.' : 'the Black Knight. Arms: both, for now.'] };
     case 'man': {
-      const page = MAN[(args[0] ?? '').toLowerCase()];
-      return { lines: page ? page[lang] : [MAN_HINT[lang]] };
+      // An own-property check, so 'man constructor' or 'man __proto__' cannot read Object.prototype.
+      const name = (args[0] ?? '').toLowerCase();
+      const page = Object.hasOwn(MAN, name) ? MAN[name] : undefined;
+      return { lines: page ? [...page[lang]] : [MAN_HINT[lang]] };
     }
     case 'nmap': return { lines: nmap(lang, ctx.owned) };
     case 'iptables':
