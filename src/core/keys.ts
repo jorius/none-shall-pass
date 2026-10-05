@@ -5,8 +5,9 @@ export type KeyInput = { key: string; code?: string; shiftKey: boolean; ctrlKey?
 // A held key may keep moving lanes or cycling targets, but must not toggle a screen or throw again.
 const NO_REPEAT: ReadonlySet<Action> = new Set<Action>(['console', 'closeConsole', 'pause', 'hints', 'throw']);
 
-// Spanish and Latin American layouts report the backtick as a 'Dead' key, so the physical key counts too.
-const isBacktick = (k: KeyInput): boolean => k.key === '`' || k.code === 'Backquote';
+// Spanish and Latin American layouts report the backtick as a 'Dead' key, so the physical key counts then,
+// but not for the other characters on it (~, |, °, º), which must stay typeable in the console.
+const isBacktick = (k: KeyInput): boolean => k.key === '`' || (k.key === 'Dead' && k.code === 'Backquote');
 
 const route = (k: KeyInput, screen: Screen): Action => {
   if (screen === 'console') return k.key === 'Escape' || isBacktick(k) ? 'closeConsole' : null;

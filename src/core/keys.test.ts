@@ -53,6 +53,15 @@ describe('routeKey', () => {
     expect(routeKey(k('Dead'), 'playing')).toBeNull();
   });
 
+  it('ignores other characters typed on the backtick key', () => {
+    for (const key of ['|', '~', '°', 'º', 'ª']) {
+      expect(routeKey(k(key, { code: 'Backquote' }), 'console'), key).toBeNull();
+      expect(routeKey(k(key, { code: 'Backquote', inField: true }), 'console'), key).toBeNull();
+      expect(routeKey(k(key, { code: 'Backquote' }), 'playing'), key).toBeNull();
+      expect(routeKey(k(key, { code: 'Backquote' }), 'paused'), key).toBeNull();
+    }
+  });
+
   it('ignores shortcuts held with Ctrl or Meta', () => {
     for (const mod of [{ ctrlKey: true }, { metaKey: true }]) {
       expect(routeKey(k('p', mod), 'playing')).toBeNull();
