@@ -1,0 +1,57 @@
+// packages
+import Phaser from 'phaser';
+
+// core
+import { KN_X, SQUIRE_POS } from '../../core/constants';
+import { CSS } from '../../core/palette';
+import type { Run } from '../../core/run';
+import { knightY, mounted } from '../../core/state';
+
+// i18n
+import { t } from '../../i18n';
+
+// stage
+import { RENDER_SCALE } from '../../stage';
+
+// game
+import type { FieldScene } from '../FieldScene';
+import type { View } from '../view';
+
+const label = (scene: FieldScene, text: string, bg: string): Phaser.GameObjects.Text =>
+  scene.add.text(0, 0, text, { fontFamily: 'Space Mono', fontSize: '13px', fontStyle: '700', color: CSS.paper, backgroundColor: bg, padding: { x: 5, y: 0 }, resolution: RENDER_SCALE }).setOrigin(0.5, 0);
+
+export class ActorsView implements View {
+  private readonly knight: Phaser.GameObjects.Image;
+  private readonly you: Phaser.GameObjects.Text;
+  private readonly squire: Phaser.GameObjects.Image;
+  private readonly squireLabel: Phaser.GameObjects.Text;
+
+  constructor(scene: FieldScene) {
+    const layer = scene.layers.actors;
+    this.knight = scene.add.image(KN_X, knightY(2, false), 'knight-foot-idle').setOrigin(0, 0);
+    this.you = label(scene, t('actor.you'), CSS.ink);
+    this.squire = scene.add.image(SQUIRE_POS.x, SQUIRE_POS.y, 'squire-idle').setOrigin(0, 0).setVisible(false);
+    this.squireLabel = label(scene, t('actor.squire'), CSS.gold).setVisible(false);
+    layer.add([this.squire, this.squireLabel, this.knight, this.you]);
+  }
+
+  refresh(): void {
+    this.you.setText(t('actor.you'));
+    this.squireLabel.setText(t('actor.squire'));
+  }
+
+  frame(run: Run | null, _dt: number, time: number): void {
+    const s = run?.state;
+    const k = s?.knight ?? { x: KN_X, y: knightY(2, false), moving: false, throwT: 0, facing: 'left' as const };
+    const horse = s ? mounted(s) : false;
+    const key = horse
+      ? k.throwT > 0 ? 'knight-horse-throw' : k.moving ? `knight-horse-${Math.floor(time / 0.11) % 2}` : 'knight-horse-0'
+      : k.throwT > 0 ? 'knight-foot-throw' : 'knight-foot-idle';
+    const bob = !k.moving && k.throwT === 0 && Math.floor(time / 0.5) % 2 ? -3 : 0;
+    this.knight.setTexture(key).setPosition(k.x, k.y + bob).setFlipX(k.moving && k.facing === 'right');
+    this.you.setPosition(k.x + this.knight.displayWidth / 2, k.y + this.knight.displayHeight - 4);
+    const hasSquire = !!s?.owned.includes('squire');
+    this.squire.setVisible(hasSquire).setTexture(s && s.squire.throwT > 0 ? 'squire-throw' : 'squire-idle');
+    this.squireLabel.setVisible(hasSquire).setPosition(SQUIRE_POS.x + 21, SQUIRE_POS.y + 56);
+  }
+}

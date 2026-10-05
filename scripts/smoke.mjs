@@ -15,6 +15,15 @@ const CHECKS = {
     await page.waitForFunction(() => window.__nsp?.game?.isBooted === true);
     await page.screenshot({ path: `${OUT}/boot.png` });
   },
+  async loop(page) {
+    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.length > 0, null, { timeout: 15000 });
+    const before = await page.evaluate(() => window.__nsp.app.run.state.knight.lane);
+    await page.keyboard.press('ArrowUp');
+    await page.waitForTimeout(400);
+    const after = await page.evaluate(() => window.__nsp.app.run.state.knight);
+    if (after.lane !== before - 1) throw new Error(`lane ${before} -> ${after.lane}`);
+    await page.screenshot({ path: `${OUT}/loop.png` });
+  },
 };
 
 const waitForServer = async () => {

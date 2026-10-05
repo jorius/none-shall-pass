@@ -9,8 +9,15 @@ import '@fontsource/atkinson-hyperlegible-next/700.css';
 
 // local
 import './styles.css';
+import { App } from './app';
 import { FieldScene } from './game/FieldScene';
+import { ActorsView } from './game/views/actors';
+import { FireWallView } from './game/views/fireWall';
+import { LanesView } from './game/views/lanes';
+import { RackView } from './game/views/rack';
+import { detectLang, setLang } from './i18n';
 import { RENDER_SCALE, SCREEN_H, SCREEN_W } from './stage';
+import { createStore } from './storage';
 
 const loadFonts = (): Promise<unknown> => Promise.race([
   Promise.all([
@@ -25,6 +32,8 @@ const loadFonts = (): Promise<unknown> => Promise.race([
 
 const boot = async (): Promise<void> => {
   await loadFonts();
+  const store = createStore();
+  setLang(store.prefs().lang ?? detectLang());
   const game = new Phaser.Game({
     type: Phaser.WEBGL,
     parent: 'stage',
@@ -35,7 +44,12 @@ const boot = async (): Promise<void> => {
     render: { antialias: true },
     scene: [FieldScene],
   });
-  (window as unknown as { __nsp: unknown }).__nsp = { game };
+  const scene = await FieldScene.ready;
+  const app = new App(scene, store);
+  app.add(new LanesView(scene), new FireWallView(scene), new RackView(scene), new ActorsView(scene));
+  (window as unknown as { __nsp: unknown }).__nsp = { game, app };
+  // Until the title screen exists (Task 18), boot straight into a campaign.
+  app.startRun('campaign');
 };
 
 void boot();
