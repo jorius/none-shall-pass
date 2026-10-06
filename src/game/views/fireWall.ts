@@ -47,10 +47,16 @@ export class FireWallView implements View {
     this.tex.refresh();
   }
 
+  // The fire flares when it takes a packet in and when one of the rules shatters a packet at it (the lockdown's shatter is further up the lane).
   event(ev: RunEvent): void {
-    if (ev.type === 'shattered' && ev.by === 'rule' && ev.ruleId !== 'lockdown') {
-      this.flash.setAlpha(0.6);
-      this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: 140 });
-    }
+    if (ev.type === 'entered' || (ev.type === 'shattered' && ev.by === 'rule' && ev.ruleId !== 'lockdown')) this.flare();
+  }
+
+  // Brighter and longer than the quieter flash reduced effects keep. A new flare replaces one still fading.
+  private flare(): void {
+    const { reduced } = this.scene;
+    this.scene.tweens.killTweensOf(this.flash);
+    this.flash.setAlpha(reduced ? 0.6 : 0.9);
+    this.scene.tweens.add({ targets: this.flash, alpha: 0, duration: reduced ? 140 : 200 });
   }
 }

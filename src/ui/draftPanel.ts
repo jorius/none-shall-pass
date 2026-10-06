@@ -16,7 +16,9 @@ const GLYPH = { KNIGHT: '♞', FIREWALL: '▦', SERVER: '◆' } as const;
 
 // A pick or a reroll redraws the panel at once, so a second click lands on the redrawn button;
 // the core refuses a second take of the same card and any spend past the credits (Task 8).
-export const renderDraft = (box: HTMLElement, run: Run, act: { pick(i: number): void; reroll(): void; next(): void }): void => {
+// Each card carries its place in the hand (--i) for the flip's stagger, but only a hand just dealt (`deal`: a wave's draft, a reroll)
+// flips in; a pick, a language switch or the Armory closing redraws the same hand in place, still.
+export const renderDraft = (box: HTMLElement, run: Run, act: { pick(i: number): void; reroll(): void; next(): void }, deal: boolean): void => {
   const s = run.state, d = s.draft;
   box.innerHTML = '';
   if (!d) return;
@@ -26,10 +28,11 @@ export const renderDraft = (box: HTMLElement, run: Run, act: { pick(i: number): 
   if (!s.waveMistakes.length) el('p', 'note', box, t('draft.clean'));
   const head = el('div', 'draft-h', box, `${t('draft.choose')} · `);
   el('span', '', head, d.free ? t('draft.freeNote') : t('draft.buyNote'));
-  const cards = el('div', 'cards', box);
+  const cards = el('div', deal ? 'cards deal' : 'cards', box);
   d.picks.forEach((c, i) => {
     const taken = d.taken.includes(c.id);
     const card = el('div', `ucard ${c.rarity}${taken ? ' taken' : ''}`, cards);
+    card.style.setProperty('--i', String(i));
     const h = el('div', 'uhead', card);
     el('span', `ucat ${c.cat}`, h, `${GLYPH[c.cat]} ${t(`draft.cat.${c.cat}`)}`);
     el('span', `urar ${c.rarity}`, h, t(`draft.rarity.${c.rarity}`));

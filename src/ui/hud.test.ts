@@ -74,7 +74,7 @@ describe('Hud', () => {
   });
 
   it('scales the pip colours with the difficulty\'s reputation: green from 70%, gold from 40%, red below', () => {
-    const at = (difficulty: 'intern' | 'zeroday', rep: number): string => {
+    const at = (difficulty: 'intern' | 'incident' | 'zeroday', rep: number): string => {
       const r = new Run(cfg({ difficulty }));
       r.state.rep = rep;
       hud.start(r);
@@ -82,6 +82,10 @@ describe('Hud', () => {
     };
     expect([5, 4, 3, 2, 1].map((rep) => at('zeroday', rep))).toEqual(['pips good', 'pips good', 'pips mid', 'pips mid', 'pips low']);
     expect([14, 10, 9, 6, 5].map((rep) => at('intern', rep))).toEqual(['pips good', 'pips good', 'pips mid', 'pips mid', 'pips low']);
+    // A cap of 8, where neither share is a whole number: 70% of 8 is 5.6, so green starts at 6; 40% is 3.2, so gold starts at 4.
+    expect([8, 7, 6, 5, 4, 3, 2, 1].map((rep) => at('incident', rep))).toEqual(
+      ['pips good', 'pips good', 'pips good', 'pips mid', 'pips mid', 'pips low', 'pips low', 'pips low']);
+    expect(ui.querySelectorAll('.pips i').length).toBe(8);
   });
 
   describe('the mute badge', () => {

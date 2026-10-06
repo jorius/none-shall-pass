@@ -101,7 +101,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .float { position: absolute; z-index: 25; font-size: 14px; font-weight: 700; white-space: nowrap; animation: rise 1.2s forwards; }
 .float.ok { color: var(--b); } .float.bad { color: var(--r); } .float.fp { color: var(--ink); background: var(--r); padding: 0 5px; }
 .float.big { font-size: 18px; color: var(--ink); text-shadow: -2px 0 var(--r), 2px 0 var(--b); }
-.float.gold { color: var(--gold); }
+.float.gold { color: var(--gold); text-transform: uppercase; }
 @keyframes rise { to { transform: translateY(-36px); opacity: 0; } }
 
 /* In the 19px between the HUD and the top lane's cards, so it never hides a packet. */
@@ -167,11 +167,14 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ltile.KNIGHT { box-shadow: inset 0 -3px 0 var(--gold); } .ltile.FIREWALL { box-shadow: inset 0 -3px 0 var(--b); } .ltile.SERVER { box-shadow: inset 0 -3px 0 var(--ink); }
 /* The tiered upgrades (Destrier, Observability) carry their level, three pips just above the category underline. */
 .ltile .lvl { position: absolute; bottom: 4px; display: flex; gap: 2px; }
-.ltile .lvl i { width: 6px; height: 3px; background: var(--mute); }
-.ltile .lvl i.on { background: var(--gold); }
+.ltile .lvl i { width: 6px; height: 3px; background: #4a4843; }
+.ltile .lvl i.on { background: var(--ink); }
 /* A tile the loadout just gained, or a level just bought, lights up once; its name floats beside it (LoadoutTiles.flash). */
 .ltile.flash { animation: tileflash .6s steps(4); }
 @keyframes tileflash { 0% { background: var(--ink); } 100% { background: var(--soft); } }
+
+/* The bought card's icon on its way to the loadout column (Overlays.fly): over the open screen, out of the pointer's way. */
+.fly { position: absolute; z-index: 42; margin: 0; pointer-events: none; }
 
 /* ---------- overlays ---------- */
 /* Over the loadout (16) and the bottom panels (20): an open screen takes every click, so none reaches the field. */
@@ -194,6 +197,8 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ov p.note { font-family: var(--mono); font-size: 13px; }
 .best { font-size: 13px; color: var(--dim); line-height: 1.7; }
 .best b { color: var(--ink); }
+/* The debrief's score: its figure is gold as in the HUD, in a box as wide as the final figure while it counts up. */
+.best .num { display: inline-block; color: var(--gold); }
 .sitelink { font-size: 13px; color: var(--dim); text-decoration: none; border-bottom: 1px solid var(--mute); }
 .howto-grid { display: grid; grid-template-columns: auto auto; gap: 8px 18px; text-align: left; font-family: var(--body); font-size: 15px; }
 .howto-grid kbd { font-family: var(--mono); font-size: 13px; color: var(--ink); border: 1px solid var(--mute); padding: 1px 6px; justify-self: end; }
@@ -294,6 +299,9 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .draft-h { font-size: 14px; letter-spacing: .14em; }
 .draft-h span { color: var(--gold); }
 .cards { display: flex; gap: 16px; align-items: stretch; }
+/* A hand just dealt flips its cards in one by one (draftPanel.ts: `deal`); the last frame leaves the opacity to the card, so a taken one stays dim. */
+.cards.deal .ucard { animation: flip .24s ease-out both; animation-delay: calc(var(--i) * 120ms); }
+@keyframes flip { from { transform: rotateY(90deg); opacity: 0; } to { transform: none; } }
 .ucard { width: 330px; background: var(--paper); border: 1px solid var(--dim); padding: 12px 14px 14px; text-align: left; display: flex; flex-direction: column; gap: 6px; }
 .ucard.LEGENDARY { border-color: var(--r); box-shadow: -3px 0 0 var(--r), 3px 0 0 var(--b); }
 .ucard.RARE { border-color: var(--b); }
@@ -315,11 +323,21 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 
 /* The stats column takes the longest Spanish label beside three-digit hit counts, and the Spanish breach families on one row. */
 .debrief { width: 1180px; display: grid; grid-template-columns: 480px 1fr; gap: 28px; text-align: left; }
-.grade { font-size: 120px; font-weight: 700; line-height: 1; text-shadow: -5px 0 var(--r), 5px 0 var(--b); }
+.grade { width: fit-content; font-size: 120px; font-weight: 700; line-height: 1; text-shadow: -5px 0 var(--r), 5px 0 var(--b); }
+/* The grade's colour (Overtime shows a wave number, which keeps the ink). */
+.grade[data-g="S"] { color: var(--gold); } .grade[data-g="A"] { color: var(--green); } .grade[data-g="B"] { color: var(--b); }
+.grade[data-g="C"] { color: var(--ink); } .grade[data-g="D"] { color: #ff8a2f; } .grade[data-g="F"] { color: var(--r); }
+/* The entrance (renderDebrief): the grade stamps down and the whole screen thuds as it lands. */
+@keyframes stamp { from { transform: scale(2); opacity: 0; } 70% { transform: scale(.95); opacity: 1; } to { transform: none; } }
+.grade.stamp { animation: stamp .3s ease-out both; }
+@keyframes shake { 0%, 100% { transform: none; } 20% { transform: translate(-6px, 3px); } 40% { transform: translate(5px, -4px); } 60% { transform: translate(-4px, -2px); } 80% { transform: translate(3px, 2px); } }
+.ov-debrief.shake { animation: shake .3s steps(6); }
 .statlist { font-size: 13px; color: var(--dim); line-height: 1.75; }
 /* A row, not a float: a label too long for the column wraps in place instead of pushing its number onto the next stat. */
 .statlist > div { display: flex; justify-content: space-between; gap: 12px; }
 .statlist b { color: var(--ink); flex: none; }
+/* The values read as the HUD and the log do: blue for what went well, red for the breaches. */
+.statlist b.ok { color: var(--b); } .statlist b.bad { color: var(--r); }
 .statlist > .fams { justify-content: flex-end; flex-wrap: wrap; gap: 0; }
 .fams span + span::before { content: '·'; margin: 0 5px; color: var(--dim); }
 /* The mistake list (recap.ts): a wave's on the recap, 760px wide; the run's in the debrief's right column. A breach is red-edged, a false alarm ink. */
@@ -353,6 +371,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 #ui.reduced .hpstrip.low .segs { animation-duration: 6.2s; }
 #ui.reduced .hpstrip.tear { animation-duration: .2s; }
 #ui.reduced .scanlines { display: none; }
+#ui.reduced .ucard { animation: none; }
 
 /* ---------- root mode: amber phosphor ---------- */
 body.root, #ui.root {

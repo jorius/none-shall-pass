@@ -616,7 +616,7 @@ describe('Overlays', () => {
     s.stats.breaches.scan = 150;
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
     vi.advanceTimersByTime(1200);
-    expect(box().className).toBe('ov show ov-debrief');
+    expect(box().classList.contains('ov-debrief')).toBe(true);
     expect(box().querySelectorAll('.mistake')).toHaveLength(30);
     expect(box().querySelector('.mistakes .more')?.textContent).toBe('+220 more');
     // Thirty mistakes in all: every one shown, nothing more to count.
@@ -726,7 +726,7 @@ describe('Overlays', () => {
     s.stats.falsePositives = 1;
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
     vi.advanceTimersByTime(1200);
-    expect(box().className).toBe('ov show ov-debrief');
+    expect(box().classList.contains('ov-debrief')).toBe(true);
     expect(box().querySelector('h2')?.textContent).toBe('OVERTIME OVER');
     // The knight and the difficulty under the head, in the share line too.
     expect(box().querySelector('p.note')?.textContent).toBe('Raider · "Think like the attacker." · Zero-day');
@@ -751,5 +751,208 @@ describe('Overlays', () => {
     named(/^TITLE$/).click();
     expect([app.screen, app.run]).toEqual(['title', null]);
     expect(box().textContent).toContain('Playing as Raider · Zero-day');
+  });
+
+  describe('the draft\'s entrance', () => {
+    const draft = (): void => {
+      boot();
+      app.startRun('campaign');
+      app.run!.state.credits = 5000;
+      app.dispatch(app.run!.cheat('skip'));
+    };
+    const row = (): HTMLElement => box().querySelector<HTMLElement>('.cards')!;
+    const place = (): string[] => [...box().querySelectorAll<HTMLElement>('.ucard')].map((c) => c.style.getPropertyValue('--i'));
+
+    it('flips a hand in when it is dealt, one card after another, and not again on the redraws a pick, a refresh or the Armory cause', () => {
+      draft();
+      // Each card carries its place in the hand for the stagger.
+      expect([row().className, place()]).toEqual(['cards deal', ['0', '1', '2']]);
+      // A pick redraws the same hand in place: the cards stay still (the taken one dimmed), they do not flip in again.
+      box().querySelector<HTMLButtonElement>('.ucard .btn')!.click();
+      expect([row().className, place()]).toEqual(['cards', ['0', '1', '2']]);
+      app.refresh();
+      expect(row().className).toBe('cards');
+      setLang('es');
+      expect(row().className).toBe('cards');
+      setLang('en');
+      press('t');
+      press('t');
+      expect([app.screen, row().className]).toEqual(['draft', 'cards']);
+      // A reroll deals a new hand, and so does the next wave's draft.
+      named(/REROLL/).click();
+      expect([row().className, place()]).toEqual(['cards deal', ['0', '1', '2']]);
+      named(/NEXT WAVE/).click();
+      app.dispatch(app.run!.cheat('skip'));
+      expect(row().className).toBe('cards deal');
+    });
+
+    describe('and the bought card\'s flight to its tile', () => {
+      type Flight = { keyframes: { transform: string }[]; options: { duration: number; easing: string }; onfinish: (() => void) | null };
+      let flights: Flight[];
+      // jsdom has no layout and no Web Animations: the layer at half size (so its pixels are twice the screen's), every card's icon in
+      // the same spot, and a column of tiles whose last one is where the new tile lands.
+      const stage = (): void => {
+        const rect = (left: number, top: number, width: number, height: number): DOMRect => ({ left, top, width, height, right: left + width, bottom: top + height, x: left, y: top }) as DOMRect;
+        vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+          if (this === ui) return rect(0, 0, 640, 360);
+          if (this.matches('.ucard img.px')) return rect(200, 300, 80, 60);
+          if (this.matches('.loadout .ltile:last-child')) return rect(538, 160, 22, 19);
+          return rect(0, 0, 0, 0);
+        });
+      };
+      const column = (tiles: number): void => {
+        const col = document.createElement('div');
+        col.className = 'loadout';
+        for (let i = 0; i < tiles; i++) col.appendChild(Object.assign(document.createElement('div'), { className: 'ltile' }));
+        ui.appendChild(col);
+      };
+      const take = (card: number): void => { box().querySelectorAll<HTMLButtonElement>('.ucard .btn')[card].click(); };
+      // The first card on the panel that is not the backup (which has no tile to fly to): a reroll's hand is dealt at random.
+      const tiled = (): number => app.run!.state.draft!.picks.findIndex((c) => c.id !== 'backup');
+      beforeEach(() => {
+        flights = [];
+        Object.defineProperty(HTMLElement.prototype, 'animate', {
+          configurable: true, writable: true,
+          value(keyframes: Flight['keyframes'], options: Flight['options']) { const f = { keyframes, options, onfinish: null }; flights.push(f); return f; },
+        });
+      });
+      afterEach(() => { delete (HTMLElement.prototype as unknown as { animate?: unknown }).animate; });
+
+      it('copies the icon to the column\'s new tile in the layer\'s own pixels, and drops the copy when it lands', () => {
+        draft();
+        stage();
+        column(2);
+        const first = tiled(), original = box().querySelectorAll<HTMLImageElement>('.ucard img.px')[first], src = original.src;
+        take(first);
+        expect(flights).toHaveLength(1);
+        // Centre to centre: (549 - 240) / .5 across, (169.5 - 330) / .5 up; 300 ms, shrinking to 60%.
+        expect(flights[0].keyframes).toEqual([{ transform: 'translate(0,0)' }, { transform: 'translate(618px, -321px) scale(.6)' }]);
+        expect(flights[0].options).toEqual({ duration: 300, easing: 'ease-in' });
+        const copy = ui.querySelector<HTMLImageElement>(':scope > img.fly')!;
+        expect([copy.src, copy.className, copy.style.left, copy.style.top, copy.style.width, copy.style.height]).toEqual([src, 'px fly', '400px', '600px', '160px', '120px']);
+        // A copy: the redraw took the card's own icon out of the page, and the copy is the only thing flying.
+        expect([copy === original, original.isConnected, ui.querySelectorAll('.fly').length]).toEqual([false, false, 1]);
+        flights[0].onfinish!();
+        expect(ui.querySelector('.fly')).toBeNull();
+        // A bought card flies too, and a reroll's new hand has its own cards to fly.
+        named(/REROLL/).click();
+        take(tiled());
+        expect(flights).toHaveLength(2);
+        expect(ui.querySelectorAll('.fly')).toHaveLength(1);
+      });
+
+      it('flies nothing under reduced effects, with no column to land in, for the backup, or for a pick the core refuses', () => {
+        draft();
+        stage();
+        // No column on the screen yet: the free pick has nowhere to land.
+        take(0);
+        expect([flights.length, ui.querySelector('.fly')]).toEqual([0, null]);
+        column(1);
+        effects.reduced = true;
+        take(1);
+        expect([flights.length, ui.querySelector('.fly')]).toEqual([0, null]);
+        effects.reduced = false;
+        // The backup heals the rack and has no tile.
+        app.run!.state.draft!.picks[2] = cardById('backup');
+        app.refresh();
+        take(2);
+        expect([app.run!.state.draft!.taken.length, flights.length]).toEqual([3, 0]);
+        // A card still on the panel whose price the credits no longer cover: the core refuses it, so no flight.
+        named(/REROLL/).click();
+        app.run!.state.credits = 0;
+        take(0);
+        expect([app.run!.state.draft!.taken.length, flights.length]).toEqual([3, 0]);
+        // With the credits back the same click is a pick, and it flies.
+        app.run!.state.credits = 5000;
+        take(tiled());
+        expect([app.run!.state.draft!.taken.length, flights.length]).toEqual([4, 1]);
+      });
+    });
+  });
+
+  describe('the debrief\'s entrance', () => {
+    const finish = (score: number): void => {
+      app.startRun('campaign');
+      app.run!.state.score = score;
+      app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
+      vi.advanceTimersByTime(1200);
+    };
+    const grade = (): HTMLElement => box().querySelector<HTMLElement>('.grade')!;
+    const score = (): string | null | undefined => box().querySelector('.best b')?.textContent;
+    const thud = (): boolean => box().classList.contains('shake');
+
+    it('stamps the grade and counts the score up from 0, once: a refresh draws the finished screen', () => {
+      boot();
+      finish(5030);
+      expect(thud()).toBe(true);
+      expect([grade().className, grade().dataset.g, score()]).toEqual(['grade stamp', 'F', 'SCORE 0']);
+      vi.advanceTimersByTime(400);
+      const mid = Number(box().querySelector('.best .num')!.textContent!.replace(/,/g, ''));
+      expect(mid).toBeGreaterThan(0);
+      expect(mid).toBeLessThan(5030);
+      vi.advanceTimersByTime(500);
+      expect(score()).toBe('SCORE 5,030');
+      // The thud ends with the box's own animation, not with the stamp's, which bubbles up to it.
+      grade().dispatchEvent(new Event('animationend', { bubbles: true }));
+      expect(thud()).toBe(true);
+      box().dispatchEvent(new Event('animationend'));
+      expect(thud()).toBe(false);
+      // The same run drawn again (a refresh, M, a language switch): final numbers, no stamp, no thud.
+      app.refresh();
+      expect([grade().className, score(), thud()]).toEqual(['grade', 'SCORE 5,030', false]);
+      press('m');
+      setLang('es');
+      expect([grade().className, score(), thud()]).toEqual(['grade', 'PUNTAJE 5.030', false]);
+    });
+
+    it('is not replayed by a refresh while it is still running, and the count carries on to the final figure', () => {
+      boot();
+      finish(8800);
+      vi.advanceTimersByTime(200);
+      app.refresh();
+      // The redraw shows the finished screen at once; the count that was running is left behind and does not touch it.
+      expect([grade().className, score()]).toEqual(['grade', 'SCORE 8,800']);
+      vi.advanceTimersByTime(1000);
+      expect(score()).toBe('SCORE 8,800');
+    });
+
+    it('shows the finished screen at once under reduced effects', () => {
+      boot();
+      effects.reduced = true;
+      finish(5030);
+      expect([grade().className, score(), thud()]).toEqual(['grade', 'SCORE 5,030', false]);
+      vi.advanceTimersByTime(1000);
+      expect(score()).toBe('SCORE 5,030');
+    });
+
+    it('plays again for the next run, and an Overtime wave number carries no grade', () => {
+      boot();
+      finish(100);
+      named(/PLAY AGAIN/).click();
+      app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
+      vi.advanceTimersByTime(1200);
+      expect(grade().className).toBe('grade stamp');
+      app.quit();
+      app.startRun('overtime');
+      app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
+      vi.advanceTimersByTime(1200);
+      expect([grade().className, grade().dataset.g, grade().textContent]).toEqual(['grade stamp', undefined, '1']);
+    });
+
+    it('colours the grade by its letter and the stats like the HUD and the log, and keeps the score\'s box as wide as its final figure', () => {
+      boot();
+      app.startRun('campaign');
+      const s = app.run!.state;
+      s.endReason = 'won';
+      s.score = 5030;
+      Object.assign(s.stats, { served: 12, neutralized: 3 });
+      app.dispatch([{ type: 'runEnded', reason: 'won' }]);
+      vi.advanceTimersByTime(1200);
+      expect([grade().textContent, grade().dataset.g]).toEqual(['S', 'S']);
+      const tone = (label: string): string | undefined =>
+        [...box().querySelectorAll('.statlist > div:not(.fams)')].find((d) => d.firstChild?.textContent === label)?.querySelector('b')?.className;
+      expect(['Users served', 'Neutralized at the server', 'Breaches', 'False positives'].map(tone)).toEqual(['ok', 'ok', 'bad', '']);
+      expect(box().querySelector<HTMLElement>('.best .num')!.style.minWidth).toBe('5ch');
+    });
   });
 });

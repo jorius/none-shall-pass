@@ -2,9 +2,10 @@
 import Phaser from 'phaser';
 
 // core
-import { RACK } from '../../core/constants';
+import { PKT_H, RACK } from '../../core/constants';
 import type { RunEvent } from '../../core/events';
 import type { Run } from '../../core/run';
+import { packetY } from '../../core/state';
 import type { MaliciousKind } from '../../core/types';
 
 // art
@@ -13,12 +14,13 @@ import { BUG_OF, rackSprite } from '../../art/sprites';
 // game
 import type { FieldScene } from '../FieldScene';
 import type { View } from '../view';
+import type { EffectsView } from './effects';
 
 const FW = 40, FH = RACK.rows + 2, MAX = 13;
 const FIRE: (number[] | null)[] = [null, [40, 10, 6, 70], [60, 16, 7, 110], [80, 22, 7, 150], [100, 30, 7, 180], [120, 38, 7, 200], [143, 47, 7, 220],
   [170, 60, 7, 235], [199, 76, 7, 245], [223, 90, 7, 250], [235, 115, 15, 255], [228, 160, 31, 255], [242, 196, 75, 255], [255, 236, 170, 255]];
 
-// The server: a full-height pixel rack that burns floor by floor as uptime drops.
+// The server: a full-height pixel rack that burns floor by floor as uptime drops, and throws sparks when a breach lands.
 export class RackView implements View {
   private readonly box: Phaser.GameObjects.Container;
   private readonly rack: Phaser.GameObjects.Image;
@@ -35,7 +37,7 @@ export class RackView implements View {
   private burnt = false;
   private won = false;
 
-  constructor(private readonly scene: FieldScene) {
+  constructor(private readonly scene: FieldScene, private readonly effects: EffectsView) {
     this.box = scene.add.container(RACK.x, RACK.y);
     scene.layers.actors.add(this.box);
     this.rack = scene.add.image(0, 0, 'rack').setOrigin(0, 0);
@@ -76,14 +78,17 @@ export class RackView implements View {
     if (ev.type === 'waveStarted') this.clearBugs();
     if (ev.type === 'resolved' && ev.outcome === 'breach') {
       this.tint(0xff7070);
-      // The bounce is the shake reduced effects do without; the flash and the bugs stay.
+      // The bounce is the shake reduced effects do without; the flash and the bugs stay (the sparks ask the effects, which throw none then).
       if (!this.scene.reduced) this.scene.tweens.add({ targets: this.box, x: { from: RACK.x - 5, to: RACK.x }, duration: 300, ease: 'Bounce.easeOut' });
+      // From the rack's front face, level with the card that just got in.
+      this.effects.sparks(RACK.x + 8, packetY(ev.packet) + PKT_H / 2);
       this.infest(ev.packet.t.kind as MaliciousKind);
     }
     if (ev.type === 'resolved' && ev.outcome === 'neutralized') this.tint(0x9fdcff);
-    // The run's end: a loss chars the rack, puts its LEDs out and lets the fire take it; a win holds every LED green.
+    // The run's end: a loss chars the rack, puts its LEDs out and lets the fire take it; a win puts the fire out, clears the bugs
+    // and holds every LED green, whatever the uptime the campaign was won at.
     if (ev.type === 'runEnded') {
-      if (ev.reason === 'won') this.won = true;
+      if (ev.reason === 'won') { this.won = true; this.uptime = 100; this.cells.fill(0); this.clearBugs(); }
       else { this.burnt = true; this.uptime = 0; }
     }
   }

@@ -75,7 +75,8 @@ export class ActorsView implements View {
     const pose: KnightPose = ended ? (won ? 'cheer' : 'down')
       : horse ? (k.throwT > 0 ? 'horse-throw' : k.moving ? (Math.floor(time / (k.charge.t > 0 ? 0.07 : 0.11)) % 2 ? 'horse-1' : 'horse-0') : 'horse-0')
       : k.throwT > 0 ? 'foot-throw' : 'foot-idle';
-    const bob = won ? -Math.abs(Math.sin(time * 6)) * 10 : !k.moving && k.throwT === 0 ? (Math.floor(time / 0.5) % 2 ? -3 : 0) : 0;
+    // The cheer hops (reduced effects keep him planted), a kneeling knight stays on his knee, and an idle one on his feet breathes.
+    const bob = ended ? (won && !this.effects.reduced ? -Math.abs(Math.sin(time * 6)) * 10 : 0) : !k.moving && k.throwT === 0 ? (Math.floor(time / 0.5) % 2 ? -3 : 0) : 0;
     // On foot for the end poses: the lane's own height, not the saddle's or wherever a walk was cut short.
     const y = ended && s ? knightY(s.knight.lane, false) : k.y;
     this.knight.setTexture(knightKey(this.id, pose)).setPosition(k.x, y + bob).setFlipX(k.moving && k.facing === 'right');

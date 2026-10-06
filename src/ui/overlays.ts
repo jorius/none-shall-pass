@@ -15,6 +15,9 @@ import type { EffectsView } from '../game/views/effects';
 // i18n
 import { lang, setLang } from '../i18n';
 
+// stage
+import { SCREEN_W } from '../stage';
+
 // local
 import type { App, Choice } from '../app';
 import { slotOf, type Prefs } from '../storage';
@@ -41,6 +44,10 @@ export class Overlays implements View {
   private armoryAt = -1;
   private armoryFrom: Kind = 'none';
   private ended: { run: Run; newBest: boolean; prev: PrevBest } | null = null;
+  // What each screen last drew its entrance for: the hand the draft flipped in, and the run whose debrief counted up and stamped.
+  // Drawn again (a pick, a refresh, a language switch), the same hand or run comes up finished, not replayed.
+  private dealt: object | null = null;
+  private debriefed: object | null = null;
 
   constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView; audio: Pick<AudioView, 'settings' | 'set'> }) {
     this.box = el('div', 'ov', ui);
@@ -128,6 +135,35 @@ export class Overlays implements View {
     if (at >= 0) this.focusFrom(at);
   }
 
+  // A pick: the card's icon flies to the loadout column's new tile. The pick redraws the draft, which takes the card out of the page,
+  // so the icon is copied and measured first; the flight is aimed after, once LoadoutTiles has drawn the tile (under this screen).
+  private pick(i: number): void {
+    const a = this.app, d = a.run?.state.draft, card = d?.picks[i], taken = d?.taken.length ?? 0;
+    const icon = this.box.querySelectorAll('.ucard')[i]?.querySelector<HTMLImageElement>('img.px');
+    const from = icon?.getBoundingClientRect(), copy = icon?.cloneNode(true) as HTMLImageElement | undefined;
+    a.pick(i);
+    // Nothing flies for a pick the core refused, nor for the backup, which heals the rack and gets no tile.
+    if (!from || !copy || !card || card.id === 'backup' || (d?.taken.length ?? 0) === taken) return;
+    this.fly(copy, from);
+  }
+
+  private fly(img: HTMLImageElement, from: DOMRect): void {
+    const tiles = this.ui.querySelectorAll('.loadout .ltile'), tile = tiles[tiles.length - 1];
+    if (!tile || this.opts.effects.reduced || typeof img.animate !== 'function') return;
+    // The layer is scaled to the window, so screen measurements are divided by that scale to get back to its own 1280×720 pixels.
+    const ui = this.ui.getBoundingClientRect(), k = ui.width / SCREEN_W || 1, to = tile.getBoundingClientRect();
+    img.classList.add('fly');
+    img.style.left = `${(from.left - ui.left) / k}px`;
+    img.style.top = `${(from.top - ui.top) / k}px`;
+    img.style.width = `${from.width / k}px`;
+    img.style.height = `${from.height / k}px`;
+    this.ui.appendChild(img);
+    // Centre to centre; it shrinks on the way, and is gone when it lands (the tile pulses once the field is back in view).
+    const dx = (to.left + to.width / 2 - (from.left + from.width / 2)) / k, dy = (to.top + to.height / 2 - (from.top + from.height / 2)) / k;
+    const flight = img.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${dx}px, ${dy}px) scale(.6)` }], { duration: 300, easing: 'ease-in' });
+    flight.onfinish = () => img.remove();
+  }
+
   private toggleLang = (): void => {
     const next = lang() === 'en' ? 'es' : 'en';
     this.app.store.setPrefs({ lang: next });
@@ -176,7 +212,12 @@ export class Overlays implements View {
         if (a.run) renderRecap(this.box, a.run, () => a.act('continue'));
         break;
       case 'draft':
-        if (a.run) renderDraft(this.box, a.run, { pick: (i) => a.pick(i), reroll: () => a.reroll(), next: () => a.nextWave() });
+        if (a.run) {
+          // A hand just dealt (a wave's draft, a reroll) flips its cards in; the same hand drawn again does not.
+          const hand = a.run.state.draft?.picks ?? null, fresh = hand !== this.dealt;
+          this.dealt = hand;
+          renderDraft(this.box, a.run, { pick: (i) => this.pick(i), reroll: () => a.reroll(), next: () => a.nextWave() }, fresh);
+        }
         break;
       case 'armory':
         // Read only: what the run in hand owns and holds, or the loadout a run starts with when there is none (from the title).
@@ -205,8 +246,12 @@ export class Overlays implements View {
       case 'debrief':
         if (this.ended) {
           const s = this.ended.run.state;
+          // The count-up and the stamp play once per run, and never under reduced effects: a refresh (M, H, a language switch) redraws
+          // the finished screen. (resultOf makes a new result each time, so the run's own record is what is remembered.)
+          const animate = this.debriefed !== this.ended && !this.opts.effects.reduced;
+          this.debriefed = this.ended;
           // PLAY AGAIN skips the setup: the same mode on the same pair.
-          renderDebrief(this.box, s, resultOf(s), this.ended, { again: () => a.startRun(s.cfg.mode, { knight: s.cfg.knight, difficulty: s.cfg.difficulty }), title: () => a.quit() });
+          renderDebrief(this.box, s, resultOf(s), this.ended, { again: () => a.startRun(s.cfg.mode, { knight: s.cfg.knight, difficulty: s.cfg.difficulty }), title: () => a.quit() }, animate);
         }
         break;
       default:

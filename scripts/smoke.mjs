@@ -110,6 +110,26 @@ const unexpected = (m) => m.type() === 'error' && !m.location().url.startsWith('
 
 const spanish = (page) => page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
 
+// The reduced-effects switch as the pause menu throws it (the `reduced` check drives the menu itself): the views read the scene's flag, the CSS the layer's class.
+const setReduced = (page, on) => page.evaluate((v) => { window.__nsp.effects.reduced = v; document.querySelector('#ui').classList.toggle('reduced', v); }, on);
+
+// What the debrief does from the moment it opens: each score its box shows, and each class the screen takes on (the thud is one).
+const watchDebrief = (page) => page.evaluate(() => {
+  window.__smokeWatch?.disconnect();
+  const box = document.querySelector('#ui .ov'), seen = { scores: [], classes: [] };
+  window.__smokeDebrief = seen;
+  window.__smokeWatch = new MutationObserver(() => {
+    if (!box.classList.contains('ov-debrief')) return;
+    const score = box.querySelector('.best b')?.textContent;
+    if (score && seen.scores.at(-1) !== score) seen.scores.push(score);
+    if (seen.classes.at(-1) !== box.className) seen.classes.push(box.className);
+  });
+  window.__smokeWatch.observe(box, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+});
+
+// Sets a campaign up to be lost with `score` on it: no lockdown and 1% uptime, so the first scan to land breaches and ends it.
+const sink = (page, score) => page.evaluate((n) => { const a = window.__nsp.app; a.run.state.owned = []; a.run.state.uptime = 1; a.run.state.score = n; }, score);
+
 const CHECKS = {
   async boot(page) {
     await page.waitForSelector('#stage canvas');
@@ -148,8 +168,17 @@ const CHECKS = {
     await page.waitForTimeout(100);
     await page.screenshot({ path: `${OUT}/packets-spear.png` });
     await freeze(page, false);
-    await stepUntil(page, (s) => s.log.some((e) => e.outcome === 'hit' || e.outcome === 'fp'));
+    // Stepped to the landing and frozen in one go: the hit's white flash lives 60 ms, which no frame may run out before the shot.
+    const landed = await page.evaluate(() => {
+      const app = window.__nsp.app, menu = app.onScreen, hit = () => app.run.state.log.some((e) => e.outcome === 'hit' || e.outcome === 'fp');
+      for (let i = 0; i < 60 * 120 && !hit(); i++) app.dispatch(app.run.step(1 / 60));
+      app.onScreen = null;
+      try { app.setScreen('paused'); } finally { app.onScreen = menu; }
+      return hit();
+    });
+    if (!landed) throw new Error('the spear never landed');
     await page.screenshot({ path: `${OUT}/packets-shatter.png` });
+    await freeze(page, false);
   },
   async resizeAndClick(page) {
     const clickPacket = async () => {
@@ -710,6 +739,8 @@ const CHECKS = {
     const notes = await page.evaluate(() => [...document.querySelectorAll('#ui .ov-draft p.note')].map((e) => e.textContent));
     if (JSON.stringify(notes) !== JSON.stringify([...(clean ? ['Clean wave'] : []), 'T · see every upgrade in the Armory'])) throw new Error(`the draft's notes: ${JSON.stringify({ clean, notes })}`);
     await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));
+    // The cards flip in one after another (a 0.24 s flip, 0.12 s apart): shot once the last has landed.
+    await page.waitForFunction(() => !document.getAnimations().some((a) => a.animationName === 'flip' && a.playState !== 'finished'));
     await page.screenshot({ path: `${OUT}/draft.png` });
     const free = await page.$$eval('#ui .ucard .btn', (b) => b.map((x) => x.textContent));
     if (!free.some((x) => /FREE|GRATIS/.test(x))) throw new Error('no free pick');
@@ -758,6 +789,7 @@ const CHECKS = {
     await everyCardFits(page, 'Spanish draft');
     await page.evaluate(() => { const a = window.__nsp.app; a.pick(0); });
     await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));
+    await page.waitForTimeout(600);
     await page.screenshot({ path: `${OUT}/draft-es.png` });
   },
   async pause(page) {
@@ -1181,6 +1213,8 @@ const CHECKS = {
     await lose(page);
     await stepUntil(page, (s) => s.phase === 'ended');
     await page.waitForSelector('#ui .ov-debrief .grade');
+    // The grade stamps down, the screen thuds and the score counts up: 0.8 s at most, then the shot and the fit checks see the finished screen.
+    await page.waitForTimeout(1000);
     await page.screenshot({ path: `${OUT}/debrief.png` });
     const shown = await page.evaluate(() => ({
       share: document.querySelector('#ui .share').value, mistakes: document.querySelectorAll('#ui .mistake').length,
@@ -1219,6 +1253,7 @@ const CHECKS = {
     await lose(page);
     await stepUntil(page, (s) => s.phase === 'ended');
     await page.waitForSelector('#ui .ov-debrief .grade');
+    await page.waitForTimeout(1000);
     await fits(page, 'Spanish debrief');
     // How far the campaign got, the breaches by family, the best it had to beat, and who held the gate in the head and the share line.
     const es = await page.evaluate(() => ({
@@ -1232,6 +1267,231 @@ const CHECKS = {
     await page.click('#ui .ov-debrief .row-btns .btn:nth-child(3)');
     await page.waitForSelector('#ui .ov-title');
     if (await page.evaluate(() => window.__nsp.app.run) !== null) throw new Error('TITLE kept the run');
+  },
+  async polish(page) {
+    // Game feel. With full effects: the knight's hit snaps the camera and flashes the field white, a breach throws sparks off the rack, a dealt
+    // hand flips in and the bought card flies to its loadout tile, and the debrief counts the score up and stamps the grade. Then the same paths
+    // under reduced effects, which have none of it, and the two ends of a run: a won rack is clean and its knight hops, a lost one kneels still.
+    const gold = 'rgb(217, 180, 74)', red = 'rgb(255, 47, 47)', blue = 'rgb(47, 182, 255)';
+    const attack = (s) => s.packets.some((p) => p.t.kind !== 'legit' && p.x > 200 && p.x < 450 && !p.entering && !p.doomed);
+    // One spear thrown and stepped to its landing in a single go: no frame runs the 60 ms flash out before it is counted (or before the shot, when held).
+    const hit = (hold = false) => page.evaluate((freezeAfter) => {
+      const app = window.__nsp.app, fx = window.__nsp.effects, scene = window.__nsp.game.scene.getScene('field'), s = app.run.state;
+      for (let i = 0; i < 60 && s.knight.cooldown > 0; i++) app.dispatch(app.run.step(1 / 60));
+      const p = s.packets.find((q) => q.t.kind !== 'legit' && q.x > 200 && q.x < 450 && !q.entering && !q.doomed);
+      if (!p) throw new Error('no attack to throw at');
+      const before = fx.debugFlashes();
+      app.dispatch(app.run.target(p.id));
+      app.dispatch(app.run.throwSpear());
+      for (let i = 0; i < 600 && s.spears.length; i++) app.dispatch(app.run.step(1 / 60));
+      const out = {
+        dead: p.dead, flashes: fx.debugFlashes() - before, shaking: scene.cameras.main.shakeEffect.isRunning,
+        veils: scene.layers.fx.list.filter((o) => o.type === 'Rectangle' && o.fillColor === 0xffffff).map((o) => [o.x, o.y, o.width, o.height, o.fillAlpha]),
+      };
+      if (freezeAfter) { const menu = app.onScreen; app.onScreen = null; try { app.setScreen('paused'); } finally { app.onScreen = menu; } }
+      return out;
+    }, hold);
+    // A breach sent to the views: what the rack asked the effects for, and how many sparks it added to the air (the last burst may still be up).
+    const breach = () => page.evaluate(() => {
+      const app = window.__nsp.app, scene = window.__nsp.game.scene.getScene('field'), packet = app.run.state.packets.find((p) => p.t.kind !== 'legit' && !p.entering);
+      if (!packet) throw new Error('no attack to land');
+      const sparks = scene.layers.fx.list.find((o) => o.texture?.key === 'sparks'), before = sparks.getAliveParticleCount();
+      window.__smokeSparks.length = 0;
+      app.dispatch([{ type: 'resolved', packet, outcome: 'breach', damage: 10 }]);
+      return { calls: [...window.__smokeSparks], fresh: sparks.getAliveParticleCount() - before, lane: packet.lane };
+    });
+    // The draft with the first card that is not the backup taken (the backup has no tile to fly to): what flew, if anything.
+    const take = () => page.evaluate(() => {
+      const d = window.__nsp.app.run.state.draft, i = d.picks.findIndex((c) => c.id !== 'backup');
+      document.querySelectorAll('#ui .ov-draft .ucard .btn')[i].click();
+      const copy = document.querySelector('#ui > img.fly'), tile = [...document.querySelectorAll('#ui .loadout .ltile')].at(-1);
+      if (!copy) return null;
+      const anim = copy.getAnimations()[0], timing = anim.effect.getTiming();
+      const last = anim.effect.getKeyframes().at(-1).transform, m = /translate\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px\)\s*scale\(\s*0?\.6\s*\)/.exec(last);
+      // A copy not yet moving sits on the card's icon; its way plus the layer's scale lands its centre on the new tile's.
+      const k = document.querySelector('#ui').getBoundingClientRect().width / 1280, from = copy.getBoundingClientRect(), to = tile.getBoundingClientRect();
+      return {
+        timing: [timing.duration, timing.easing], last,
+        miss: m && [from.left + from.width / 2 + Number(m[1]) * k - (to.left + to.width / 2), from.top + from.height / 2 + Number(m[2]) * k - (to.top + to.height / 2)],
+      };
+    });
+    // A hand dealt again (a new array is what a reroll makes) flips in at once; counted here, before any frame can run it out.
+    const redeal = () => page.evaluate(() => {
+      const app = window.__nsp.app, d = app.run.state.draft;
+      d.picks = [...d.picks];
+      app.refresh();
+      return {
+        places: [...document.querySelectorAll('#ui .ov-draft .ucard')].map((c) => c.style.getPropertyValue('--i')),
+        flips: document.getAnimations().filter((a) => a.animationName === 'flip').map((a) => [a.effect.getTiming().delay, a.effect.getTiming().duration]).sort((x, y) => x[0] - y[0]),
+      };
+    });
+    // A packet event sent to the views, for the fire: how bright its flash is at once, the length of the fade it starts, and whether the field was snapped.
+    const flare = (kind) => page.evaluate((k) => {
+      const app = window.__nsp.app, scene = window.__nsp.game.scene.getScene('field'), fx = window.__nsp.effects;
+      const wall = scene.layers.objects.list.find((o) => o.type === 'Rectangle' && o.fillColor === 0x2fb6ff && o.width === 24), packet = app.run.state.packets[0];
+      scene.tweens.killTweensOf(wall);
+      wall.setAlpha(0);
+      const snaps = fx.debugFlashes();
+      app.dispatch([k === 'entered' ? { type: 'entered', packetId: packet.id } : { type: 'shattered', packet, by: 'rule', ruleId: k }]);
+      return { alpha: wall.alpha, duration: scene.tweens.getTweensOf(wall)[0]?.duration ?? null, snaps: fx.debugFlashes() - snaps };
+    }, kind);
+    // The next card to spawn: its scale as it is born and, over 100 frames of the view clock (past one 1.6 s bob), how far it rides from its lane.
+    const newcomer = () => page.evaluate(() => {
+      const app = window.__nsp.app, scene = window.__nsp.game.scene.getScene('field'), s = app.run.state, n = s.nextId;
+      for (let i = 0; i < 1200 && s.nextId === n; i++) app.dispatch(app.run.step(1 / 60));
+      const p = s.packets.at(-1), box = scene.layers.packets.list.find((o) => o.name === `packet-${p.id}`), scale = box.scaleX, rides = new Set();
+      for (let i = 0; i < 100; i++) { scene.onFrame(1000 / 60); rides.add(box.y - (p.lane * 90 + 18)); }
+      return { scale, rides: [...rides].sort() };
+    });
+    const frames = (n) => page.evaluate((k) => { const scene = window.__nsp.game.scene.getScene('field'); for (let i = 0; i < k; i++) scene.onFrame(1000 / 60); }, n);
+    // The knight's sprite height over `n` frames of the view clock (more than a second at 60), and the pose he was in.
+    const heights = (n) => page.evaluate((k) => {
+      const scene = window.__nsp.game.scene.getScene('field'), knight = scene.layers.actors.list.find((o) => o.texture && /^knight-/.test(o.texture.key)), ys = new Set();
+      for (let i = 0; i < k; i++) { scene.onFrame(1000 / 60); ys.add(knight.y); }
+      return { ys: ys.size, key: knight.texture.key };
+    }, n);
+    const rackNow = () => page.evaluate(() => {
+      // Found by its own sprite, not its position: a breach bounces it for 300 ms.
+      const scene = window.__nsp.game.scene.getScene('field'), box = scene.layers.actors.list.find((o) => o.list?.some((c) => c.texture?.key === 'rack'));
+      const px = scene.textures.get('rackfire').getContext().getImageData(0, 0, 40, 150).data;
+      let fire = 0;
+      for (let i = 3; i < px.length; i += 4) if (px[i]) fire++;
+      return {
+        fire, bugs: box.list.filter((o) => /^bug-/.test(o.texture?.key ?? '')).length, tint: box.list.find((o) => o.texture?.key === 'rack').tintTopLeft,
+        green: box.list.filter((o) => o.type === 'Rectangle').every((o) => o.fillColor === 0x3ddc84 && o.fillAlpha === 1),
+      };
+    });
+
+    // Full effects: the knight's hit. It lands, the field is veiled in white at 35% and the camera is shaking; the veil is gone a moment later.
+    await play(page);
+    await page.evaluate(() => { const fx = window.__nsp.effects, real = fx.sparks.bind(fx); window.__smokeSparks = []; fx.sparks = (x, y) => { window.__smokeSparks.push([x, y]); real(x, y); }; });
+    await stepUntil(page, attack);
+    const snap = await hit(true);
+    if (!snap.dead || snap.flashes !== 1 || JSON.stringify(snap.veils) !== '[[0,0,1280,450,0.35]]' || !snap.shaking) throw new Error(`the knight's hit: ${JSON.stringify(snap)}`);
+    await page.screenshot({ path: `${OUT}/polish-flash.png` });
+    await freeze(page, false);
+    await page.waitForFunction(() => window.__nsp.effects.debugFlashes() === 0 && !window.__nsp.game.scene.getScene('field').cameras.main.shakeEffect.isRunning);
+    // A breach: 24 sparks from the rack's face, level with the card that got in.
+    await stepUntil(page, (s) => s.packets.some((p) => p.t.kind !== 'legit' && !p.entering));
+    const bang = await breach();
+    if (bang.calls.length !== 1 || bang.calls[0][0] !== 1132 || bang.calls[0][1] !== bang.lane * 90 + PKT_Y + PKT_H / 2 || bang.fresh !== 24) throw new Error(`the breach's sparks: ${JSON.stringify(bang)}`);
+    // The fire flares brighter and longer when it takes a packet in or a rule shatters one at it; the lockdown's shatter leaves it alone, no rule's snaps the field.
+    for (const kind of ['entered', 'quote']) {
+      const f = await flare(kind);
+      if (f.alpha !== 0.9 || f.duration !== 200 || f.snaps) throw new Error(`the fire's flare on ${kind}: ${JSON.stringify(f)}`);
+    }
+    const idle = await flare('lockdown');
+    if (idle.alpha !== 0 || idle.duration !== null || idle.snaps) throw new Error(`the fire on the lockdown's shatter: ${JSON.stringify(idle)}`);
+    // A card pops in at 90% and settles to full size; it rides a pixel up or down on its own phase.
+    const born = await newcomer();
+    if (born.scale !== 0.9 || born.rides.length < 2 || born.rides.some((d) => Math.abs(d) > 1)) throw new Error(`a new card: ${JSON.stringify(born)}`);
+    await page.waitForFunction(() => window.__nsp.game.scene.getScene('field').layers.packets.list.filter((o) => o.name?.startsWith('packet-')).every((b) => b.scaleX === 1));
+    // The dealt hand flips in, each card after its own delay; the bought card's icon flies to the new tile in 300 ms and is gone when it lands.
+    await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+    await toDraft(page);
+    await page.waitForSelector('#ui .ov-draft .ucard');
+    const dealt = await redeal();
+    if (JSON.stringify(dealt.places) !== '["0","1","2"]' || JSON.stringify(dealt.flips) !== '[[0,240],[120,240],[240,240]]') throw new Error(`the hand's flip: ${JSON.stringify(dealt)}`);
+    const flight = await take();
+    if (!flight || flight.timing[0] !== 300 || flight.timing[1] !== 'ease-in' || !flight.miss || flight.miss.some((d) => Math.abs(d) > 1)) throw new Error(`the bought card's flight: ${JSON.stringify(flight)}`);
+    await page.waitForFunction(() => !document.querySelector('#ui > img.fly'));
+    await page.evaluate(() => window.__nsp.app.nextWave());
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+
+    // Reduced effects: no snap, no flash, no sparks, no flip and no flight; the hand still carries its places.
+    await setReduced(page, true);
+    await stepUntil(page, attack);
+    const calm = await hit();
+    if (!calm.dead || calm.flashes || calm.veils.length || calm.shaking) throw new Error(`reduced effects, the knight's hit: ${JSON.stringify(calm)}`);
+    await stepUntil(page, (s) => s.packets.some((p) => p.t.kind !== 'legit' && !p.entering));
+    const quiet = await breach();
+    if (quiet.calls.length !== 1 || quiet.fresh !== 0) throw new Error(`reduced effects, the breach's sparks: ${JSON.stringify(quiet)}`);
+    // The fire keeps its quieter flash for both; a card is full size from the start and rides no bob.
+    for (const kind of ['entered', 'quote']) {
+      const f = await flare(kind);
+      if (f.alpha !== 0.6 || f.duration !== 140 || f.snaps) throw new Error(`reduced effects, the fire's flare on ${kind}: ${JSON.stringify(f)}`);
+    }
+    const still = await newcomer();
+    if (still.scale !== 1 || JSON.stringify(still.rides) !== '[0]') throw new Error(`reduced effects, a new card: ${JSON.stringify(still)}`);
+    await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+    await toDraft(page);
+    await page.waitForSelector('#ui .ov-draft .ucard');
+    const flat = await redeal();
+    if (JSON.stringify(flat.places) !== '["0","1","2"]' || flat.flips.length) throw new Error(`reduced effects, the hand: ${JSON.stringify(flat)}`);
+    if (await take()) throw new Error('reduced effects: the bought card flew');
+    await page.evaluate(() => window.__nsp.app.nextWave());
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+
+    // The debrief under reduced effects is simply final: the grade is not stamped, the screen does not thud, the score never counts.
+    await watchDebrief(page);
+    await sink(page, 12345);
+    await stepUntil(page, (s) => s.phase === 'ended');
+    // The packets served on the way to the end add to the score, so the figure to expect is the run's own.
+    const total = await page.evaluate(() => `SCORE ${window.__nsp.app.run.state.score.toLocaleString('en-US')}`);
+    await page.waitForSelector('#ui .ov-debrief .grade');
+    await page.waitForTimeout(1000);
+    const plain = await page.evaluate(() => ({ grade: document.querySelector('#ui .grade').className, g: document.querySelector('#ui .grade').dataset.g, ...window.__smokeDebrief }));
+    if (plain.grade !== 'grade' || plain.g !== 'F' || JSON.stringify(plain.scores) !== JSON.stringify([total]) || plain.classes.some((c) => /shake/.test(c))) throw new Error(`reduced effects, the debrief: ${JSON.stringify(plain)}`);
+
+    // Full effects again, and the same loss. The knight kneels still. The grade stamps down in its colour as the screen thuds and the score counts
+    // up from 0 to its figure, never backwards; the thud ends with its own animation; and once it has played, M redraws the debrief finished.
+    await page.click('#ui .ov-debrief .row-btns .btn:nth-child(2)');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    await setReduced(page, false);
+    await watchDebrief(page);
+    await sink(page, 12345);
+    await stepUntil(page, (s) => s.phase === 'ended');
+    const final = await page.evaluate(() => `SCORE ${window.__nsp.app.run.state.score.toLocaleString('en-US')}`);
+    const kneel = await heights(70);
+    if (kneel.ys !== 1 || kneel.key !== 'knight-black-down') throw new Error(`the kneeling knight: ${JSON.stringify(kneel)}`);
+    await page.waitForSelector('#ui .ov-debrief .grade.stamp');
+    const colours = await page.evaluate(() => {
+      const css = (sel) => getComputedStyle(document.querySelector(sel)).color, grade = document.querySelector('#ui .grade');
+      return { g: grade.dataset.g, grade: css('#ui .grade'), score: css('#ui .best .num'), served: css('#ui .statlist b.ok'), breaches: css('#ui .statlist b.bad') };
+    });
+    if (colours.g !== 'F' || colours.grade !== red || colours.score !== gold || colours.served !== blue || colours.breaches !== red) throw new Error(`the debrief's colours: ${JSON.stringify(colours)}`);
+    await page.waitForFunction((want) => window.__smokeDebrief.scores.at(-1) === want && !document.querySelector('#ui .ov.shake'), final);
+    const { scores, classes } = await page.evaluate(() => window.__smokeDebrief);
+    const counted = scores.map((t) => Number(t.replace(/\D/g, '')));
+    if (scores[0] !== 'SCORE 0' || scores.length < 4 || counted.some((n, i) => i && n < counted[i - 1])) throw new Error(`the score's count: ${JSON.stringify(scores)}`);
+    if (classes[0] !== 'ov show ov-debrief shake' || classes.at(-1) !== 'ov show ov-debrief') throw new Error(`the debrief's thud: ${JSON.stringify(classes)}`);
+    await page.keyboard.press('m');
+    const redrawn = await page.evaluate(() => ({ grade: document.querySelector('#ui .grade').className, score: document.querySelector('#ui .best b').textContent, thud: document.querySelector('#ui .ov').classList.contains('shake') }));
+    if (redrawn.grade !== 'grade' || redrawn.score !== final || redrawn.thud) throw new Error(`the debrief after M: ${JSON.stringify(redrawn)}`);
+    await page.keyboard.press('m');
+
+    // A won run: the rack that was burning is put out, cleared of its bugs and its LEDs green, the knight hops (planted under reduced effects),
+    // and the debrief names a grade S in gold. The run's own uptime stays 100, so the grade is S; only the rack's view was told otherwise.
+    await page.click('#ui .ov-debrief .row-btns .btn:nth-child(2)');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    await stepUntil(page, (s) => s.packets.some((p) => p.t.kind !== 'legit' && !p.entering));
+    await page.evaluate(() => {
+      const app = window.__nsp.app;
+      app.dispatch([{ type: 'uptime', before: 100, after: 30 }]);
+      app.dispatch([{ type: 'resolved', packet: app.run.state.packets.find((p) => p.t.kind !== 'legit' && !p.entering), outcome: 'breach', damage: 10 }]);
+    });
+    await frames(90);
+    // The breach flashes the rack red for 320 ms of the scene's clock; waited out, its tint is the damage's own (a clean rack's is 0xfff2e6).
+    await page.waitForTimeout(700);
+    await frames(2);
+    const burning = await rackNow();
+    if (!(burning.fire > 50) || burning.bugs < 1 || burning.tint === 0xfff2e6) throw new Error(`the burning rack: ${JSON.stringify(burning)}`);
+    await page.evaluate(() => { const a = window.__nsp.app; a.run.state.wave = 6; a.dispatch(a.run.cheat('skip')); });
+    if (await page.evaluate(() => window.__nsp.app.run.state.endReason) !== 'won') throw new Error('clearing the last wave did not win');
+    // Two frames hold one step of the fire (30 Hz): enough to show the cleared cells and the whole-colour tint, without the fire's own decay.
+    await frames(2);
+    const clean = await rackNow();
+    if (clean.fire !== 0 || clean.bugs !== 0 || clean.tint !== 0xfff2e6 || !clean.green) throw new Error(`the won rack: ${JSON.stringify(clean)}`);
+    const hop = await heights(60);
+    await setReduced(page, true);
+    const planted = await heights(60);
+    await setReduced(page, false);
+    if (hop.ys < 4 || hop.key !== 'knight-black-cheer' || planted.ys !== 1 || planted.key !== 'knight-black-cheer') throw new Error(`the cheering knight: ${JSON.stringify({ hop, planted })}`);
+    await page.waitForSelector('#ui .ov-debrief .grade');
+    await page.waitForTimeout(1000);
+    const won = await page.evaluate(() => ({ head: document.querySelector('#ui .ov-debrief h2').textContent, g: document.querySelector('#ui .grade').dataset.g, color: getComputedStyle(document.querySelector('#ui .grade')).color }));
+    if (won.head !== 'SERVER HELD' || won.g !== 'S' || won.color !== gold) throw new Error(`the won debrief: ${JSON.stringify(won)}`);
+    await page.screenshot({ path: `${OUT}/polish-won.png` });
   },
   async console(page) {
     const open = async () => {

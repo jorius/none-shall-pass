@@ -114,6 +114,11 @@ export class PacketsView implements View {
     const img = this.scene.add.image(0, 0, `card-${slot}`).setOrigin(0, 0).setScale(1 / 2);
     // One box per packet holds its card and its bugs; the name lets the smoke test read the stacking.
     const box = this.scene.add.container(snap(p.x), packetY(p), [img]).setName(`packet-${p.id}`);
+    // The card pops in a touch small and settles to full size; reduced effects have it full size from the start.
+    if (!this.scene.reduced) {
+      box.setScale(0.9);
+      this.scene.tweens.add({ targets: box, scale: 1, duration: 120, ease: 'Back.easeOut' });
+    }
     // Newest on top, as in the mock, but under the locked card, the brackets and the tag.
     const raised = this.raised !== null ? this.visuals.get(this.raised)?.box : undefined;
     layer.addAt(box, layer.getIndex(raised ?? this.overlay));
@@ -197,7 +202,8 @@ export class PacketsView implements View {
       if (!v) continue;
       const x = snap(p.x);
       this.paint(p, v, run);
-      v.box.setPosition(x, packetY(p));
+      // A one-pixel bob on the card alone, each on its own phase (a 1.6 s period); hit tests and the brackets go by the lane, not by it.
+      v.box.setPosition(x, packetY(p) + (this.scene.reduced ? 0 : Math.round(Math.sin(time * 3.9 + p.id))));
       v.img.setCrop(0, 0, p.entering ? Math.max(0, (FW_X - x) * 2) : CARD_TEX_W, CARD_TEX_H);
       // The rig runs on the view clock (it stops with a pause) and, like the card, nothing of it shows past the fire.
       if (v.rig) { v.rig.frame(time + this.lead, dt, this.scene.reduced); v.rig.clip(FW_X - x); }

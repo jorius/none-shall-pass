@@ -79,7 +79,7 @@ const boot = async (): Promise<void> => {
   const effects = new EffectsView(scene);
   // The system setting is the default until the player picks one in the pause menu.
   effects.reduced = store.prefs().reducedFx ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  app.add(new LanesView(scene), fireWall, new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene, effects));
+  app.add(new LanesView(scene), fireWall, new RackView(scene, effects), new FieldObjectsView(scene), new ActorsView(scene, effects));
   // The DOM layer comes after the canvas, so the inspector the hover feeds is created further down.
   let inspector: Inspector | null = null;
   const packets = new PacketsView(scene, {
