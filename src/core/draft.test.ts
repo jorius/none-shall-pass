@@ -37,7 +37,7 @@ describe('draft', () => {
   });
 
   it('deals fewer than three when the pool runs dry', () => {
-    const all = ['destrier', 'squire', 'lens', 'obs1', 'obs2', 'obs3', 'lockdown', 'quote', 'f2b', 'tarpit', 'cdn', 'prepared', 'sortlist', 'mfa', 'csp'] as const;
+    const all = ['destrier', 'destrier2', 'destrier3', 'squire', 'lens', 'obs1', 'obs2', 'obs3', 'lockdown', 'quote', 'f2b', 'tarpit', 'cdn', 'prepared', 'sortlist', 'mfa', 'csp'] as const;
     expect(deal(mulberry32(1), [...all], []).map((c) => c.id)).toEqual(['backup']);
   });
 });

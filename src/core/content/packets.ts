@@ -1,6 +1,6 @@
 // core
 import { STUFF_IP } from '../constants';
-import type { PacketTemplate, Template } from '../types';
+import type { Chip, PacketTemplate, Template } from '../types';
 
 const BROWSER_WIN = 'User-Agent: Mozilla/5.0 (Windows NT 10.0; rv:141.0) Firefox/141.0';
 const BROWSER_IOS = 'User-Agent: Mozilla/5.0 (iPhone) Mobile Safari/19.0';
@@ -148,7 +148,20 @@ const decode = (s: string): string | undefined => {
   }
 };
 
-export const TEMPLATES: readonly Template[] = LIST.map((t) => ({ ...t, raw: t.request.join('\n'), decoded: decode(t.card) }));
+// The card's request line, split for the chip layout: the method or protocol, the path or port, and only the payload.
+export const cardParts = (card: string): { chip: Chip; path: string; payload: string } => {
+  let m = /^(GET|POST) (\/[a-z]+)\??(.*)$/.exec(card);
+  if (m) return { chip: m[1] as Chip, path: m[2], payload: m[3].trim() };
+  m = /^SSH-2\.0-(.*)$/.exec(card);
+  if (m) return { chip: 'SSH', path: ':22', payload: m[1] };
+  m = /^SYN → (:\d+) (.*)$/.exec(card);
+  if (m) return { chip: 'TCP', path: `SYN ${m[1]}`, payload: `→ ${m[2]}` };
+  m = /^SMTP (:\d+) (.*)$/.exec(card);
+  if (m) return { chip: 'SMTP', path: m[1], payload: m[2] };
+  return { chip: 'TCP', path: '', payload: card };
+};
+
+export const TEMPLATES: readonly Template[] = LIST.map((t) => ({ ...t, raw: t.request.join('\n'), decoded: decode(t.card), ...cardParts(t.card) }));
 
 export const templateById = (id: string): Template => {
   const t = TEMPLATES.find((x) => x.id === id);

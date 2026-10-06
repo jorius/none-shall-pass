@@ -1,7 +1,7 @@
 // core
 import type { Localized } from '../types';
 
-export type CardId = 'destrier' | 'squire' | 'lens' | 'obs1' | 'obs2' | 'obs3' | 'lockdown' | 'quote' | 'f2b'
+export type CardId = 'destrier' | 'destrier2' | 'destrier3' | 'squire' | 'lens' | 'obs1' | 'obs2' | 'obs3' | 'lockdown' | 'quote' | 'f2b'
   | 'tarpit' | 'cdn' | 'prepared' | 'sortlist' | 'mfa' | 'csp' | 'backup';
 export type Category = 'KNIGHT' | 'FIREWALL' | 'SERVER';
 export type Rarity = 'COMMON' | 'RARE' | 'LEGENDARY';
@@ -23,10 +23,20 @@ export const STARTING_LOADOUT: CardId[] = ['lockdown'];
 
 export const CARDS: readonly Card[] = [
   { id: 'destrier', cat: 'KNIGHT', rarity: 'LEGENDARY', icon: 'horse',
-    name: { en: 'Destrier', es: 'Destrero' },
-    does: { en: 'Target a packet and the knight rides out to it. It crawls at 30% speed for 5 s while you read it.', es: 'Apunta a un paquete y el caballero cabalga hasta él. Avanza al 30% de velocidad durante 5 s mientras lo lees.' },
-    irl: { en: 'Throttling and step-up checks buy analysts time on suspicious traffic.', es: 'Limitar y pedir verificaciones extra le da tiempo al equipo para analizar tráfico sospechoso.' },
-    catch: { en: 'While you ride, your post is empty.', es: 'Mientras cabalgas, tu puesto queda vacío.' } },
+    name: { en: 'Destrier I', es: 'Destrero I' },
+    does: { en: "Every packet in the knight's lane slows to 70%. He gallops between lanes.", es: 'Todos los paquetes del carril del caballero bajan al 70%. Él galopa entre carriles.' },
+    irl: { en: "Throttling the path you're watching buys analysts time to read.", es: 'Limitar la ruta que vigilas le da tiempo al equipo para leer.' },
+    catch: { en: 'Only the lane you are in.', es: 'Solo el carril en el que estás.' } },
+  { id: 'destrier2', cat: 'KNIGHT', rarity: 'RARE', icon: 'horse', req: 'destrier',
+    name: { en: 'Destrier II', es: 'Destrero II' },
+    does: { en: "The knight's lane slows to 50%.", es: 'El carril del caballero baja al 50%.' },
+    irl: { en: 'Heavier throttling on the traffic under investigation.', es: 'Limitación más fuerte sobre el tráfico bajo investigación.' },
+    catch: { en: 'Still one lane at a time.', es: 'Sigue siendo un carril a la vez.' } },
+  { id: 'destrier3', cat: 'KNIGHT', rarity: 'LEGENDARY', icon: 'horse', req: 'destrier2',
+    name: { en: 'Destrier III · charge', es: 'Destrero III · carga' },
+    does: { en: 'Press C: the knight gallops down his lane and spears every attack in it. Real users pass untouched. Once per wave.', es: 'Pulsa C: el caballero galopa por su carril y alancea cada ataque. Los usuarios reales pasan intactos. Una vez por oleada.' },
+    irl: { en: 'An incident playbook: once you know the pattern, you clear it in one sweep.', es: 'Un playbook de incidentes: cuando conoces el patrón, lo limpias de un barrido.' },
+    catch: { en: 'Once per wave, and only your lane. Charge kills pay rule points, not spear points.', es: 'Una vez por oleada y solo tu carril. Las bajas de la carga pagan puntos de regla, no de lanza.' } },
   { id: 'obs1', cat: 'KNIGHT', rarity: 'COMMON', icon: 'eye',
     name: { en: 'Observability I · logs', es: 'Observabilidad I · logs' },
     does: { en: 'Obvious attacks crawl with bugs: spiders on SQL injections, worms on XSS, beetles on brute force, flies on scans, gnats on floods.', es: 'Los ataques obvios se llenan de bichos: arañas en inyecciones SQL, gusanos en XSS, escarabajos en fuerza bruta, moscas en escaneos, mosquitos en inundaciones.' },

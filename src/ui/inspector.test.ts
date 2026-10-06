@@ -31,7 +31,7 @@ describe('Inspector and EventLog escaping', () => {
     id: 'evil', lane: 3, kind: 'xss', tier: 2, net: 'vps', weight: 1, card: `POST /comments ${EVIL}`,
     request: ['POST /comments HTTP/1.1', `{"body":"${EVIL}"}`], hints: ['<img src=x', '<script>'], decodedHints: ['onerror='],
     context: { en: `THIS IP · ${EVIL}`, es: `ESTA IP · ${EVIL}` }, why: { en: `Why · ${EVIL}`, es: `Por qué · ${EVIL}` },
-    raw: '', decoded: `decoded ${EVIL}`,
+    raw: '', decoded: `decoded ${EVIL}`, chip: 'POST', path: '/comments', payload: EVIL,
   };
   const SRC = `192.0.2.9"><img src=x onerror="window.__pwned=3">`;
   let bottom: HTMLElement, ins: Inspector, log: EventLog, run: Run, p: Packet;
@@ -172,7 +172,7 @@ describe('Inspector', () => {
   it('explains a loadout card, and clears it on leave', () => {
     ins.card(cardById('destrier'));
     expect(text(box(), '.ptitle')).toBe('LOADOUTKNIGHTLEGENDARY');
-    expect(text(box(), '.cname')).toBe('Destrier');
+    expect(text(box(), '.cname')).toBe('Destrier I');
     expect(text(box(), '.why b.irl')).toBe('IN REAL LIFE');
     expect(text(box(), '.why b.catch')).toBe('THE CATCH');
     ins.leave();

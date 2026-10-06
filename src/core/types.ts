@@ -5,6 +5,7 @@ export type MaliciousKind = Exclude<Kind, 'legit'>;
 export type Tier = 1 | 2 | 3;
 export type LaneIndex = 0 | 1 | 2 | 3 | 4;
 export type NetId = 'home' | 'mobile' | 'ci' | 'vps' | 'bot' | 'mail' | 'cloud';
+export type Chip = 'GET' | 'POST' | 'SSH' | 'SMTP' | 'TCP';
 export interface Point { x: number; y: number }
 
 export interface PacketTemplate {
@@ -29,4 +30,7 @@ export interface PacketTemplate {
 export interface Template extends PacketTemplate {
   raw: string;
   decoded?: string;
+  chip: Chip;
+  path: string;
+  payload: string;
 }

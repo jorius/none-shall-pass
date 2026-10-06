@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 // core
 import { STUFF_IP } from '../constants';
-import { TEMPLATES, templateById } from './packets';
+import { cardParts, TEMPLATES, templateById } from './packets';
 
 const DOC_IP = /^(192\.0\.2|198\.51\.100|203\.0\.113)\.\d{1,3}$/;
 const LANES_FOR: Record<string, number[]> = { scan: [4], brute: [0, 1], sqli: [2], xss: [3], flood: [1, 2, 3] };
@@ -72,5 +72,33 @@ describe('packet catalogue', () => {
     for (const k of ['legit', 'sqli', 'xss', 'brute', 'scan', 'flood']) expect(kinds.has(k as never)).toBe(true);
     const scans = TEMPLATES.filter((t) => t.kind === 'scan').map((t) => t.port).sort((a, b) => a! - b!);
     expect(scans).toEqual([23, 445, 3389]);
+  });
+});
+
+describe('card parts', () => {
+  it('splits the request line into chip, path and payload', () => {
+    expect(cardParts("GET /search?q=' OR 1=1--")).toEqual({ chip: 'GET', path: '/search', payload: "q=' OR 1=1--" });
+    expect(cardParts('POST /login user=admin pass=123456')).toEqual({ chip: 'POST', path: '/login', payload: 'user=admin pass=123456' });
+    expect(cardParts('POST /search {"q":"socks","sort":"price; DROP TABLE orders--"}')).toEqual({ chip: 'POST', path: '/search', payload: '{"q":"socks","sort":"price; DROP TABLE orders--"}' });
+    expect(cardParts('SSH-2.0-libssh_0.9.6 root:toor')).toEqual({ chip: 'SSH', path: ':22', payload: 'libssh_0.9.6 root:toor' });
+    expect(cardParts('SSH-2.0-OpenSSH_9.6 publickey deploy')).toEqual({ chip: 'SSH', path: ':22', payload: 'OpenSSH_9.6 publickey deploy' });
+    expect(cardParts('SYN → :23 telnet')).toEqual({ chip: 'TCP', path: 'SYN :23', payload: '→ telnet' });
+    expect(cardParts('SMTP :25 EHLO mail.partner.example')).toEqual({ chip: 'SMTP', path: ':25', payload: 'EHLO mail.partner.example' });
+    expect(cardParts('GET /comments?page=2')).toEqual({ chip: 'GET', path: '/comments', payload: 'page=2' });
+    expect(cardParts('GET /login')).toEqual({ chip: 'GET', path: '/login', payload: '' });
+  });
+
+  it('gives every template its parts, and the payload never repeats the path', () => {
+    for (const t of TEMPLATES) {
+      expect(['GET', 'POST', 'SSH', 'SMTP', 'TCP']).toContain(t.chip);
+      expect(t.path.length).toBeGreaterThan(0);
+      expect(t.payload.startsWith(t.path)).toBe(false);
+      // The payload is lifted from the card, never invented; the TCP branch alone moves the arrow next to the service.
+      expect(t.card).toContain(t.payload.replace(/^→ /, '').slice(0, 8));
+    }
+  });
+
+  it('falls back to a TCP chip with no path for a shape it does not know', () => {
+    expect(cardParts('ICMP echo request')).toEqual({ chip: 'TCP', path: '', payload: 'ICMP echo request' });
   });
 });
