@@ -21,7 +21,7 @@
     "youHit": "you hit a real user", "squireHit": "the squire hit a real user", "by": "by {rule}", "notFooled": "not fooled", "uptimeLoss": "−{n}% uptime"
   },
   "draft": {
-    "waveClear": "WAVE {n} CLEAR", "stats": "Uptime {u}% · reputation {r}/10 · {c} credits", "choose": "CHOOSE AN UPGRADE", "freeNote": "the first pick is free",
+    "waveClear": "WAVE {n} CLEAR", "stats": "Uptime {u}% · reputation {r}/{cap} · {c} credits", "choose": "CHOOSE AN UPGRADE", "freeNote": "the first pick is free",
     "buyNote": "buy more with credits, or move on", "take": "TAKE · FREE", "buy": "BUY · {n} cr", "taken": "TAKEN ✓", "reroll": "REROLL · {n} cr", "next": "NEXT WAVE ▸",
     "cat": { "KNIGHT": "KNIGHT", "FIREWALL": "FIREWALL", "SERVER": "SERVER" },
     "rarity": { "COMMON": "COMMON", "RARE": "RARE", "LEGENDARY": "LEGENDARY" }, "clean": "Clean wave"
@@ -42,7 +42,7 @@
   "debrief": {
     "won": "SERVER HELD", "serverDown": "SERVER DOWN", "usersGone": "USERS GONE", "overtimeOver": "OVERTIME OVER", "grade": "GRADE", "score": "SCORE", "reachedTitle": "WAVE REACHED", "reached": "Wave reached",
     "prevCampaign": "Previous best {s} pts · grade {g}", "prevOvertime": "Previous best wave {w} · {s} pts",
-    "newBest": "NEW BEST", "tampered": "TAMPERED · not saved", "hits": "Hits · obvious / tricky / sneaky", "decoys": "Decoys let through", "squire": "Squire hits",
+    "newBest": "NEW BEST", "tampered": "TAMPERED · not saved", "hits": "Hits · obvious / tricky / sneaky", "decoys": "Decoys let through", "squire": "Squire hits", "charges": "Charge kills",
     "rules": "Rule blocks", "served": "Users served", "neutralized": "Neutralized at the server", "fps": "False positives", "breaches": "Breaches", "uptime": "Uptime left",
     "fam": { "sqli": "SQLi", "xss": "XSS", "brute": "brute force", "scan": "scan", "flood": "flood" },
     "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "selected": "SELECTED · {k}", "again": "PLAY AGAIN", "toTitle": "TITLE"

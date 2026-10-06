@@ -47,6 +47,7 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, best:
   line('debrief.hits', `${st.hits[1]} / ${st.hits[2]} / ${st.hits[3]}`);
   line('debrief.decoys', String(st.decoysKept));
   line('debrief.squire', String(st.squireHits));
+  line('debrief.charges', String(st.chargeHits));
   line('debrief.rules', String(st.ruleBlocks));
   line('debrief.served', String(st.served));
   line('debrief.neutralized', String(st.neutralized));

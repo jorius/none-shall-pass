@@ -1,6 +1,7 @@
 // core
 import { PRICE, REROLL_COST } from '../core/draft';
 import type { Run } from '../core/run';
+import { repCap } from '../core/state';
 
 // art
 import { iconUrl } from '../art/dataurl';
@@ -20,7 +21,7 @@ export const renderDraft = (box: HTMLElement, run: Run, act: { pick(i: number): 
   box.innerHTML = '';
   if (!d) return;
   el('h2', '', box, t('draft.waveClear', { n: s.wave }));
-  el('p', '', box, t('draft.stats', { u: s.uptime, r: s.rep, c: fmtNum(s.credits) }));
+  el('p', '', box, t('draft.stats', { u: s.uptime, r: s.rep, cap: repCap(s.cfg), c: fmtNum(s.credits) }));
   // A wave with mistakes had its recap just before; a clean one says so here instead.
   if (!s.waveMistakes.length) el('p', 'note', box, t('draft.clean'));
   const head = el('div', 'draft-h', box, `${t('draft.choose')} · `);

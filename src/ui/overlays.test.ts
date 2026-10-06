@@ -113,6 +113,19 @@ describe('Overlays', () => {
     expect(app.run!.state.wave).toBe(2);
   });
 
+  it('shows the reputation against its difficulty\'s cap on the draft', () => {
+    boot();
+    app.startRun('campaign');
+    const s = app.run!.state;
+    s.cfg = { ...s.cfg, difficulty: 'intern' };
+    Object.assign(s, { rep: 12, uptime: 90, credits: 1234 });
+    app.dispatch(app.run!.cheat('skip'));
+    expect(box().querySelector('.ov-draft p')?.textContent).toBe('Uptime 90% · reputation 12/14 · 1,234 credits');
+    setLang('es');
+    app.refresh();
+    expect(box().querySelector('.ov-draft p')?.textContent).toBe('Disponibilidad 90% · reputación 12/14 · 1.234 créditos');
+  });
+
   it('keeps a keyboard player on the panel when a pick redraws it', () => {
     boot();
     app.startRun('campaign');
@@ -179,6 +192,7 @@ describe('Overlays', () => {
     boot();
     app.startRun('campaign');
     Object.assign(app.run!.state, { wave: 3, score: 5030 });
+    Object.assign(app.run!.state.stats, { chargeHits: 3, squireHits: 1 });
     app.run!.state.stats.breaches.brute = 2;
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
     vi.advanceTimersByTime(1200);
@@ -187,6 +201,8 @@ describe('Overlays', () => {
     expect(box().querySelector('.newbest')?.textContent).toBe('NEW BEST');
     const rows = [...box().querySelectorAll('.statlist > div:not(.fams)')].map((e) => [e.firstChild?.textContent, e.querySelector('b')?.textContent]);
     expect(rows[0]).toEqual(['Wave reached', '3 / 6']);
+    // The charge's kills sit next to the squire's.
+    expect(rows.slice(3, 5)).toEqual([['Squire hits', '1'], ['Charge kills', '3']]);
     expect(box().querySelector('.fams')?.textContent).toBe('SQLi 0XSS 0brute force 2scan 0flood 0');
     expect(box().querySelector('.mistakes p')?.textContent).toBe('No mistakes. None shall pass, indeed.');
   });

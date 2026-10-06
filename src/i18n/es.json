@@ -21,7 +21,7 @@
     "youHit": "le diste a un usuario real", "squireHit": "el escudero le dio a un usuario real", "by": "por {rule}", "notFooled": "no te engañaron", "uptimeLoss": "−{n}% disponibilidad"
   },
   "draft": {
-    "waveClear": "OLEADA {n} SUPERADA", "stats": "Disponibilidad {u}% · reputación {r}/10 · {c} créditos", "choose": "ELIGE UNA MEJORA", "freeNote": "la primera es gratis",
+    "waveClear": "OLEADA {n} SUPERADA", "stats": "Disponibilidad {u}% · reputación {r}/{cap} · {c} créditos", "choose": "ELIGE UNA MEJORA", "freeNote": "la primera es gratis",
     "buyNote": "compra más con créditos, o sigue", "take": "TOMAR · GRATIS", "buy": "COMPRAR · {n} cr", "taken": "TOMADA ✓", "reroll": "BARAJAR · {n} cr", "next": "SIGUIENTE OLEADA ▸",
     "cat": { "KNIGHT": "CABALLERO", "FIREWALL": "FIREWALL", "SERVER": "SERVIDOR" },
     "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }, "clean": "Oleada limpia"
@@ -42,7 +42,7 @@
   "debrief": {
     "won": "SERVIDOR A SALVO", "serverDown": "SERVIDOR CAÍDO", "usersGone": "SIN USUARIOS", "overtimeOver": "FIN DEL TIEMPO EXTRA", "grade": "NOTA", "score": "PUNTAJE", "reachedTitle": "OLEADA ALCANZADA", "reached": "Oleada alcanzada",
     "prevCampaign": "Récord anterior {s} pts · nota {g}", "prevOvertime": "Récord anterior oleada {w} · {s} pts",
-    "newBest": "NUEVO RÉCORD", "tampered": "TAMPERED · no se guarda", "hits": "Impactos · obvios / engañosos / sigilosos", "decoys": "Señuelos que dejaste pasar", "squire": "Impactos del escudero",
+    "newBest": "NUEVO RÉCORD", "tampered": "TAMPERED · no se guarda", "hits": "Impactos · obvios / engañosos / sigilosos", "decoys": "Señuelos que dejaste pasar", "squire": "Impactos del escudero", "charges": "Bajas por carga",
     "rules": "Bloqueos por reglas", "served": "Usuarios atendidos", "neutralized": "Neutralizados en el servidor", "fps": "Falsos positivos", "breaches": "Brechas", "uptime": "Disponibilidad restante",
     "fam": { "sqli": "SQLi", "xss": "XSS", "brute": "fuerza bruta", "scan": "escaneo", "flood": "inundación" },
     "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "selected": "SELECCIONADO · {k}", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
