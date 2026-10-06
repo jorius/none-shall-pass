@@ -5,7 +5,7 @@ export type CardId = 'destrier' | 'destrier2' | 'destrier3' | 'squire' | 'lens' 
   | 'tarpit' | 'cdn' | 'prepared' | 'sortlist' | 'mfa' | 'csp' | 'backup';
 export type Category = 'KNIGHT' | 'FIREWALL' | 'SERVER';
 export type Rarity = 'COMMON' | 'RARE' | 'LEGENDARY';
-export type IconId = 'horse' | 'squire' | 'lens' | 'eye' | 'lock' | 'grate' | 'hammer' | 'tar' | 'cloud' | 'shield' | 'tape';
+export type IconId = 'horse' | 'squire' | 'eye' | 'lens' | 'ban' | 'snail' | 'puzzle' | 'shieldTick' | 'key' | 'bubble' | 'db' | 'lock' | 'grate' | 'cloud';
 
 export interface Card {
   id: CardId;
@@ -72,12 +72,12 @@ export const CARDS: readonly Card[] = [
     does: { en: 'A portcullis on the firewall drops any request that contains a single quote.', es: 'Un rastrillo en el firewall bloquea cualquier petición que contenga una comilla simple.' },
     irl: { en: 'A naive WAF signature.', es: 'Una firma ingenua de WAF.' },
     catch: { en: "Drops O'Reilly fans. Misses %27 and the sort-field trick.", es: "Bloquea a los fans de O'Reilly. No ve %27 ni el truco del campo de orden." } },
-  { id: 'f2b', cat: 'FIREWALL', rarity: 'COMMON', icon: 'hammer',
+  { id: 'f2b', cat: 'FIREWALL', rarity: 'COMMON', icon: 'ban',
     name: { en: 'fail2ban', es: 'fail2ban' },
     does: { en: 'Bans an IP after two failed logins.', es: 'Bloquea una IP después de dos inicios de sesión fallidos.' },
     irl: { en: 'fail2ban watches logs and firewalls repeat offenders.', es: 'fail2ban vigila los logs y bloquea en el firewall a los reincidentes.' },
     catch: { en: 'Botnets rotate IPs, so every fresh one gets fresh tries.', es: 'Las botnets rotan IPs, así que cada IP nueva tiene intentos nuevos.' } },
-  { id: 'tarpit', cat: 'FIREWALL', rarity: 'RARE', icon: 'tar',
+  { id: 'tarpit', cat: 'FIREWALL', rarity: 'RARE', icon: 'snail',
     name: { en: 'Tarpit', es: 'Pozo de brea' },
     does: { en: 'Repeat visitors to /login wade through tar at 40% speed.', es: 'Las IPs que insisten en /login avanzan por la brea al 40% de velocidad.' },
     irl: { en: 'Tarpits slow suspected attackers without blocking anyone outright.', es: 'Los tarpits frenan a los atacantes sospechosos sin bloquear a nadie del todo.' },
@@ -87,27 +87,27 @@ export const CARDS: readonly Card[] = [
     does: { en: 'Flood traffic is absorbed at the edge; real browsers pass.', es: 'El tráfico de inundación se absorbe en el borde; los navegadores reales pasan.' },
     irl: { en: 'A CDN spreads the load and rate limits cap how fast one client can ask.', es: 'Una CDN reparte la carga y los límites de peticiones le ponen tope a qué tan rápido puede pedir un cliente.' },
     catch: { en: 'Does nothing against a single clever request.', es: 'No hace nada contra una sola petición astuta.' } },
-  { id: 'prepared', cat: 'SERVER', rarity: 'RARE', icon: 'shield',
+  { id: 'prepared', cat: 'SERVER', rarity: 'RARE', icon: 'puzzle',
     name: { en: 'Prepared statements', es: 'Sentencias preparadas' },
     does: { en: 'Values never become SQL. Most injections arrive and do nothing.', es: 'Los valores nunca se vuelven SQL. La mayoría de las inyecciones llegan y no hacen nada.' },
     irl: { en: 'The real fix for SQL injection.', es: 'La solución real para la inyección SQL.' },
     catch: { en: "Column names in ORDER BY can't be parameters; the sort-field trick still lands.", es: 'Los nombres de columna en ORDER BY no pueden ser parámetros; el truco del campo de orden igual entra.' } },
-  { id: 'sortlist', cat: 'SERVER', rarity: 'RARE', icon: 'shield',
+  { id: 'sortlist', cat: 'SERVER', rarity: 'RARE', icon: 'shieldTick',
     name: { en: 'Sort-column allow-list', es: 'Lista de columnas permitidas' },
     does: { en: 'The sort field only accepts price, name or date.', es: 'El campo de orden solo acepta price, name o date.' },
     irl: { en: 'Allow-list anything that ends up as an SQL identifier.', es: 'Usa listas de valores permitidos para todo lo que termine siendo un identificador SQL.' },
     catch: { en: 'Covers the sort field only.', es: 'Solo cubre el campo de orden.' } },
-  { id: 'mfa', cat: 'SERVER', rarity: 'RARE', icon: 'shield',
+  { id: 'mfa', cat: 'SERVER', rarity: 'RARE', icon: 'key',
     name: { en: 'MFA + SSH keys only', es: 'MFA + solo llaves SSH' },
     does: { en: 'A guessed or stolen password is no longer enough.', es: 'Una contraseña adivinada o robada ya no basta.' },
     irl: { en: 'Second factors make most stolen-password logins useless.', es: 'Los segundos factores vuelven inútil la mayoría de inicios de sesión con contraseñas robadas.' },
     catch: { en: 'None in the game. In real life: phishing proxies and push fatigue still beat phishable factors; passkeys close that gap.', es: 'Ninguna en el juego. En la vida real: los proxies de phishing y la fatiga de notificaciones aún superan los factores que se pueden suplantar; las passkeys cierran esa brecha.' } },
-  { id: 'csp', cat: 'SERVER', rarity: 'RARE', icon: 'shield',
+  { id: 'csp', cat: 'SERVER', rarity: 'RARE', icon: 'bubble',
     name: { en: 'Output encoding + CSP', es: 'Codificación de salida + CSP' },
     does: { en: 'Comments render as text and the browser refuses inline scripts.', es: 'Los comentarios se muestran como texto y el navegador rechaza scripts en línea.' },
     irl: { en: 'Encode on output; CSP is the seatbelt.', es: 'Codifica al mostrar; la CSP es el cinturón de seguridad.' },
     catch: { en: 'None in the game.', es: 'Ninguna en el juego.' } },
-  { id: 'backup', cat: 'SERVER', rarity: 'COMMON', icon: 'tape',
+  { id: 'backup', cat: 'SERVER', rarity: 'COMMON', icon: 'db',
     name: { en: 'Restore from backup', es: 'Restaurar copia de seguridad' },
     does: { en: 'Instantly restores 30% uptime and puts out part of the fire.', es: 'Restaura de inmediato 30% de disponibilidad y apaga parte del fuego.' },
     irl: { en: 'Tested backups turn a disaster into a bad afternoon.', es: 'Las copias probadas convierten un desastre en una mala tarde.' },

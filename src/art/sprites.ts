@@ -3,7 +3,7 @@ import type { IconId } from '../core/content/cards';
 import type { MaliciousKind } from '../core/types';
 
 // local
-import { draw, grid, line, outline, poly, rect, type Grid } from './pixels';
+import { disc, draw, ell, grid, line, outline, poly, rect, rowsToGrid, set, type Grid } from './pixels';
 
 type Rows = [number, number, string][];
 
@@ -109,6 +109,11 @@ export const rackSprite = (rows: number): { grid: Grid; leds: [number, number, '
   return { grid: g, leds, units };
 };
 
+// One flat shield for the SERVER branch: a dark-blue rim, a flat blue field, and a mark on it.
+const shieldBase = (): Grid => draw(grid(16, 14), [[1, 3, 'bbbbbbbbb'], [2, 3, 'bBBBBBBBb'], [3, 3, 'bBBBBBBBb'], [4, 3, 'bBBBBBBBb'], [5, 3, 'bBBBBBBBb'], [6, 3, 'bBBBBBBBb'], [7, 4, 'bBBBBBb'], [8, 4, 'bBBBBBb'], [9, 5, 'bBBBb'], [10, 6, 'bBb'], [11, 7, 'b']]);
+const marked = (cells: [number, number][], c = 'w'): Grid => { const g = shieldBase(); cells.forEach(([x, y]) => set(g, x, y, c)); return outline(g); };
+
+// The card icons (16×14, flat, outlined) and the field-object grids (hammer, lockShut, lockOpen).
 export const ICONS = {
   grate: (): Grid => {
     const g = grid(16, 14);
@@ -118,14 +123,89 @@ export const ICONS = {
     return outline(g);
   },
   hammer: (): Grid => outline(draw(grid(16, 14), [[1, 2, 'lllllllll'], [2, 2, 'wlmmmmmmd'], [3, 2, 'lmmmmmmmd'], [4, 2, 'dddddddddd'], [5, 6, 'T'], [6, 6, 'T'], [7, 6, 'TT'], [8, 7, 'T'], [9, 7, 'T'], [10, 7, 'TT'], [11, 8, 'T'], [12, 8, 't']])),
-  tar: (): Grid => outline(draw(grid(16, 14), [[5, 4, 'C..C'], [6, 3, 'CkkC'], [8, 2, 'kkkkkkkkk'], [9, 1, 'kkkCkkkkkkkk'], [10, 1, 'kkkkkkkCkkkkk'], [11, 2, 'kkkkkkkkkkk'], [7, 9, 'C'], [6, 10, 'CC']])),
-  lens: (): Grid => outline(draw(grid(16, 14), [[1, 3, 'llll'], [2, 2, 'lBBjjl'], [3, 1, 'lBBBjjl'], [4, 1, 'lBBBBjl'], [5, 1, 'lBBBBBl'], [6, 2, 'lBBBl'], [7, 3, 'lll'], [7, 7, 'T'], [8, 8, 'TT'], [9, 9, 'TT'], [10, 10, 'TT'], [11, 11, 'tt']])),
-  shield: (): Grid => outline(draw(grid(16, 14), [[1, 3, 'lllllllll'], [2, 3, 'lBBBBBBBb'], [3, 3, 'lBBBBBBwb'], [4, 3, 'lBBBBBwBb'], [5, 3, 'lBwBBwBBb'], [6, 3, 'lBBwwBBBb'], [7, 4, 'lBBwBBb'], [8, 4, 'lBBBBBb'], [9, 5, 'lBBBb'], [10, 6, 'lBb'], [11, 7, 'b']])),
-  tape: (): Grid => outline(draw(grid(16, 14), [[2, 1, 'kkkkkkkkkkkkk'], [3, 1, 'kllkkkkkkllkk'], [4, 1, 'klwlkkkklwlkk'], [5, 1, 'kllkkkkkkllkk'], [6, 1, 'kkkkkkkkkkkkk'], [7, 1, 'kkkTTTTTTTkkk'], [8, 1, 'kkkkkkkkkkkkk']])),
-  eye: (): Grid => outline(draw(grid(16, 14), [[4, 4, 'wwwwwwww'], [5, 2, 'wwwbBBBbwwww'], [6, 1, 'wwwbBkkBbwwww'], [7, 1, 'wwwbBkkBbwwww'], [8, 2, 'wwwbBBBbwwww'], [9, 4, 'wwwwwwww'], [2, 6, 'R'], [1, 9, 'R'], [11, 12, 'r'], [12, 11, 'rr']])),
   lock: (): Grid => outline(draw(grid(16, 14), [[1, 5, 'llllll'], [2, 4, 'l'], [2, 11, 'l'], [3, 4, 'l'], [3, 11, 'l'], [4, 4, 'l'], [4, 11, 'l'],
-    [5, 2, 'RRRRRRRRRRRR'], [6, 2, 'RRRRRRRRRRRR'], [7, 2, 'RRRRRkkRRRRR'], [8, 2, 'RRRRRkkRRRRR'], [9, 2, 'RRRRRRkRRRRR'], [10, 2, 'rRRRRRRRRRRr'], [11, 2, 'rrrrrrrrrrrr']])),
-  cloud: (): Grid => outline(draw(grid(16, 14), [[3, 5, 'iiii'], [4, 3, 'iiiiiiii'], [4, 11, 'ii'], [5, 2, 'iiiiiiiiiiii'], [6, 1, 'iiiiiiiiiiiiii'], [7, 1, 'jjjjjjjjjjjjjj'], [8, 2, 'jjjjjjjjjjjj'], [10, 4, 'B'], [10, 8, 'B'], [10, 12, 'B'], [11, 3, 'B'], [11, 7, 'B'], [11, 11, 'B']])),
+    [5, 2, 'RRRRRRRRRRRR'], [6, 2, 'RRRRRRRRRRRR'], [7, 2, 'RRRRRkkRRRRR'], [8, 2, 'RRRRRkkRRRRR'], [9, 2, 'RRRRRRkRRRRR'], [10, 2, 'RRRRRRRRRRRR'], [11, 2, 'RRRRRRRRRRRR']])),
+  cloud: (): Grid => outline(draw(grid(16, 14), [[3, 5, 'iiii'], [4, 3, 'iiiiiiii'], [4, 11, 'ii'], [5, 2, 'iiiiiiiiiiii'], [6, 1, 'iiiiiiiiiiiiii'], [7, 1, 'iiiiiiiiiiiiii'], [8, 2, 'iiiiiiiiiiii'], [10, 4, 'B'], [10, 8, 'B'], [10, 12, 'B'], [11, 3, 'B'], [11, 7, 'B'], [11, 11, 'B']])),
+  // an almond eye: lid line, white, blue iris, black pupil with a glint
+  eye: (): Grid => outline(rowsToGrid([
+    '................',
+    '................',
+    '......dddd......',
+    '....ddSSSSdd....',
+    '..ddSSSBBSSSdd..',
+    '.dSSSSBbbBSSSSd.',
+    'dSSSSBbikbBSSSSd',
+    'dSSSSBbkkbBSSSSd',
+    '.dSSSSBbbBSSSSd.',
+    '..ddSSSBBSSSdd..',
+    '....ddSSSSdd....',
+    '......dddd......',
+    '................',
+    '................',
+  ])),
+  // a round lens: true circle rim, glass, a glint, and a handle that comes out from under the rim
+  lens: (): Grid => {
+    const g = grid(16, 14);
+    disc(g, 6.5, 5.5, 0, 3.6, 'j');
+    disc(g, 6.5, 5.5, 3.6, 5.2, 'l');
+    set(g, 4, 3, 'i'); set(g, 5, 3, 'i'); set(g, 4, 4, 'i');
+    // a solid handle, three cells thick, drawn after the rim so it visibly enters it
+    set(g, 10, 7, 'T'); set(g, 9, 8, 'T');
+    for (let i = 0; i < 6; i++) { set(g, 10 + i, 8 + i, 'T'); set(g, 11 + i, 8 + i, 'T'); set(g, 10 + i, 9 + i, 't'); }
+    return outline(g);
+  },
+  // fail2ban: the red "no" sign over a grey person
+  ban: (): Grid => {
+    const g = grid(16, 14);
+    disc(g, 8, 7, 0, 4.7, 'S');
+    disc(g, 8, 4.9, 0, 1.7, 'm');
+    disc(g, 8, 11.2, 0, 3.4, 'm', (_x, y) => y >= 8 && y <= 10);
+    disc(g, 8, 7, 0, 4.7, 'R', (x, y) => Math.abs((x + 0.5 - 8) - (y + 0.5 - 7)) < 1.2);
+    disc(g, 8, 7, 4.7, 6.4, 'R');
+    return outline(g);
+  },
+  // tarpit: a snail
+  snail: (): Grid => {
+    const g = grid(16, 14);
+    // the foot runs under the shell and out the back; the head and two eye stalks lead
+    draw(g, [[8, 1, 'aaa'], [9, 0, 'aaaaa'], [10, 0, 'aaaaaaaaaaaaaa'], [11, 1, 'AAAAAAAAAAAAA']]);
+    draw(g, [[7, 1, 'A'], [6, 1, 'A'], [5, 1, 'k'], [4, 1, 'k'], [7, 3, 'A'], [6, 3, 'A'], [5, 3, 'k'], [4, 3, 'k']]);
+    disc(g, 10, 6.5, 0, 4.6, 'X');
+    disc(g, 10, 6.5, 0, 1.0, 'k');
+    disc(g, 10, 6.5, 1.8, 2.7, 'k', (x, y) => Math.atan2(y + 0.5 - 6.5, x + 0.5 - 10) > -2.2);
+    disc(g, 10, 6.5, 3.4, 4.2, 'k', (x, y) => { const t = Math.atan2(y + 0.5 - 6.5, x + 0.5 - 10); return t > 0.6 && t < 3.0; });
+    return outline(g);
+  },
+  // prepared statements: a puzzle piece — a value only fits the slot the query left for it
+  puzzle: (): Grid => {
+    const g = grid(16, 14);
+    for (let y = 3; y <= 11; y++) for (let x = 3; x <= 11; x++) set(g, x, y, 'u');
+    draw(g, [[1, 6, 'uuu'], [2, 6, 'uuu']]);
+    [[11, 6], [11, 7], [11, 8], [10, 7]].forEach(([x, y]) => set(g, x, y, null));
+    return outline(g);
+  },
+  // sort-column allow-list: the tick is the old shield's exact mark; only the lit left rim and the shaded right rim are gone
+  shieldTick: (): Grid => marked([[5, 5], [6, 6], [7, 6], [7, 7], [8, 5], [9, 4], [10, 3]]),
+  // MFA + SSH keys: the key and token from the v3 round, restored as they were
+  key: (): Grid => outline(draw(grid(16, 14), [[3, 1, 'yyyy'], [4, 0, 'yy..yy'], [5, 0, 'y....yyyyyyyyy'], [6, 0, 'y....yyyyyyyyy'], [7, 0, 'yy..yy...y.yy'], [8, 1, 'yyyy....y.y'], [10, 10, 'ccccc'], [11, 10, 'cgcgc'], [12, 10, 'ccccc']])),
+  // output encoding + CSP: a comment bubble whose <> stays text
+  bubble: (): Grid => {
+    const g = grid(16, 14);
+    draw(g, [[1, 2, 'HHHHHHHHHHHH'], [2, 1, 'HhhhhhhhhhhhhH'], [3, 1, 'HhhhhhhhhhhhhH'], [4, 1, 'HhhhhhhhhhhhhH'], [5, 1, 'HhhhhhhhhhhhhH'], [6, 1, 'HhhhhhhhhhhhhH'], [7, 1, 'HhhhhhhhhhhhhH'], [8, 1, 'HhhhhhhhhhhhhH'], [9, 2, 'HHHHHHHHHHHH'], [10, 3, 'HhH'], [11, 3, 'HH'], [12, 3, 'H']]);
+    draw(g, [[3, 5, 'b'], [4, 4, 'b'], [5, 3, 'b'], [6, 4, 'b'], [7, 5, 'b'], [3, 9, 'b'], [4, 10, 'b'], [5, 11, 'b'], [6, 10, 'b'], [7, 9, 'b']]);
+    return outline(g);
+  },
+  // restore from backup: the classic database, a cylinder seen from slightly above, plus a green restore arrow
+  db: (): Grid => {
+    const g = grid(16, 14);
+    for (let y = 3; y <= 11; y++) for (let x = 1; x <= 11; x++) set(g, x, y, 'l');
+    ell(g, 6.5, 11, 5.5, 2.2, 'm', (_x, y) => y >= 11);
+    for (const cy of [5.8, 8.6]) ell(g, 6.5, cy, 5.5, 2.0, 'm', (_x, y, d) => d >= 0.4 && y + 0.5 > cy);
+    ell(g, 6.5, 3, 5.5, 2.2, 'w');
+    ell(g, 6.5, 3, 5.5, 2.2, 'l', (_x, _y, d) => d >= 0.45);
+    draw(g, [[4, 14, 'g'], [5, 13, 'ggg'], [6, 14, 'g'], [7, 14, 'g'], [8, 14, 'g'], [9, 14, 'g'], [10, 14, 'g']]);
+    return outline(g);
+  },
   lockShut: (): Grid => outline(draw(grid(10, 10), [[1, 3, 'llll'], [2, 2, 'l'], [2, 7, 'l'], [3, 2, 'l'], [3, 7, 'l'], [4, 1, 'RRRRRRRR'], [5, 1, 'RRRkkRRR'], [6, 1, 'RRRkkRRR'], [7, 1, 'rRRRRRRr'], [8, 1, 'rrrrrrrr']])),
   lockOpen: (): Grid => outline(draw(grid(10, 10), [[0, 3, 'llll'], [1, 2, 'l'], [1, 7, 'l'], [2, 2, 'l'], [4, 1, 'BBBBBBBB'], [5, 1, 'BBBkkBBB'], [6, 1, 'BBBkkBBB'], [7, 1, 'bBBBBBBb'], [8, 1, 'bbbbbbbb']])),
 };

@@ -9,9 +9,18 @@ export const PAL: Record<string, string> = {
   h: '#cfc9ba', H: '#958f81', n: '#6d685d', c: '#2a2c35', C: '#3a3d4a',
   F: '#121317', E: '#24272f', Q: '#3c414d', U: '#4a5061', V: '#2b2f39', Z: '#16181d', G: '#14532d', g: '#3ddc84',
   i: '#e8f8ff', j: '#8fdcff', x: '#7a2a1a', X: '#a8432a', z: '#5a1e12',
+  // The icon set and the knights' gear: violet, leather, skin, a pale grey and the braid shade (y stays the gold).
+  u: '#b48cff', q: '#6e4bb5', a: '#c8a46a', A: '#8f6f3e', p: '#e2b48c', P: '#b9825c', e: '#c9d4e2', Y: '#b8963e',
 };
 
 export const grid = (w: number, h: number): Grid => Array.from({ length: h }, () => Array<string | null>(w).fill(null));
+
+// Rows of palette letters, '.' for an empty cell.
+export const rowsToGrid = (rows: string[]): Grid => rows.map((r) => [...r].map((c) => (c === '.' ? null : c)));
+
+export const set = (g: Grid, x: number, y: number, c: string | null): void => {
+  if (g[y] && x >= 0 && x < g[0].length) g[y][x] = c;
+};
 
 export const draw = (g: Grid, rows: [number, number, string][], dx = 0, dy = 0): Grid => {
   for (const [y, x0, str] of rows) {
@@ -45,6 +54,21 @@ export const line = (g: Grid, x0: number, y0: number, x1: number, y1: number, c:
     const x = Math.round(x0 + ((x1 - x0) * i) / n), y = Math.round(y0 + ((y1 - y0) * i) / n);
     for (let k = 0; k < w; k++) if (g[y] && x + k >= 0 && x + k < g[0].length) g[y][x + k] = c;
   }
+};
+
+// Fills the cells whose centre lies inside the ellipse (rx, ry) around (cx, cy); keep(x, y, d) narrows it,
+// where d is the normalised distance (1 at the edge), so a ring is `d >= 0.6`.
+export const ell = (g: Grid, cx: number, cy: number, rx: number, ry: number, c: string, keep?: (x: number, y: number, d: number) => boolean): void => {
+  g.forEach((row, y) => row.forEach((_, x) => {
+    const u = (x + 0.5 - cx) / rx, v = (y + 0.5 - cy) / ry, d = u * u + v * v;
+    if (d < 1 && (!keep || keep(x, y, d))) g[y][x] = c;
+  }));
+};
+export const disc = (g: Grid, cx: number, cy: number, r0: number, r1: number, c: string, keep?: (x: number, y: number, d: number) => boolean): void => {
+  g.forEach((row, y) => row.forEach((_, x) => {
+    const d = Math.hypot(x + 0.5 - cx, y + 0.5 - cy);
+    if (d >= r0 && d < r1 && (!keep || keep(x, y, d))) g[y][x] = c;
+  }));
 };
 
 export const outline = (g: Grid): Grid => {
