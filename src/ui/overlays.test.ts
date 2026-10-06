@@ -228,44 +228,77 @@ describe('Overlays', () => {
     boot();
     app.startRun('campaign');
     const run = app.run!;
-    const breach = fakeEntry('breach'), fp = fakeEntry('fp');
-    breach.packet.t = { ...breach.packet.t, card: 'GET /x?q=<img src=x onerror=alert(1)>', hints: ['onerror=', '<img src=x', ''] };
-    run.state.waveMistakes = [breach, fp];
+    const breach = fakeEntry('breach'), again = fakeEntry('breach'), fp = fakeEntry('fp');
+    // The tells are authored against the full request, which is what the row shows.
+    breach.packet.t = { ...breach.packet.t, raw: 'GET /x?q=<img src=x onerror=alert(1)>\nHost: shop.example', hints: ['onerror=', '<img src=x', ''] };
+    run.state.waveMistakes = [breach, again, fp];
     run.state.phase = 'draft';
     run.state.draft = { picks: [], free: true, taken: [] };
     app.dispatch([{ type: 'draftOpened', draft: run.state.draft }]);
     expect(box().className).toBe('ov show ov-recap');
     expect(box().querySelector('h2')?.textContent).toBe('WAVE 1 CLEARED');
-    expect(box().querySelector('p.note')?.textContent).toBe('1 breaches · 1 false alarms');
+    expect(box().querySelector('p.note')?.textContent).toBe('2 breaches · 1 false alarm');
     const rows = [...box().querySelectorAll('.mistake')];
-    expect(rows.map((r) => r.className)).toEqual(['mistake breach', 'mistake fp']);
+    expect(rows.map((r) => r.className)).toEqual(['mistake breach', 'mistake breach', 'mistake fp']);
     expect([...rows[0].querySelectorAll('.mhead span')].map((e) => e.textContent)).toEqual(['BREACH', 'PORT SCAN', 'W1']);
-    // The tells come underlined in the order they appear, and the payload stays text: no image, no handler.
-    expect(rows[0].querySelector('pre')?.textContent).toBe('GET /x?q=<img src=x onerror=alert(1)>');
+    // The tells come underlined in the order they appear, and the request stays text: no image, no handler.
+    expect(rows[0].querySelector('pre')?.textContent).toBe('GET /x?q=<img src=x onerror=alert(1)>\nHost: shop.example');
     expect([...rows[0].querySelectorAll('mark')].map((m) => m.textContent)).toEqual(['<img src=x', 'onerror=']);
     expect(box().querySelector('img')).toBeNull();
-    expect([...rows[1].querySelectorAll('.mhead span')].map((e) => e.textContent)).toEqual(['FALSE POSITIVE', 'REAL USER', 'W1']);
-    expect(rows[1].querySelector('mark')).toBeNull();
-    expect(rows[1].querySelector('.why')?.textContent).toBe('A shopper looking for socks. Let it through.');
+    expect([...rows[2].querySelectorAll('.mhead span')].map((e) => e.textContent)).toEqual(['FALSE POSITIVE', 'REAL USER', 'W1']);
+    expect(rows[2].querySelector('mark')).toBeNull();
+    expect(rows[2].querySelector('.why')?.textContent).toBe('A shopper looking for socks. Let it through.');
     expect(box().querySelector('.more')).toBeNull();
-    // In Spanish, in place.
+    // In Spanish, in place; one of a kind reads in the singular.
     setLang('es');
     app.refresh();
     expect(box().querySelector('h2')?.textContent).toBe('OLEADA 1 SUPERADA');
-    expect(box().querySelector('p.note')?.textContent).toBe('1 brechas · 1 falsas alarmas');
+    expect(box().querySelector('p.note')?.textContent).toBe('2 brechas · 1 falsa alarma');
     expect(named(/CONTINUAR/)).toBeTruthy();
+    run.state.waveMistakes = [breach];
+    app.refresh();
+    expect(box().querySelector('p.note')?.textContent).toBe('1 brecha · 0 falsas alarmas');
+    setLang('en');
+    app.refresh();
+    expect(box().querySelector('p.note')?.textContent).toBe('1 breach · 0 false alarms');
   });
 
-  it('caps the debrief list at thirty of the run\'s mistakes and counts the rest', () => {
+  it('underlines the tells of the full request, not only the card line', () => {
+    boot();
+    app.startRun('campaign');
+    const run = app.run!;
+    // flood-login's one tell is the User-Agent header, which the card line never shows.
+    const flood: LogEntry = { seq: 1, wave: 2, outcome: 'breach', packet: place(freshState(), 'flood-login', 300), points: 0 };
+    run.state.waveMistakes = [flood];
+    run.state.phase = 'draft';
+    run.state.draft = { picks: [], free: true, taken: [] };
+    app.dispatch([{ type: 'draftOpened', draft: run.state.draft }]);
+    const row = box().querySelector('.mistake.breach')!;
+    expect(row.querySelector('pre')?.textContent?.split('\n')).toEqual(['GET /login HTTP/1.1', 'Host: shop.example', 'User-Agent: curl/8.9.1']);
+    expect([...row.querySelectorAll('mark')].map((m) => m.textContent)).toEqual(['curl/8.9.1']);
+    expect([...row.querySelectorAll('.mhead span')].map((e) => e.textContent)).toEqual(['BREACH', 'BOTNET FLOOD', 'W2']);
+  });
+
+  it('caps the debrief list at thirty of the run\'s mistakes and counts the rest from the stats', () => {
     boot();
     app.startRun('campaign');
     const s = app.run!.state;
+    // The kept list is itself capped (200), so the rest is counted from the run's totals, not from the list.
     for (let i = 0; i < 33; i++) s.mistakes.push(fakeEntry(i % 2 ? 'fp' : 'breach'));
+    s.stats.falsePositives = 100;
+    s.stats.breaches.scan = 150;
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
     vi.advanceTimersByTime(1200);
     expect(box().className).toBe('ov show ov-debrief');
     expect(box().querySelectorAll('.mistake')).toHaveLength(30);
-    expect(box().querySelector('.mistakes .more')?.textContent).toBe('+3 more');
+    expect(box().querySelector('.mistakes .more')?.textContent).toBe('+220 more');
+    // Thirty mistakes in all: every one shown, nothing more to count.
+    s.mistakes.length = 30;
+    s.stats.falsePositives = 15;
+    s.stats.breaches.scan = 15;
+    app.refresh();
+    expect(box().querySelectorAll('.mistake')).toHaveLength(30);
+    expect(box().querySelector('.mistakes .more')).toBeNull();
   });
 
   it('keeps a keyboard pick among the affordable cards, wrapping back before NEXT WAVE', () => {
@@ -361,8 +394,9 @@ describe('Overlays', () => {
     app.startRun('overtime');
     const s = app.run!.state;
     const p = place(s, 'legit-socks', 300);
-    p.t = { ...p.t, card: '<img src=x onerror="window.__pwned=1">' };
+    p.t = { ...p.t, raw: '<img src=x onerror="window.__pwned=1">' };
     s.mistakes.unshift({ seq: 1, wave: 1, outcome: 'fp', packet: p, points: 0, fpBy: 'knight' });
+    s.stats.falsePositives = 1;
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
     vi.advanceTimersByTime(1200);
     expect(box().className).toBe('ov show ov-debrief');

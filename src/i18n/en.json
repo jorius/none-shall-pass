@@ -26,7 +26,7 @@
     "cat": { "KNIGHT": "KNIGHT", "FIREWALL": "FIREWALL", "SERVER": "SERVER" },
     "rarity": { "COMMON": "COMMON", "RARE": "RARE", "LEGENDARY": "LEGENDARY" }, "clean": "Clean wave"
   },
-  "recap": { "title": "WAVE {n} CLEARED", "breaches": "{n} breaches", "fps": "{n} false alarms", "what": "WHAT GOT THROUGH", "clean": "Clean wave. Nothing got past you.", "more": "+{n} more", "continue": "CONTINUE ▸" },
+  "recap": { "title": "WAVE {n} CLEARED", "breach": "1 breach", "breaches": "{n} breaches", "fp": "1 false alarm", "fps": "{n} false alarms", "what": "WHAT GOT THROUGH", "clean": "Clean wave. Nothing got past you.", "more": "+{n} more", "continue": "CONTINUE ▸" },
   "pause": { "title": "PAUSED", "hint": "P to resume", "resume": "RESUME", "quit": "QUIT TO TITLE", "reducedOn": "REDUCED EFFECTS · ON", "reducedOff": "REDUCED EFFECTS · OFF" },
   "title": {
     "tagline": "Guard the server. Read the packets. Let the real users through.", "play": "PLAY CAMPAIGN", "overtime": "OVERTIME",

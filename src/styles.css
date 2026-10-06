@@ -185,6 +185,8 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .btn:focus-visible { outline: 2px solid var(--b); outline-offset: 3px; }
 .row-btns { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .note { font-size: 13px; color: var(--dim); }
+/* A note set as a paragraph (the recap's counts, the draft's clean wave) keeps the note's face over the screen's body text. */
+.ov p.note { font-family: var(--mono); font-size: 13px; }
 .best { font-size: 13px; color: var(--dim); line-height: 1.7; }
 .best b { color: var(--ink); }
 .sitelink { font-size: 13px; color: var(--dim); text-decoration: none; border-bottom: 1px solid var(--mute); }

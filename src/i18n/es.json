@@ -26,7 +26,7 @@
     "cat": { "KNIGHT": "CABALLERO", "FIREWALL": "FIREWALL", "SERVER": "SERVIDOR" },
     "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }, "clean": "Oleada limpia"
   },
-  "recap": { "title": "OLEADA {n} SUPERADA", "breaches": "{n} brechas", "fps": "{n} falsas alarmas", "what": "LO QUE PASÓ", "clean": "Oleada limpia. No se te escapó nada.", "more": "+{n} más", "continue": "CONTINUAR ▸" },
+  "recap": { "title": "OLEADA {n} SUPERADA", "breach": "1 brecha", "breaches": "{n} brechas", "fp": "1 falsa alarma", "fps": "{n} falsas alarmas", "what": "LO QUE PASÓ", "clean": "Oleada limpia. No se te escapó nada.", "more": "+{n} más", "continue": "CONTINUAR ▸" },
   "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "reducedOn": "EFECTOS REDUCIDOS · ON", "reducedOff": "EFECTOS REDUCIDOS · OFF" },
   "title": {
     "tagline": "Protege el servidor. Lee los paquetes. Deja pasar a los usuarios reales.", "play": "JUGAR CAMPAÑA", "overtime": "TIEMPO EXTRA",

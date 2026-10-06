@@ -615,12 +615,14 @@ const CHECKS = {
       screen: window.__nsp.app.screen, title: document.querySelector('#ui .ov-recap h2')?.textContent, note: document.querySelector('#ui .ov-recap p.note')?.textContent,
       focused: document.activeElement?.textContent, rows: [...document.querySelectorAll('#ui .ov-recap .mistake')].map((m) => m.className),
       marks: [...document.querySelectorAll('#ui .ov-recap .mistake.breach mark')].map((m) => m.textContent), imgs: document.querySelectorAll('#ui .ov-recap img').length,
+      // The row shows the whole request, the tells underlined where they are (a scan's sit on two of its lines).
+      lines: document.querySelector('#ui .ov-recap .mistake.breach pre')?.textContent.split('\n').length,
     }));
     await play(page);
     await mistakes();
     const en = await shown();
-    if (en.screen !== 'recap' || en.title !== 'WAVE 1 CLEARED' || !/^\d+ breaches · 1 false alarms$/.test(en.note) || en.focused !== 'CONTINUE ▸') throw new Error(`recap: ${JSON.stringify(en)}`);
-    if (!en.rows.includes('mistake breach') || !en.rows.includes('mistake fp') || !en.marks.length || en.imgs) throw new Error(`recap rows: ${JSON.stringify(en)}`);
+    if (en.screen !== 'recap' || en.title !== 'WAVE 1 CLEARED' || !/^(1 breach|\d+ breaches) · 1 false alarm$/.test(en.note) || en.focused !== 'CONTINUE ▸') throw new Error(`recap: ${JSON.stringify(en)}`);
+    if (!en.rows.includes('mistake breach') || !en.rows.includes('mistake fp') || en.marks.length < 2 || !(en.lines > 1) || en.imgs) throw new Error(`recap rows: ${JSON.stringify(en)}`);
     await fits(page, 'recap');
     await page.screenshot({ path: `${OUT}/recap.png` });
     // Space goes on to the draft: no card taken, nothing focused, so the next Space is not a card button's click.
@@ -638,7 +640,7 @@ const CHECKS = {
     await play(page);
     await mistakes();
     const es = await shown();
-    if (es.title !== 'OLEADA 1 SUPERADA' || !/^\d+ brechas · 1 falsas alarmas$/.test(es.note) || es.focused !== 'CONTINUAR ▸' || !es.marks.length) throw new Error(`Spanish recap: ${JSON.stringify(es)}`);
+    if (es.title !== 'OLEADA 1 SUPERADA' || !/^(1 brecha|\d+ brechas) · 1 falsa alarma$/.test(es.note) || es.focused !== 'CONTINUAR ▸' || es.marks.length < 2) throw new Error(`Spanish recap: ${JSON.stringify(es)}`);
     await fits(page, 'Spanish recap');
     await page.screenshot({ path: `${OUT}/recap-es.png` });
   },

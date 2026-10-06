@@ -62,8 +62,9 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, best:
   line('debrief.uptime', `${r.uptime}%`);
   const right = el('div', '', wrap);
   el('div', 'draft-h', right, t('debrief.mistakes'));
-  // The whole run's, newest first, as the recap lists a wave's.
-  renderMistakes(right, s.mistakes, 30, t('debrief.noMistakes'));
+  // The whole run's, newest first (the recap lists a wave's oldest first), in the same rows. The kept list is itself
+  // capped, so the rest is counted from the run's totals.
+  renderMistakes(right, s.mistakes, 30, { empty: t('debrief.noMistakes'), total: st.falsePositives + breachTotal(st) });
   const text = shareText(r, lang());
   const ta = el('textarea', 'share', right);
   ta.readOnly = true;
