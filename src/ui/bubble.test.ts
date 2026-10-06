@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 // packages
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 // core
 import { Run } from '../core/run';
 import { cfg } from '../core/testkit';
+
+// i18n
+import { setLang } from '../i18n';
 
 // local
 import { Bubble } from './bubble';
@@ -17,6 +20,7 @@ describe('Bubble', () => {
     run = new Run(cfg());
     box = ui.querySelector('.bubble') as HTMLElement;
   });
+  afterEach(() => setLang('en'));
 
   it('shows a line with its sub and hides it after 2.6 s', () => {
     bubble.frame(run, 0, 1);
@@ -64,5 +68,17 @@ describe('Bubble', () => {
     run.state.knight.y = 0;
     bubble.frame(run, 0, 0);
     expect(box.classList.contains('below')).toBe(true);
+  });
+
+  it('rewrites the line that is up in a new language, and drops it for a new run', () => {
+    bubble.event({ type: 'say', line: 'waveStart', wave: 1 }, run);
+    setLang('es');
+    bubble.refresh();
+    expect(box.textContent).toBe('Nadie pasará.Alguien está tocando todos los puertos.');
+    expect(box.classList.contains('show')).toBe(true);
+    bubble.start();
+    expect(box.classList.contains('show')).toBe(false);
+    bubble.refresh();
+    expect(box.classList.contains('show')).toBe(false);
   });
 });

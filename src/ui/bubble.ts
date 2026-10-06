@@ -4,6 +4,7 @@ import { LINES } from '../core/content/lines';
 import type { RunEvent } from '../core/events';
 import type { Run } from '../core/run';
 import { mounted } from '../core/state';
+import type { Localized } from '../core/types';
 
 // game
 import type { View } from '../game/view';
@@ -25,27 +26,49 @@ export class Bubble implements View {
   private hideAt = 0;
   private now = 0;
   private shown = '';
+  private said: { text: Localized; sub?: Localized } | null = null;
   private h = 0;
 
   constructor(ui: HTMLElement) {
     this.box = el('div', 'bubble', ui);
   }
 
+  // A new run, or the title's idle field, starts without the last run's line.
+  start(): void {
+    this.said = null;
+    this.shown = '';
+    this.hideAt = 0;
+    this.box.classList.remove('show');
+  }
+
+  // A language switch (the pause menu has one) rewrites the line that is up.
+  refresh(): void {
+    if (this.box.classList.contains('show')) this.draw();
+  }
+
   event(ev: RunEvent, run: Run): void {
     if (ev.type !== 'say') return;
     const line = LINES[ev.line];
-    const sub = ev.line === 'waveStart' ? run.waveDef.intro : line.sub;
-    const text = loc(line.text), small = sub ? loc(sub) : '';
-    const key = `${text}\n${small}`;
+    const said = { text: line.text, sub: ev.line === 'waveStart' ? run.waveDef.intro : line.sub };
     // The same line again while it is up (Space with no target, every press) only keeps it up.
-    if (key !== this.shown || this.now > this.hideAt) {
-      this.box.replaceChildren(text);
-      if (small) this.box.append(el('small', '', undefined, small));
-      this.shown = key;
-      this.h = this.box.offsetHeight;
-      this.box.classList.add('show');
+    if (this.key(said) !== this.shown || this.now > this.hideAt) {
+      this.said = said;
+      this.draw();
     }
     this.hideAt = this.now + SHOW_SECS;
+  }
+
+  private key(said: { text: Localized; sub?: Localized }): string {
+    return `${loc(said.text)}\n${said.sub ? loc(said.sub) : ''}`;
+  }
+
+  private draw(): void {
+    if (!this.said) return;
+    this.box.replaceChildren(loc(this.said.text));
+    if (this.said.sub) this.box.append(el('small', '', undefined, loc(this.said.sub)));
+    this.shown = this.key(this.said);
+    this.h = this.box.offsetHeight;
+    this.box.classList.add('show');
   }
 
   frame(run: Run | null, _dt: number, time: number): void {
