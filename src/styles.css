@@ -219,8 +219,12 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .gate p { font-family: var(--body); font-size: 16px; line-height: 1.5; color: var(--dim); margin: 0; }
 .gate a { color: var(--dim); font-size: 14px; }
 
-/* Reduced effects also calm the CSS glitches. */
-#ui.reduced .title, #ui.reduced h1, #ui.reduced .urar.LEGENDARY { animation: none; }
+/* Reduced effects also calm the CSS glitches: the jitters and the low-uptime glitch fire half as often (twice the period),
+   a tear is over quickly, and the scan lines go. */
+#ui.reduced .title, #ui.reduced h1 { animation-duration: 8s; }
+#ui.reduced .urar.LEGENDARY { animation-duration: 5s; }
+#ui.reduced .hpstrip.low b { animation-duration: 4.4s; }
+#ui.reduced .hpstrip.low .segs { animation-duration: 6.2s; }
 #ui.reduced .hpstrip.tear { animation-duration: .2s; }
 #ui.reduced .scanlines { display: none; }
 

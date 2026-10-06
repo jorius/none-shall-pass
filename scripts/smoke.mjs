@@ -546,6 +546,41 @@ const CHECKS = {
     if (idle.run !== null || idle.paused || idle.cards || idle.score !== '0' || idle.coach !== 'none') throw new Error(`after quitting: ${JSON.stringify(idle)}`);
     await page.screenshot({ path: `${OUT}/quit-title.png` });
   },
+  async reduced(page) {
+    // Reduced effects double the glitch periods (the title, the low-uptime strip), hide the scan lines and drop the
+    // rack's shake on a breach, and nothing else changes: a shot of the burning field each way.
+    await play(page);
+    await page.evaluate(() => { const app = window.__nsp.app; app.run.state.uptime = 20; app.dispatch([{ type: 'uptime', before: 100, after: 20 }]); });
+    await stepUntil(page, (s) => s.packets.some((p) => !p.entering && !p.doomed));
+    // Past the strip's scramble (on the view clock, slower than the wall under software rendering), so the shot shows the steady low-uptime glitch.
+    await page.waitForFunction(() => document.querySelector('#ui .hpstrip b').textContent === '20%');
+    const glitches = () => page.evaluate(() => {
+      const anim = (sel) => { const cs = getComputedStyle(document.querySelector(sel)); return `${cs.animationName} ${cs.animationDuration}`; };
+      return { title: anim('#ui .hud .title'), num: anim('#ui .hpstrip.low b'), segs: anim('#ui .hpstrip.low .segs'), scan: getComputedStyle(document.querySelector('#ui .scanlines')).display };
+    });
+    // A breach, sent to the views (only the rack listens): how many tweens it starts on the rack.
+    const shakes = () => page.evaluate(() => {
+      const app = window.__nsp.app, scene = window.__nsp.game.scene.getScene('field');
+      window.__smokeRack ??= scene.layers.actors.list.find((o) => o.list && o.x === 1124 && o.y === 0);
+      const packet = app.run.state.packets.find((p) => !p.entering && !p.doomed);
+      app.dispatch([{ type: 'resolved', packet, outcome: 'breach', damage: 10 }]);
+      return scene.tweens.getTweensOf(window.__smokeRack).length;
+    });
+    const full = await glitches();
+    if (full.title !== 'jitter 4s' || full.num !== 'lowg 2.2s' || full.segs !== 'lowseg 3.1s' || full.scan === 'none') throw new Error(`full effects: ${JSON.stringify(full)}`);
+    if (await shakes() !== 1) throw new Error('a breach did not shake the rack');
+    await page.screenshot({ path: `${OUT}/fx.png` });
+    // Reduced from the pause menu, then back in play; once the first bounce is over, the next breach asks for none.
+    await page.keyboard.press('p');
+    await page.click('#ui .ov-pause .btn:nth-child(4)');
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    await page.waitForFunction(() => window.__nsp.game.scene.getScene('field').tweens.getTweensOf(window.__smokeRack).length === 0);
+    const less = await glitches();
+    if (less.title !== 'jitter 8s' || less.num !== 'lowg 4.4s' || less.segs !== 'lowseg 6.2s' || less.scan !== 'none') throw new Error(`reduced effects: ${JSON.stringify(less)}`);
+    if (await shakes() !== 0) throw new Error('reduced effects still shake the rack');
+    await page.screenshot({ path: `${OUT}/fx-reduced.png` });
+  },
   async autopause(page) {
     // The window losing the focus mid-run pauses it, menu up; the focus coming back resumes nothing, the player does.
     await play(page);

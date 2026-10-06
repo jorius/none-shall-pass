@@ -72,7 +72,8 @@ export class RackView implements View {
     if (ev.type === 'waveStarted') this.clearBugs();
     if (ev.type === 'resolved' && ev.outcome === 'breach') {
       this.tint(0xff7070);
-      this.scene.tweens.add({ targets: this.box, x: { from: RACK.x - 5, to: RACK.x }, duration: 300, ease: 'Bounce.easeOut' });
+      // The bounce is the shake reduced effects do without; the flash and the bugs stay.
+      if (!this.scene.reduced) this.scene.tweens.add({ targets: this.box, x: { from: RACK.x - 5, to: RACK.x }, duration: 300, ease: 'Bounce.easeOut' });
       this.infest(ev.packet.t.kind as MaliciousKind);
     }
     if (ev.type === 'resolved' && ev.outcome === 'neutralized') this.tint(0x9fdcff);

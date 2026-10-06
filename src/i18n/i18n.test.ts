@@ -51,6 +51,12 @@ describe('t', () => {
     setLang('en');
     expect(fmtNum(18420)).toBe('18,420');
   });
+  it('writes the Spanish multipliers with a decimal comma', () => {
+    setLang('es');
+    expect([t('hud.hintsOn'), t('title.rootOn'), t('howto.k6')]).toEqual([
+      'PISTAS ON ×0,75', 'MODO ROOT · paquetes más rápidos, sin pistas, puntaje ×1,5', 'pistas: subraya las señales (puntaje ×0,75)',
+    ]);
+  });
   it('detects Spanish browsers', () => {
     expect(detectLang('es-CO')).toBe('es');
     expect(detectLang('en-US')).toBe('en');

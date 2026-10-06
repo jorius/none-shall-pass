@@ -24,7 +24,6 @@ const frames = (palette: string[]): string[] => palette.flatMap((c) => [...GLYPH
 
 // Spears in flight, packets shattering into binary, and the glyphs a burning packet streams into the rack.
 export class EffectsView implements View {
-  reduced = false;
   private readonly shatter: Record<string, Phaser.GameObjects.Particles.ParticleEmitter> = {};
   private readonly stream: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly emitted = new Map<number, number>();
@@ -50,6 +49,10 @@ export class EffectsView implements View {
     });
     fx.add(this.stream);
   }
+
+  // The switch itself lives on the scene, where the rack reads it too; the pause menu and main.ts set it here.
+  get reduced(): boolean { return this.scene.reduced; }
+  set reduced(on: boolean) { this.scene.reduced = on; }
 
   // One 2x canvas with every glyph in every colour, sliced into named frames.
   private buildGlyphs(): void {

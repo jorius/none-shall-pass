@@ -16,6 +16,8 @@ let resolveReady: (scene: FieldScene) => void = () => {};
 export class FieldScene extends Phaser.Scene {
   static readonly ready: Promise<FieldScene> = new Promise((r) => { resolveReady = r; });
   onFrame: ((deltaMs: number) => void) | null = null;
+  // The reduced-effects switch the views share (fewer particles, no shake); EffectsView fronts it for the menu.
+  reduced = false;
   layers!: { back: Layer; packets: Layer; objects: Layer; actors: Layer; fx: Layer };
 
   constructor() {
