@@ -10,8 +10,9 @@ on:
 permissions:
   contents: read
 
+# A deploy waits its turn on the one Pages group, and a pull request's build never queues behind one: it has a group of its own per ref.
 concurrency:
-  group: pages
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || 'pages' }}
   cancel-in-progress: false
 
 jobs:

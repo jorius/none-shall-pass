@@ -1226,11 +1226,17 @@ const CHECKS = {
     await play(page);
     await page.evaluate(() => { const app = window.__nsp.app; app.run.state.uptime = 20; app.dispatch([{ type: 'uptime', before: 100, after: 20 }]); });
     await stepUntil(page, (s) => s.packets.some((p) => !p.entering && !p.doomed));
-    // Past the strip's scramble (on the view clock, slower than the wall under software rendering), so the shot shows the steady low-uptime glitch.
-    await page.waitForFunction(() => document.querySelector('#ui .hpstrip b').textContent === '20%');
+    // Past the strip's scramble and the lost segments' fresh flash (on the view clock, slower than the wall under software rendering), so the shot
+    // shows the steady low-uptime glitch and the segments are the flickering kind.
+    await page.waitForFunction(() => document.querySelector('#ui .hpstrip b').textContent === '20%' && !document.querySelector('#ui .hpstrip .segs i.fresh'));
     const glitches = () => page.evaluate(() => {
       const anim = (sel) => { const cs = getComputedStyle(document.querySelector(sel)); return `${cs.animationName} ${cs.animationDuration}`; };
-      return { title: anim('#ui .hud .title'), num: anim('#ui .hpstrip.low b'), segs: anim('#ui .hpstrip.low .segs'), scan: getComputedStyle(document.querySelector('#ui .scanlines')).display };
+      // A dead segment flickers every 1.3 s, and every seventh every .7 s.
+      const dead = [...document.querySelectorAll('#ui .hpstrip.low .segs i.lost')], dur = (e) => getComputedStyle(e).animationDuration;
+      return {
+        title: anim('#ui .hud .title'), num: anim('#ui .hpstrip.low b'), segs: anim('#ui .hpstrip.low .segs'), scan: getComputedStyle(document.querySelector('#ui .scanlines')).display,
+        lost: dur(dead.find((e) => !e.matches(':nth-child(7n)'))), seventh: dur(dead.find((e) => e.matches(':nth-child(7n)'))),
+      };
     });
     // A breach, sent to the views (only the rack listens): how many tweens it starts on the rack.
     const shakes = () => page.evaluate(() => {
@@ -1241,7 +1247,7 @@ const CHECKS = {
       return scene.tweens.getTweensOf(window.__smokeRack).length;
     });
     const full = await glitches();
-    if (full.title !== 'jitter 4s' || full.num !== 'lowg 2.2s' || full.segs !== 'lowseg 3.1s' || full.scan === 'none') throw new Error(`full effects: ${JSON.stringify(full)}`);
+    if (full.title !== 'jitter 4s' || full.num !== 'lowg 2.2s' || full.segs !== 'lowseg 3.1s' || full.scan === 'none' || full.lost !== '1.3s' || full.seventh !== '0.7s') throw new Error(`full effects: ${JSON.stringify(full)}`);
     if (await shakes() !== 1) throw new Error('a breach did not shake the rack');
     await page.screenshot({ path: `${OUT}/fx.png` });
     // Reduced from the pause menu, then back in play; once the first bounce is over, the next breach asks for none.
@@ -1251,7 +1257,7 @@ const CHECKS = {
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
     await page.waitForFunction(() => window.__nsp.game.scene.getScene('field').tweens.getTweensOf(window.__smokeRack).length === 0);
     const less = await glitches();
-    if (less.title !== 'jitter 8s' || less.num !== 'lowg 4.4s' || less.segs !== 'lowseg 6.2s' || less.scan !== 'none') throw new Error(`reduced effects: ${JSON.stringify(less)}`);
+    if (less.title !== 'jitter 8s' || less.num !== 'lowg 4.4s' || less.segs !== 'lowseg 6.2s' || less.scan !== 'none' || less.lost !== '2.6s' || less.seventh !== '1.4s') throw new Error(`reduced effects: ${JSON.stringify(less)}`);
     if (await shakes() !== 0) throw new Error('reduced effects still shake the rack');
     await page.screenshot({ path: `${OUT}/fx-reduced.png` });
   },

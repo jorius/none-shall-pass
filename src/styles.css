@@ -373,12 +373,16 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .gate a { color: var(--dim); font-size: 14px; }
 
 /* Reduced effects also calm the CSS glitches: the jitters and the low-uptime glitch fire half as often (twice the period),
-   a tear is over quickly, and the scan lines go. */
+   a tear is over quickly, the dead segments' flicker runs at half speed, and the scan lines go. */
 #ui.reduced .title, #ui.reduced h1 { animation-duration: 8s; }
 #ui.reduced .urar.LEGENDARY { animation-duration: 5s; }
 #ui.reduced .hpstrip.low b { animation-duration: 4.4s; }
 #ui.reduced .hpstrip.low .segs { animation-duration: 6.2s; }
 #ui.reduced .hpstrip.tear { animation-duration: .2s; }
+/* The lost segments flicker (1.3s, and .7s on every seventh): twice the period here too. The second rule is for the seventh: the first, with
+   its id, outranks the seventh's own rule and would slow it to 2.6s instead of 1.4s. */
+#ui.reduced .segs i.lost { animation-duration: 2.6s; }
+#ui.reduced .segs i.lost:nth-child(7n) { animation-duration: 1.4s; }
 #ui.reduced .scanlines { display: none; }
 #ui.reduced .ucard { animation: none; }
 
