@@ -8,7 +8,7 @@ import { KNIGHT_IDS, KNIGHTS } from '../core/content/knights';
 
 // local
 import { PAL, type Grid } from './pixels';
-import { BUG_OF, critter, iconGrid, knightFoot, knightHorse, knightKey, rackSprite, spear, SPRITE_DEFS, squire, wormPart } from './sprites';
+import { BUG_OF, critter, iconGrid, knightCheer, knightDown, knightFoot, knightHorse, knightKey, rackSprite, spear, SPRITE_DEFS, squire, wormPart } from './sprites';
 
 // The v1 Black Knight on foot (`knightFoot(false)` before the six knights), captured once: his body must stay where it was.
 const V1_FOOT: Grid = [
@@ -124,8 +124,48 @@ describe('knights and the squire', () => {
 
   it('draws the Black Knight\'s body as before: only the shield and spear columns changed', () => {
     const now = knightFoot(KNIGHTS.black.look, false);
-    // The helmet, chest and legs occupy the same cells as the v1 sprite (columns 10..12, rows 1..27).
-    for (let y = 1; y <= 27; y++) for (let x = 10; x <= 12; x++) expect(now[y][x] !== null).toBe(V1_FOOT[y][x] !== null);
+    // The helmet, chest and legs keep the v1 sprite's letters (columns 9..13, rows 1..27), not just its silhouette.
+    for (let y = 1; y <= 27; y++) for (let x = 9; x <= 13; x++) expect(now[y][x], `row ${y} column ${x}`).toBe(V1_FOOT[y][x]);
+  });
+
+  it('kneels with the helmet four rows lower, and cheers with the spear lifted but whole', () => {
+    const up = knightFoot(BLACK, false), down = knightDown(BLACK), cheer = knightCheer(BLACK);
+    // Standing, the helmet's top row is row 5; on one knee it is row 9.
+    expect(up[5].slice(6, 12).join('')).toBe('llmmmd');
+    expect(down[9].slice(6, 12).join('')).toBe('llmmmd');
+    // The cheer: the fist up at row 10, the leaf head still in the frame, the butt five rows off the ground.
+    expect(cheer[10].slice(15, 19).join('')).toBe('mlld');
+    expect(cheer[0][18]).toBe('S');
+    expect(cheer.slice(0, 5).flat().filter((c) => c === 'S' || c === 's').length).toBeGreaterThanOrEqual(10);
+    expect(cheer[23][18]).toBe('T');
+    expect(cheer[25][18]).toBeNull();
+  });
+
+  it('flies the pennant right of the shaft on horseback, clear of a braid, and shows Forge\'s beard over the shield', () => {
+    for (const id of KNIGHT_IDS) {
+      const h = knightHorse(KNIGHTS[id].look, 0, false);
+      expect(h[8].slice(26, 30).join(''), id).toBe('RRRR');
+      expect(h[11][26], id).toBe('r');
+      // Nothing of the old left pennant survives beside the shaft (x 21..24 is the helmet's edge and the braid).
+      expect(h[8].slice(21, 25), id).not.toContain('R');
+    }
+    // The braid stays where it was (Sentinel: rows 6..16 beside the helmet).
+    expect(knightHorse(KNIGHTS.sentinel.look, 0, false)[8].slice(23, 25).join('')).toBe('yy');
+    // Forge's red beard: its first row shows above the shield's rim.
+    expect(knightHorse(KNIGHTS.forge.look, 0, false)[10].slice(15, 21).join('')).toBe('XXXXdd');
+    // The thrown pose has no spear, so no pennant either.
+    expect(knightHorse(BLACK, 0, true)[8].slice(26, 30).filter(Boolean)).toEqual([]);
+  });
+
+  it('leaves a one-cell margin round every worm part, so its outline closes on all four sides', () => {
+    for (const part of ['head', 'body', 'tail'] as const) {
+      const g = wormPart(part), w = g[0].length, h = g.length;
+      const top = g[0], bottom = g[h - 1], left = g.map((r) => r[0]), right = g.map((r) => r[w - 1]);
+      for (const edge of [top, bottom, left, right]) {
+        expect(edge.includes('o'), part).toBe(true);
+        expect(edge.every((c) => c === null || c === 'o'), part).toBe(true);
+      }
+    }
   });
 
   it('gives the squire his own body, not the knight\'s', () => {

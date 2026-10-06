@@ -25,10 +25,14 @@ const SHIELD = (x: number, y: number, emblem: KnightLook['shield']): Rows =>
   ['lllllllll', 'lbbbbbbbd', ...EMBLEM[emblem].map((r) => `l${r}d`), 'lbBBBBBbd', '.lbBBBbd.', '.lbBBBbd.', '..lbBbd..', '...lbd...', '....d....']
     .map((s, i): Row => [y + i, x, s]);
 
-// The spear upright at column 18: a leaf-shaped head, a gold socket, a pennant, a wrapped shaft and a butt cap; (dx, dy) moves it.
-const SPEAR = (dx = 0, dy = 0): Rows => {
-  const rows: Rows = [[0, 18, 'S'], [1, 17, 'sSS'], [2, 17, 'sSS'], [3, 17, 'sSw'], [4, 17, 'ssS'], [5, 18, 's'], [6, 18, 'y'], [7, 18, 'y'],
-    [8, 14, 'RRRR'], [9, 15, 'rRR'], [10, 16, 'rR'], [11, 17, 'r']];
+// The pennant below the socket: on foot it flies left of the shaft; on horseback its mirror flies right of it,
+// drawn after the helmet, where a braid (which hangs down the left side) cannot cover it.
+const PENNANT: Rows = [[8, 14, 'RRRR'], [9, 15, 'rRR'], [10, 16, 'rR'], [11, 17, 'r']];
+const PENNANT_R: Rows = [[8, 19, 'RRRR'], [9, 19, 'RRr'], [10, 19, 'Rr'], [11, 19, 'r']];
+
+// The spear upright at column 18: a leaf-shaped head, a gold socket, the pennant, a wrapped shaft and a butt cap; (dx, dy) moves it.
+const SPEAR = (dx = 0, dy = 0, pennant: Rows = PENNANT): Rows => {
+  const rows: Rows = [[0, 18, 'S'], [1, 17, 'sSS'], [2, 17, 'sSS'], [3, 17, 'sSw'], [4, 17, 'ssS'], [5, 18, 's'], [6, 18, 'y'], [7, 18, 'y'], ...pennant];
   for (let y = 8; y <= 27; y++) rows.push([y, 18, y % 5 === 0 ? 't' : 'T']);
   rows.push([28, 18, 'm']);
   return shift(rows, dx, dy);
@@ -79,8 +83,9 @@ const foot = (look: KnightLook, spear: Rows, arm: Rows): Grid =>
 // The knight on foot, spear upright (or thrown).
 export const knightFoot = (look: KnightLook, throwing: boolean): Grid => foot(look, throwing ? [] : SPEAR(), throwing ? THROWN_ARM : GAUNTLET(15));
 
-// The win: the spear thrust up five rows, the fist with it.
-export const knightCheer = (look: KnightLook): Grid => foot(look, SPEAR(0, -5), GAUNTLET(10));
+// The win: the spear lifted, the fist five rows up with it. The head already sits at the top of the frame,
+// so the lift shows at the other end: the shaft stops at row 23 and the butt hangs five rows off the ground.
+export const knightCheer = (look: KnightLook): Grid => foot(look, SPEAR().filter(([y]) => y <= 23), GAUNTLET(10));
 
 // The loss: the knight on one knee, spear planted.
 export const knightDown = (look: KnightLook): Grid => {
@@ -116,13 +121,15 @@ export const knightHorse = (look: KnightLook, frame: 0 | 1, throwing: boolean): 
   line(g, 13, 24, 29, 24, 'R'); line(g, 13, 25, 29, 25, 'r');
   draw(g, [[18, 20, 'BB'], [19, 19, 'BwwB'], [20, 20, 'BB']]);
   draw(g, [[15, 13, 'tTTTTTTTTt']]);
-  if (!throwing) draw(g, SPEAR(7, 0));
+  if (!throwing) draw(g, SPEAR(7, 0, []));
   draw(g, HELM(14, 4, look));
+  if (!throwing) draw(g, shift(PENNANT_R, 7, 0));
   draw(g, [[12, 14, 'lmdmmmdmmd'], ...shift(CHEST[look.chest], 7, -2),
     [16, 18, 'lmd'], [17, 18, 'lmd'], [18, 18, 'lmd'], [19, 18, 'lmd'], [20, 17, 'llmd'], [21, 17, 'yyy']]);
   if (!throwing) draw(g, [[12, 24, 'mld'], [13, 24, 'dmd']]);
   else draw(g, [[11, 22, 'dm'], [10, 23, 'mm'], [9, 24, 'lm']]);
-  draw(g, SHIELD(12, 10, look.shield));
+  // One row lower than on foot relative to the helmet, so a beard's first row clears the rim.
+  draw(g, SHIELD(12, 11, look.shield));
   return outline(g);
 };
 
@@ -321,10 +328,11 @@ const housefly = (wings: Rows): Grid => outline(draw(draw(grid(10, 8), wings), F
 export const flyBlur = (): Grid => housefly([...FLY_WINGS[0], ...FLY_WINGS[1]]);
 
 // The worm that crawls a card's edge, in segments: a head with an eye, bodies, a tail.
+// Each part keeps a one-cell margin all round, so the outline closes on every side however the part is turned.
 export const wormPart = (part: 'head' | 'body' | 'tail'): Grid => {
-  if (part === 'head') return outline(draw(grid(8, 7), [[1, 2, 'yyyy'], [2, 1, 'yTTTTy'], [3, 0, 'yTTkTTTy'], [4, 1, 'yTTTTy'], [5, 2, 'yyyy']]));
-  if (part === 'body') return outline(draw(grid(6, 6), [[0, 2, 'yy'], [1, 1, 'yTTy'], [2, 0, 'yTTTTy'], [3, 0, 'yTTTTy'], [4, 1, 'yTTy'], [5, 2, 'yy']]));
-  return outline(draw(grid(4, 4), [[0, 1, 'yy'], [1, 0, 'yTTy'], [2, 0, 'yTTy'], [3, 1, 'yy']]));
+  if (part === 'head') return outline(draw(grid(10, 7), [[1, 3, 'yyyy'], [2, 2, 'yTTTTy'], [3, 1, 'yTTkTTTy'], [4, 2, 'yTTTTy'], [5, 3, 'yyyy']]));
+  if (part === 'body') return outline(draw(grid(8, 8), [[1, 3, 'yy'], [2, 2, 'yTTy'], [3, 1, 'yTTTTy'], [4, 1, 'yTTTTy'], [5, 2, 'yTTy'], [6, 3, 'yy']]));
+  return outline(draw(grid(6, 6), [[1, 2, 'yy'], [2, 1, 'yTTy'], [3, 1, 'yTTy'], [4, 2, 'yy']]));
 };
 
 export const critter = (kind: BugKind, f: 0 | 1): Grid => {
