@@ -31,6 +31,24 @@ describe('lanes', () => {
   });
 });
 
+describe('auto-target on lane change', () => {
+  it('targets the packet nearest the fire in the new lane, and clears when the lane is empty', () => {
+    const s = freshState();
+    s.knight.lane = 2;
+    const far = place(s, 'brute-admin', 200), near = place(s, 'legit-login', 500);
+    place(s, 'brute-admin', 650).entering = true;
+    const ev: RunEvent[] = [];
+    setLane(s, 1, ev);
+    expect(s.locked).toBe(near.id);
+    expect(ev.map((e) => e.type)).toEqual(['laneChanged', 'targeted']);
+    setLane(s, 0, ev);
+    expect(s.locked).toBeNull();
+    setLane(s, 1, ev);
+    expect(s.locked).toBe(near.id);
+    expect(far.dead).toBe(false);
+  });
+});
+
 describe('targeting', () => {
   it('cycles the knight\'s lane front-most first, both directions, wrapping', () => {
     const s = freshState(), ev: RunEvent[] = [];

@@ -9,15 +9,9 @@ import type { LaneIndex, Point } from './types';
 export const handPos = (s: RunState): Point =>
   mounted(s) ? { x: s.knight.x + 64, y: s.knight.y + 24 } : { x: s.knight.x + 36, y: s.knight.y + 30 };
 
-export const setLane = (s: RunState, lane: number, ev: RunEvent[]): void => {
-  if (s.knight.charge.t > 0) return;
-  const l = Math.max(0, Math.min(LANE_COUNT - 1, Math.round(lane))) as LaneIndex;
-  if (l === s.knight.lane) return;
-  const p = s.locked !== null ? findPacket(s, s.locked) : undefined;
-  if (p && p.lane !== l) untarget(s, ev);
-  s.knight.lane = l;
-  ev.push({ type: 'laneChanged', lane: l });
-};
+// What the knight can lock in a lane, nearest the fire first: alive, unclaimed, not in the fire, past the gutter.
+const targetable = (s: RunState, lane: LaneIndex): Packet[] =>
+  s.packets.filter((p) => !p.dead && !p.doomed && !p.entering && p.lane === lane && p.x + PKT_W > LANE_X0 + 10).sort((a, b) => b.x - a.x);
 
 export const target = (s: RunState, id: number | null, ev: RunEvent[]): void => {
   if (id === null) { untarget(s, ev); return; }
@@ -32,10 +26,21 @@ export const target = (s: RunState, id: number | null, ev: RunEvent[]): void => 
   ev.push({ type: 'targeted', packetId: id });
 };
 
+export const setLane = (s: RunState, lane: number, ev: RunEvent[]): void => {
+  if (s.knight.charge.t > 0) return;
+  const l = Math.max(0, Math.min(LANE_COUNT - 1, Math.round(lane))) as LaneIndex;
+  if (l === s.knight.lane) return;
+  const locked = s.locked !== null ? findPacket(s, s.locked) : undefined;
+  if (locked && locked.lane !== l) untarget(s, ev);
+  s.knight.lane = l;
+  ev.push({ type: 'laneChanged', lane: l });
+  // The packet nearest the fire in the new lane is the one to read first: it becomes the target at once.
+  const front = targetable(s, l)[0];
+  if (front) target(s, front.id, ev);
+};
+
 export const cycleTarget = (s: RunState, dir: 1 | -1, ev: RunEvent[]): void => {
-  const lane = s.packets
-    .filter((p) => !p.dead && !p.doomed && !p.entering && p.lane === s.knight.lane && p.x + PKT_W > LANE_X0 + 10)
-    .sort((a, b) => b.x - a.x);
+  const lane = targetable(s, s.knight.lane);
   if (!lane.length) { say(ev, 'emptyLane'); return; }
   const i = s.locked === null ? -1 : lane.findIndex((p) => p.id === s.locked);
   const next = i < 0 ? (dir > 0 ? lane[0] : lane[lane.length - 1]) : lane[(i + dir + lane.length) % lane.length];

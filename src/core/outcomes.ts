@@ -1,5 +1,5 @@
 // core
-import { DAMAGE, LOG_MAX, PKT_W, POINTS, RACK } from './constants';
+import { DAMAGE, LOG_MAX, MISTAKES_MAX, PKT_W, POINTS, RACK } from './constants';
 import type { CardId } from './content/cards';
 import type { LineId } from './content/lines';
 import type { FloatKind, LogEntry, RunEvent } from './events';
@@ -18,6 +18,11 @@ const log = (s: RunState, ev: RunEvent[], entry: Omit<LogEntry, 'seq' | 'wave'>)
   const full: LogEntry = { seq: ++s.logSeq, wave: s.wave, ...entry };
   s.log.unshift(full);
   if (s.log.length > LOG_MAX) s.log.pop();
+  if (entry.outcome === 'breach' || entry.outcome === 'fp') {
+    s.waveMistakes.push(full);
+    s.mistakes.unshift(full);
+    if (s.mistakes.length > MISTAKES_MAX) s.mistakes.pop();
+  }
   ev.push({ type: 'log', entry: full });
 };
 

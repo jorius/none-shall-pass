@@ -113,6 +113,7 @@ export class Run {
     s.spawnT = 0.4;
     s.draft = null;
     s.knight.charge = { t: 0, used: false };
+    s.waveMistakes = [];
     s.phase = 'playing';
     return this.start();
   }

@@ -79,6 +79,9 @@ export interface RunState {
   banned: string[];
   log: LogEntry[];
   logSeq: number;
+  // Breaches and false positives: this wave's, oldest first, for the recap; the whole run's, newest first, capped.
+  waveMistakes: LogEntry[];
+  mistakes: LogEntry[];
   stats: Stats;
   drafts: number;
   draft: DraftState | null;
@@ -121,6 +124,8 @@ export const createState = (cfg: RunConfig): RunState => ({
   banned: [],
   log: [],
   logSeq: 0,
+  waveMistakes: [],
+  mistakes: [],
   stats: emptyStats(),
   drafts: 0,
   draft: null,

@@ -55,6 +55,7 @@ export const DAMAGE: Record<MaliciousKind, number> = { sqli: 12, xss: 10, brute:
 export const HINT_MULT = 0.75;
 export const ROOT_MULT = 1.5;
 export const LOG_MAX = 300;
+export const MISTAKES_MAX = 200;
 
 // Traffic sources.
 export const BRUTE_IPS = ['203.0.113.66', '198.51.100.23', '192.0.2.201'] as const;

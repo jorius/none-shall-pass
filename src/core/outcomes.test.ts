@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
+import { MISTAKES_MAX } from './constants';
 import type { RunEvent } from './events';
 import { checkEnd, earn, kill, resolve, untarget } from './outcomes';
 import { freshState, place } from './testkit';
@@ -141,5 +142,29 @@ describe('untarget and checkEnd', () => {
     s.phase = 'draft'; s.uptime = 0;
     checkEnd(s, ev);
     expect(s.phase).toBe('draft');
+  });
+});
+
+describe('mistakes', () => {
+  it('keeps breaches and false positives apart from the rest, oldest first for the wave and newest first for the run', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    kill(s, place(s, 'sqli-union', 300), 'knight', ev);
+    kill(s, place(s, 'legit-oreilly', 300), 'knight', ev);
+    const breached = place(s, 'xss-script', 300);
+    resolve(s, breached, ev);
+    expect(s.waveMistakes.map((e) => e.outcome)).toEqual(['fp', 'breach']);
+    expect(s.mistakes.map((e) => e.outcome)).toEqual(['breach', 'fp']);
+    expect(s.mistakes[0]).toBe(s.waveMistakes[1]);
+    expect(s.mistakes[0].packet).toBe(breached);
+  });
+
+  it('caps the run\'s list at MISTAKES_MAX, dropping the oldest, and never the wave\'s', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    s.god = true;
+    for (let i = 0; i < MISTAKES_MAX + 5; i++) resolve(s, place(s, 'sqli-union', 300), ev);
+    expect(s.mistakes.length).toBe(MISTAKES_MAX);
+    expect(s.waveMistakes.length).toBe(MISTAKES_MAX + 5);
+    expect(s.mistakes[0].seq).toBe(MISTAKES_MAX + 5);
+    expect(s.mistakes.at(-1)!.seq).toBe(6);
   });
 });

@@ -211,4 +211,19 @@ describe('Run', () => {
     playWave(run);
     expect(run.state.stats.squireHits).toBeGreaterThan(0);
   });
+
+  it('keeps this wave\'s mistakes apart from the run\'s, and clears them with the next wave', () => {
+    const run = new Run(cfg());
+    const s = run.state;
+    const legit = place(s, 'legit-socks', 400);
+    s.locked = legit.id;
+    run.throwSpear();
+    for (let i = 0; i < 60; i++) run.step(1 / 60);
+    expect(s.waveMistakes.map((e) => e.outcome)).toEqual(['fp']);
+    expect(s.mistakes.map((e) => e.outcome)).toEqual(['fp']);
+    run.cheat('skip');
+    run.nextWave();
+    expect(s.waveMistakes).toEqual([]);
+    expect(s.mistakes.length).toBe(1);
+  });
 });

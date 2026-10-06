@@ -49,9 +49,12 @@ export const spawn = (s: RunState, rng: Rng, ev: RunEvent[]): Packet | null => {
 
 export const stepPackets = (s: RunState, dt: number, ev: RunEvent[]): void => {
   const base = packetSpeed(s);
-  for (const p of s.packets) {
+  // Front to back within each lane: a packet can only be as far along as the one ahead allows.
+  const order = s.packets.filter((p) => !p.dead).sort((a, b) => a.lane - b.lane || b.x - a.x);
+  let ahead: Packet | null = null;
+  for (const p of order) {
     if (s.phase !== 'playing') return;
-    if (p.dead) continue;
+    if (ahead && ahead.lane !== p.lane) ahead = null;
     let v = base;
     if (p.entering) v *= ENTER_MULT;
     else {
@@ -59,7 +62,10 @@ export const stepPackets = (s: RunState, dt: number, ev: RunEvent[]): void => {
       p.slowed = tarpitSlows(p, s.owned, s.seen);
       if (p.slowed) v *= TAR_MULT;
     }
+    const x0 = p.x;
     p.x += v * dt;
+    if (ahead && !ahead.entering && !p.entering) p.x = Math.max(x0, Math.min(p.x, ahead.x - PKT_W - SPAWN_GAP));
+    // A packet shattered here bounds nothing: the kills below leave `ahead` on the last one still in the lane.
     if (!p.checked && lockdownBlocks(p.t, s.owned) && p.x + PKT_W >= LOCK_X) {
       p.checked = true;
       kill(s, p, 'rule', ev, 'lockdown');
@@ -79,6 +85,7 @@ export const stepPackets = (s: RunState, dt: number, ev: RunEvent[]): void => {
       s.pending.push({ packet: p, t: RESOLVE_DELAY });
       ev.push({ type: 'consumed', packetId: p.id });
     }
+    ahead = p;
   }
 };
 

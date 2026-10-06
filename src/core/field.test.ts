@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY } from './constants';
+import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP } from './constants';
 import { CAMPAIGN } from './content/waves';
 import type { Difficulty } from './difficulty';
 import type { RunEvent } from './events';
@@ -148,6 +148,37 @@ describe('stepPackets', () => {
     expect(next.checked).toBe(false);
     expect(next.entering).toBe(false);
     expect(ev.some((e) => e.type === 'entered')).toBe(false);
+  });
+});
+
+describe('queueing', () => {
+  it('never lets a packet overtake or overlap the one ahead, and never moves one backwards', () => {
+    const s = freshState();
+    s.owned.push('tarpit');
+    s.seen['198.51.100.77'] = 3; // a repeat visitor: the tar slows it on /login
+    // Deep enough in the tar (x + PKT_W > TAR_X0) to stay short of the fire (x < FW_X - PKT_W) for the whole four seconds;
+    // each follower starts 50 px short of the gap, so the three of them queue up one after another.
+    const head = place(s, 'brute-stuffing', 400, '198.51.100.77');
+    const a = place(s, 'legit-login', 30), b = place(s, 'legit-login', -340), c = place(s, 'legit-login', -710);
+    for (let i = 0; i < 240; i++) {
+      const before = [head, a, b, c].map((p) => p.x);
+      stepPackets(s, 1 / 60, []);
+      [head, a, b, c].forEach((p, j) => expect(p.x).toBeGreaterThanOrEqual(before[j]));
+      expect(a.x).toBeLessThanOrEqual(head.x - PKT_W - SPAWN_GAP + 1e-6);
+      expect(b.x).toBeLessThanOrEqual(a.x - PKT_W - SPAWN_GAP + 1e-6);
+      expect(c.x).toBeLessThanOrEqual(b.x - PKT_W - SPAWN_GAP + 1e-6);
+    }
+    expect(head.slowed).toBe(true);
+  });
+
+  it('releases the queue once the head enters the fire', () => {
+    const s = freshState();
+    const head = place(s, 'legit-login', 560), next = place(s, 'legit-login', 560 - PKT_W - SPAWN_GAP);
+    for (let i = 0; i < 90 && !head.entering; i++) stepPackets(s, 1 / 60, []);
+    expect(head.entering).toBe(true);
+    const x = next.x;
+    stepPackets(s, 1 / 60, []);
+    expect(next.x - x).toBeCloseTo(72 / 60, 3);
   });
 });
 
