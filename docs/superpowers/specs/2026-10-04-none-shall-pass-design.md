@@ -1,6 +1,6 @@
 # None Shall Pass: design spec
 
-Date: 2026-10-04 · Status: draft for Jose's review · Visual reference: `docs/mocks/2026-10-04-core-loop-v4.html`
+Date: 2026-10-04 · Status: implemented (v1, local) · Visual reference: `docs/mocks/2026-10-04-core-loop-v4.html`
 (open it in a browser; it is the playable HTML mock this spec was shaped from).
 
 ## 1. What it is
@@ -40,14 +40,15 @@ save-and-resume of a run in progress.
 
 ## 3. Platform, repo and hosting
 
-- Repo `jorius/none-shall-pass` (public, MIT), checkout `/mnt/media/Sources/GitHub/Personal/none-shall-pass`.
+- Repo `jorius/none-shall-pass` (public, MIT), checkout `~/Sources/GitHub/Personal/none-shall-pass`.
 - Vite + TypeScript (strict) + **Phaser 4.2.x**; no React. npm only; Node pinned in `.nvmrc` (24.15.0, as the
   Academy).
 - GitHub Pages via Actions (`deploy.yml` copied from the Academy: lint, test, build, upload `dist`), Pages
   source "GitHub Actions". Vite `base` is `/none-shall-pass/` (overridable with `BASE_PATH`). There are no
   deep links, so no 404 fallback is needed.
-- Desktop only: if the viewport is narrower than 900 px or the primary pointer is coarse, show a styled card
-  ("This one needs a keyboard. Send yourself the link.") with a copy-link button instead of the game.
+- Desktop only, decided by the device, not the window: a touch-only pointer (coarse, with no fine `any-pointer`)
+  or a screen whose short side is under 600 px gets a styled card ("This one needs a keyboard. Send yourself the
+  link.") with a copy-link button instead of the game; a desktop window snapped narrow still plays, scaled down.
 - Supported browsers: current Chrome, Firefox, Safari and Edge.
 
 ## 4. Visual identity
@@ -202,7 +203,7 @@ on the field.
 | Observability I · logs | Knight · C | tier-1 attacks crawl with bugs | bugs on cards |
 | Observability II · metrics | Knight · R, req I | tier 2 too | |
 | Observability III · tracing | Knight · L, req II | tier 3 too | |
-| Port lockdown | Firewall · C | scans of closed ports denied; :25 stays open | padlock port panel; the probed row flashes DENIED |
+| Port lockdown | Firewall · C | scans of closed ports denied; :25 stays open | padlock port panel; the probed row flashes red |
 | Quote filter | Firewall · C | drops any request with `'` (also O'Reilly; misses `%27` and the sort trick) | portcullis on the fire |
 | fail2ban | Firewall · C | bans an IP after 2 failed logins | hammer + BANNED counter |
 | Tarpit | Firewall · R | repeat IPs on /login move at 40% through the tar | tar strip on /login |
