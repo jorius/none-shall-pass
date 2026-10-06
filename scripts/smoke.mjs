@@ -688,7 +688,10 @@ const CHECKS = {
     await page.waitForSelector('#ui .ov-setup .foot .btn');
     await page.click('#ui .ov-setup .foot .btn:nth-child(3)');
     await page.waitForFunction(() => document.documentElement.lang === 'es' && /ELIGE A TU CABALLERO/.test(document.querySelector('#ui .ov-setup h2')?.textContent));
-    const toggled = await page.evaluate(() => ({ ...Object.fromEntries(['knight', 'level'].map((k) => [k, document.querySelector(`#ui .ov-setup .${k === 'knight' ? 'kn' : 'dl'}.sel`)?.dataset.id])), screen: window.__nsp.app.screen, pressed: [...document.querySelectorAll('#ui .ov-setup [aria-pressed="true"]')].map((b) => b.dataset.id) }));
+    const toggled = await page.evaluate(() => ({
+      knight: document.querySelector('#ui .ov-setup .kn.sel')?.dataset.id, level: document.querySelector('#ui .ov-setup .dl.sel')?.dataset.id,
+      screen: window.__nsp.app.screen, pressed: [...document.querySelectorAll('#ui .ov-setup [aria-pressed="true"]')].map((b) => b.dataset.id),
+    }));
     if (toggled.screen !== 'setup' || toggled.knight !== 'warden' || toggled.level !== 'incident' || toggled.pressed.join() !== 'warden,incident') throw new Error(`after the language button: ${JSON.stringify(toggled)}`);
     await page.click('#ui .ov-setup .foot .btn:nth-child(3)');
     await page.waitForFunction(() => document.documentElement.lang === 'en' && /CHOOSE YOUR KNIGHT/.test(document.querySelector('#ui .ov-setup h2')?.textContent));
