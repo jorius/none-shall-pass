@@ -20,6 +20,75 @@ const stepUntil = async (page, cond, arg) => {
   if (!ok) throw new Error(`the run never reached ${cond}`);
 };
 
+// From the title into a run, as a player gets there.
+const play = async (page, mode = 'campaign') => {
+  await page.waitForSelector('#ui .ov-title .btn');
+  await page.click(mode === 'campaign' ? '#ui .ov-title .row-btns .btn:nth-child(1)' : '#ui .ov-title .row-btns .btn:nth-child(2)');
+  await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+};
+
+// The pause key's freeze (the run, the tweens, the CSS) without its menu over the field and the panels,
+// so a shot still shows them and a hover still reaches them.
+const freeze = (page, on = true) => page.evaluate((p) => {
+  const app = window.__nsp.app, menu = app.onScreen;
+  app.onScreen = null;
+  app.setScreen(p ? 'paused' : 'playing');
+  app.onScreen = menu;
+}, on);
+
+// Nothing on the open screen spills out of it, no row of buttons breaks in two, and no label or button wraps.
+const ONE_LINE = '.btn, .uhead, .uname, .draft-h, .note, .best > div, .badge-root, .statlist > div, .howto-grid > *';
+const fits = async (page, what) => {
+  const bad = await page.evaluate((sel) => {
+    const box = document.querySelector('#ui .ov.show'), r = box.getBoundingClientRect(), k = r.width / 1280;
+    const name = (e) => `${e.tagName.toLowerCase()}.${e.className} "${e.textContent.slice(0, 40)}"`;
+    const out = [...box.querySelectorAll('*')].filter((e) => {
+      const b = e.getBoundingClientRect();
+      return !e.closest('.mistakes') && b.width > 0 && (b.left < r.left - 1 || b.right > r.right + 1 || b.top < r.top - 1 || b.bottom > r.bottom + 1);
+    }).map((e) => `out: ${name(e)}`);
+    const split = [...box.querySelectorAll('.row-btns, .cards')].filter((row) => new Set([...row.children].map((c) => Math.round(c.getBoundingClientRect().top))).size > 1).map((e) => `split: ${name(e)}`);
+    const wrapped = [...box.querySelectorAll(sel)].filter((e) => {
+      const cs = getComputedStyle(e), lh = parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.5;
+      const inner = e.getBoundingClientRect().height / k - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom) - parseFloat(cs.borderTopWidth) - parseFloat(cs.borderBottomWidth);
+      return inner > lh * 1.5;
+    }).map((e) => `wraps: ${name(e)}`);
+    return [...out, ...split, ...wrapped];
+  }, ONE_LINE);
+  if (bad.length) throw new Error(`${what} does not fit:\n${bad.join('\n')}`);
+};
+
+// Every upgrade card, three to a hand, in the language on screen: each hand fits the draft screen.
+const everyCardFits = async (page, what) => {
+  const dealt = await page.evaluate(() => {
+    const run = window.__nsp.app.run, s = run.state, d = s.draft, seen = new Map();
+    const saved = { owned: s.owned, credits: s.credits, picks: d.picks, taken: d.taken };
+    // Observability II and III only deal once the tier below is owned.
+    for (const owned of [['obs1'], ['obs2']]) {
+      s.owned = owned;
+      d.taken = [];
+      for (let i = 0; i < 300; i++) { s.credits = 1e6; run.reroll(); d.picks.forEach((c) => seen.set(c.id, c)); }
+    }
+    Object.assign(s, { owned: saved.owned, credits: saved.credits });
+    Object.assign(d, { picks: saved.picks, taken: saved.taken });
+    window.__smokeCards = [...seen.values()];
+    window.__smokeHand = saved.picks;
+    return seen.size;
+  });
+  if (dealt !== 16) throw new Error(`dealt ${dealt} different cards, expected 16`);
+  for (let i = 0; i < 16; i += 3) {
+    await page.evaluate((n) => {
+      const app = window.__nsp.app, d = app.run.state.draft, all = window.__smokeCards;
+      d.picks = [0, 1, 2].map((j) => all[(n + j) % all.length]);
+      app.refresh();
+    }, i);
+    await fits(page, `${what} (cards ${i + 1}-${i + 3})`);
+  }
+  // Back to the hand the run dealt.
+  await page.evaluate(() => { const app = window.__nsp.app; app.run.state.draft.picks = window.__smokeHand; app.refresh(); });
+};
+
+const spanish = (page) => page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
+
 const CHECKS = {
   async boot(page) {
     await page.waitForSelector('#stage canvas');
@@ -27,7 +96,8 @@ const CHECKS = {
     await page.screenshot({ path: `${OUT}/boot.png` });
   },
   async loop(page) {
-    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.length > 0, null, { timeout: 15000 });
+    await play(page);
+    await stepUntil(page, (s) => s.packets.length > 0);
     const before = await page.evaluate(() => window.__nsp.app.run.state.knight.lane);
     await page.keyboard.press('ArrowUp');
     await page.waitForTimeout(400);
@@ -36,8 +106,9 @@ const CHECKS = {
     await page.screenshot({ path: `${OUT}/loop.png` });
   },
   async packets(page) {
-    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.some((p) => p.x > 200), null, { timeout: 20000 });
-    const lane = await page.evaluate(() => window.__nsp.app.run.state.packets.find((p) => p.x > 200).lane);
+    await play(page);
+    await stepUntil(page, (s) => s.packets.some((p) => p.x > 200 && !p.entering && !p.doomed));
+    const lane = await page.evaluate(() => window.__nsp.app.run.state.packets.find((p) => p.x > 200 && !p.entering && !p.doomed).lane);
     const here = await page.evaluate(() => window.__nsp.app.run.state.knight.lane);
     for (let i = here; i > lane; i--) await page.keyboard.press('ArrowUp');
     for (let i = here; i < lane; i++) await page.keyboard.press('ArrowDown');
@@ -46,17 +117,17 @@ const CHECKS = {
     await page.screenshot({ path: `${OUT}/packets-target.png` });
     await page.keyboard.press('Space');
     await page.waitForTimeout(60);
-    // Pause so the shot catches the spear mid-arc however long the capture takes; resuming lets it land.
-    await page.keyboard.press('p');
+    // Frozen so the shot catches the spear mid-arc however long the capture takes; stepping then lands it.
+    await freeze(page);
     await page.waitForTimeout(100);
     await page.screenshot({ path: `${OUT}/packets-spear.png` });
-    await page.keyboard.press('p');
-    await page.waitForFunction(() => window.__nsp.app.run.state.log.some((e) => e.outcome === 'hit' || e.outcome === 'fp'), null, { timeout: 3000 });
+    await freeze(page, false);
+    await stepUntil(page, (s) => s.log.some((e) => e.outcome === 'hit' || e.outcome === 'fp'));
     await page.screenshot({ path: `${OUT}/packets-shatter.png` });
   },
   async resizeAndClick(page) {
     const clickPacket = async () => {
-      await page.waitForFunction(() => window.__nsp.app.run.state.packets.some((p) => p.x > 250 && p.x < 550 && !p.entering), null, { timeout: 20000 });
+      await stepUntil(page, (s) => s.packets.some((p) => p.x > 250 && p.x < 550 && !p.entering));
       const target = await page.evaluate(() => {
         const s = window.__nsp.app.run.state;
         const p = s.packets.find((q) => q.x > 250 && q.x < 550 && !q.entering);
@@ -69,6 +140,7 @@ const CHECKS = {
       if (locked !== target.id) throw new Error(`clicked ${target.id}, locked ${locked}`);
       await page.keyboard.press('Escape');
     };
+    await play(page);
     await page.setViewportSize({ width: 1100, height: 700 });
     await page.waitForTimeout(300);
     await clickPacket();
@@ -82,7 +154,8 @@ const CHECKS = {
   },
   async overlap(page) {
     // Two cards forced to overlap in one lane: a click must land on the card drawn on top.
-    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.filter((p) => !p.entering && !p.doomed).length >= 2, null, { timeout: 20000 });
+    await play(page);
+    await stepUntil(page, (s) => s.packets.filter((p) => !p.entering && !p.doomed).length >= 2);
     const [a, b] = await page.evaluate(() => {
       const [older, newer] = window.__nsp.app.run.state.packets.filter((p) => !p.entering && !p.doomed);
       newer.lane = older.lane;
@@ -126,16 +199,17 @@ const CHECKS = {
     if (await top() !== b) throw new Error('the released card did not go back under the newer one');
   },
   async objects(page) {
-    await page.waitForFunction(() => !!window.__nsp?.app?.run);
+    await play(page);
     await page.evaluate(() => {
       const app = window.__nsp.app;
       app.run.state.owned.push('quote', 'f2b', 'tarpit', 'cdn');
       app.dispatch([{ type: 'owned', owned: [...app.run.state.owned] }]);
     });
-    await page.waitForFunction(() => window.__nsp.app.run.state.log.some((e) => e.ruleId === 'lockdown'), null, { timeout: 30000 });
+    await stepUntil(page, (s) => s.log.some((e) => e.ruleId === 'lockdown'));
     await page.screenshot({ path: `${OUT}/objects.png` });
   },
   async hud(page) {
+    await play(page);
     await page.waitForSelector('#ui .hud .title');
     await page.waitForFunction(() => document.querySelector('#ui .bubble.show'));
     const text = await page.textContent('#ui .hud');
@@ -151,9 +225,9 @@ const CHECKS = {
     const cur = await page.$$eval('#ui .glabel.cur', (a) => a.length);
     if (cur !== 1) throw new Error('lane highlight missing');
     // Spanish runs about 110px longer: at its widest (wave 5, hints on, five-digit score) the HUD stays on one line.
-    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
+    await spanish(page);
     await page.reload({ waitUntil: 'networkidle' });
-    await page.waitForFunction(() => !!window.__nsp?.app?.run);
+    await play(page);
     const fit = await page.evaluate(() => {
       const app = window.__nsp.app;
       Object.assign(app.run.state, { wave: 5, score: 88888, credits: 8888, hints: true });
@@ -168,7 +242,8 @@ const CHECKS = {
   },
   async panels(page) {
     // The HUD, gutter and uptime strip are opaque: a click on them must not reach the field behind them.
-    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.packets?.filter((p) => !p.entering && !p.doomed).length >= 2, null, { timeout: 20000 });
+    await play(page);
+    await stepUntil(page, (s) => s.packets.filter((p) => !p.entering && !p.doomed).length >= 2);
     const [a, lane] = await page.evaluate(() => {
       const app = window.__nsp.app;
       const [held, hidden] = app.run.state.packets.filter((p) => !p.entering && !p.doomed);
@@ -193,7 +268,7 @@ const CHECKS = {
   },
   async floats(page) {
     // A float freezes with the game: paused mid-rise it stays put, and on resume it finishes and goes away.
-    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
+    await play(page);
     const top = () => page.evaluate(() => {
       const f = [...document.querySelectorAll('#ui .float')].find((e) => e.textContent === '+777');
       return f ? f.getBoundingClientRect().top : null;
@@ -210,9 +285,9 @@ const CHECKS = {
     await page.waitForFunction(() => ![...document.querySelectorAll('#ui .float')].some((e) => e.textContent === '+777'), null, { timeout: 3000 });
   },
   async log(page) {
-    // Paused, the run only moves when this check steps it, so a busy CPU cannot time it out.
-    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
-    await page.keyboard.press('p');
+    // Frozen, the run only moves when this check steps it, so a busy CPU cannot time it out.
+    await play(page);
+    await freeze(page);
     const logLength = () => page.evaluate(() => window.__nsp.app.run.state.log.length);
     await stepUntil(page, (s) => s.log.length >= 8);
     const rows = await page.$$eval('#ui .rows .row', (a) => a.length);
@@ -274,12 +349,12 @@ const CHECKS = {
     const scrollable = await page.$eval('#ui .rows', (e) => getComputedStyle(e).overflowY);
     if (scrollable !== 'auto') throw new Error('log not scrollable');
     // Spanish, at its longest: a held, bugged attack with the lens on keeps the inspector at 760px and its title inside it.
-    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
+    await spanish(page);
     await page.reload({ waitUntil: 'networkidle' });
-    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
+    await play(page);
     // Off the field and the log, so neither a packet nor a row takes the inspector over.
     await page.hover('#ui .hud .title');
-    await page.keyboard.press('p');
+    await freeze(page);
     await stepUntil(page, (s) => s.log.length >= 3 && s.packets.some((p) => p.t.kind !== 'legit' && !p.entering));
     await page.evaluate(() => {
       const s = window.__nsp.app.run.state;
@@ -304,8 +379,8 @@ const CHECKS = {
   },
   async loadout(page) {
     // The longest loadout a run can own: every card but the one-shot backup, the three observability tiers on one tile.
-    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
-    await page.keyboard.press('p');
+    await play(page);
+    await freeze(page);
     const names = await page.evaluate(() => {
       const app = window.__nsp.app;
       app.run.state.owned.push('destrier', 'squire', 'lens', 'obs1', 'obs2', 'obs3', 'quote', 'f2b', 'tarpit', 'cdn', 'prepared', 'sortlist', 'mfa', 'csp');
@@ -336,6 +411,212 @@ const CHECKS = {
     const shown = await page.textContent('#ui .ins .cname');
     if (shown !== names.at(-1)) throw new Error(`hovering the last tile shows ${shown}, expected ${names.at(-1)}`);
     await page.screenshot({ path: `${OUT}/loadout.png` });
+  },
+  async title(page) {
+    // A first visit: the title over an idle field, no run behind it, Overtime locked.
+    await page.waitForSelector('#ui .ov-title .btn');
+    const first = await page.evaluate(() => ({ run: window.__nsp.app.run, overtime: document.querySelector('#ui .ov-title .row-btns .btn:nth-child(2)').disabled }));
+    if (first.run !== null || !first.overtime) throw new Error(`first visit: ${JSON.stringify(first)}`);
+    await fits(page, 'title');
+    await page.screenshot({ path: `${OUT}/title.png` });
+    // After a won campaign Overtime opens and the bests show; at their longest, in Spanish too.
+    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ bests: { campaign: { normal: { score: 188420, grade: 'A' } }, overtime: { normal: { wave: 14, score: 288888 } }, won: true }, prefs: { lang: 'en', coached: true } })));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#ui .ov-title .best');
+    if (await page.$eval('#ui .ov-title .row-btns .btn:nth-child(2)', (b) => b.disabled)) throw new Error('Overtime still locked after a win');
+    await fits(page, 'title with bests');
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(4)');
+    await page.waitForFunction(() => document.documentElement.lang === 'es' && /JUGAR CAMPAÑA/.test(document.querySelector('#ui .ov-title').textContent));
+    await fits(page, 'Spanish title');
+    // The idle field behind it follows the language too.
+    const behind = await page.evaluate(() => [document.querySelector('#ui .hud .wave').textContent, document.querySelector('#ui .bubble.show')]);
+    if (!/^OLEADA 1\/6 · RECONOCIMIENTO/.test(behind[0]) || behind[1]) throw new Error(`behind the Spanish title: ${behind[0]}, bubble ${!!behind[1]}`);
+    await page.screenshot({ path: `${OUT}/title-es.png` });
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(3)');
+    await page.waitForSelector('#ui .ov-howto kbd');
+    await fits(page, 'Spanish how-to');
+    await page.screenshot({ path: `${OUT}/howto-es.png` });
+    await page.click('#ui .ov-howto .btn');
+    // By keyboard: Tab stays on the title's buttons (the layer behind is inert) and Enter plays.
+    await page.waitForSelector('#ui .ov-title .btn');
+    await page.keyboard.press('Tab');
+    const focused = await page.evaluate(() => document.activeElement?.textContent);
+    if (focused !== 'JUGAR CAMPAÑA') throw new Error(`Tab went to ${focused}`);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    if (await page.evaluate(() => document.activeElement !== document.body)) throw new Error('a title button kept the focus into the run');
+  },
+  async draft(page) {
+    await play(page);
+    await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+    await page.waitForSelector('#ui .ov-draft .ucard');
+    await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));
+    await page.screenshot({ path: `${OUT}/draft.png` });
+    const free = await page.$$eval('#ui .ucard .btn', (b) => b.map((x) => x.textContent));
+    if (!free.some((x) => /FREE|GRATIS/.test(x))) throw new Error('no free pick');
+    await everyCardFits(page, 'draft');
+    await page.click('#ui .ucard:first-child .btn');
+    await page.waitForFunction(() => window.__nsp.app.run.state.owned.length === 2);
+    // By keyboard, with credits for more: Enter buys, and the redraw keeps the focus on the panel.
+    await page.evaluate(() => { const a = window.__nsp.app; a.run.state.credits = 5000; a.refresh(); });
+    await page.keyboard.press('Tab');
+    const buy = await page.evaluate(() => document.activeElement?.textContent);
+    if (!/^BUY/.test(buy)) throw new Error(`Tab went to ${buy}`);
+    await page.keyboard.press('Enter');
+    const after = await page.evaluate(() => ({ owned: window.__nsp.app.run.state.owned.length, focus: !!document.activeElement?.closest('#ui .ov-draft') }));
+    if (after.owned !== 3 || !after.focus) throw new Error(`keyboard buy: ${JSON.stringify(after)}`);
+    // Space on NEXT WAVE starts the wave once and throws nothing; the next Space is a spear key again, not the button.
+    for (let i = 0; i < 6 && !/NEXT WAVE/.test(await page.evaluate(() => document.activeElement?.textContent)); i++) await page.keyboard.press('Tab');
+    await page.keyboard.press('Space');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing' && window.__nsp.app.run.state.wave === 2);
+    await page.keyboard.press('Space');
+    const wave2 = await page.evaluate(() => ({ wave: window.__nsp.app.run.state.wave, screen: window.__nsp.app.screen, body: document.activeElement === document.body }));
+    if (wave2.wave !== 2 || wave2.screen !== 'playing' || !wave2.body) throw new Error(`after NEXT WAVE: ${JSON.stringify(wave2)}`);
+    // The same hand in Spanish, every card.
+    await spanish(page);
+    await page.reload({ waitUntil: 'networkidle' });
+    await play(page);
+    await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+    await page.waitForSelector('#ui .ov-draft .ucard');
+    await everyCardFits(page, 'Spanish draft');
+    await page.evaluate(() => { const a = window.__nsp.app; a.pick(0); });
+    await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));
+    await page.screenshot({ path: `${OUT}/draft-es.png` });
+  },
+  async pause(page) {
+    await play(page);
+    await page.keyboard.press('p');
+    await page.waitForSelector('#ui .ov-pause .btn');
+    // The menu covers the field and the panels: nothing under it takes the pointer.
+    const under = await page.evaluate(() => {
+      const r = document.querySelector('#stage canvas').getBoundingClientRect(), k = r.width / 1280;
+      return [[600, 200], [400, 620], [1098, 100]].map(([x, y]) => !!document.elementFromPoint(r.left + x * k, r.top + y * k)?.closest('.ov'));
+    });
+    if (under.includes(false)) throw new Error(`the field or a panel shows through the pause menu: ${under}`);
+    await fits(page, 'pause');
+    await page.screenshot({ path: `${OUT}/pause.png` });
+    // Reduced effects switch live (the particles, the CSS glitches) and are remembered.
+    await page.click('#ui .ov-pause .btn:nth-child(4)');
+    const fx = await page.evaluate(() => ({
+      effects: window.__nsp.effects.reduced, css: document.querySelector('#ui').classList.contains('reduced'),
+      saved: JSON.parse(localStorage.getItem('nsp.v1')).prefs.reducedFx, label: document.querySelector('#ui .ov-pause .btn:nth-child(4)').textContent,
+    }));
+    if (!fx.effects || !fx.css || fx.saved !== true || !/· ON$/.test(fx.label)) throw new Error(`reduced effects: ${JSON.stringify(fx)}`);
+    await page.click('#ui .ov-pause .btn:nth-child(3)');
+    await page.waitForFunction(() => document.documentElement.lang === 'es' && /EN PAUSA/.test(document.querySelector('#ui .ov-pause').textContent));
+    await fits(page, 'Spanish pause');
+    await page.screenshot({ path: `${OUT}/pause-es.png` });
+    // P and Esc both resume; Esc in play only lets the target go.
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing' && !document.querySelector('#ui .ov.show'));
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('p');
+    await page.keyboard.press('Escape');
+    if (await page.evaluate(() => window.__nsp.app.screen) !== 'playing') throw new Error('Esc did not resume');
+    // Quit to the title: no run, the field emptied, the clock running, the HUD back to an idle run.
+    await stepUntil(page, (s) => s.packets.length >= 2 && s.score > 0);
+    await page.keyboard.press('p');
+    await page.click('#ui .ov-pause .btn:nth-child(2)');
+    await page.waitForSelector('#ui .ov-title');
+    await page.waitForTimeout(150);
+    const idle = await page.evaluate(() => ({
+      run: window.__nsp.app.run, paused: document.querySelector('#ui').classList.contains('paused'),
+      cards: window.__nsp.game.scene.getScene('field').layers.packets.list.filter((o) => /^packet-/.test(o.name)).length,
+      score: document.querySelector('#ui .hud .stat b').textContent, coach: getComputedStyle(document.querySelector('#ui .coach')).display,
+    }));
+    if (idle.run !== null || idle.paused || idle.cards || idle.score !== '0' || idle.coach !== 'none') throw new Error(`after quitting: ${JSON.stringify(idle)}`);
+    await page.screenshot({ path: `${OUT}/quit-title.png` });
+  },
+  async debrief(page) {
+    // Without port lockdown the recon scans breach, and at 1% uptime the first breach ends the run.
+    const lose = (p) => p.evaluate(() => { const a = window.__nsp.app; a.run.state.owned = []; a.run.state.uptime = 1; });
+    // A last wave at its widest numbers.
+    const widest = (p) => p.evaluate(() => {
+      const s = window.__nsp.app.run.state;
+      Object.assign(s.stats, { hits: { 1: 188, 2: 88, 3: 28 }, squireHits: 188, ruleBlocks: 188, served: 1888, decoysKept: 88, neutralized: 88, falsePositives: 18 });
+      Object.assign(s, { score: 188888, wave: 6 });
+    });
+    await play(page);
+    await lose(page);
+    await stepUntil(page, (s) => s.phase === 'ended');
+    await page.waitForSelector('#ui .ov-debrief .grade');
+    await page.screenshot({ path: `${OUT}/debrief.png` });
+    const shown = await page.evaluate(() => ({
+      share: document.querySelector('#ui .share').value, mistakes: document.querySelectorAll('#ui .mistake').length,
+      best: JSON.parse(localStorage.getItem('nsp.v1')).bests.campaign.normal, grade: document.querySelector('#ui .grade').textContent,
+    }));
+    if (!shown.share.includes('jorius.github.io/none-shall-pass')) throw new Error('share text missing link');
+    if (!shown.mistakes || shown.grade !== 'F' || !shown.best) throw new Error(`debrief: ${JSON.stringify(shown)}`);
+    await fits(page, 'debrief');
+    await widest(page);
+    await page.evaluate(() => window.__nsp.app.refresh());
+    await fits(page, 'debrief at its widest');
+    // PLAY AGAIN: a fresh run, nothing carried over.
+    await page.click('#ui .ov-debrief .row-btns .btn:nth-child(2)');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    const fresh = await page.evaluate(() => ({ s: window.__nsp.app.run.state, rows: document.querySelectorAll('#ui .rows .row').length }));
+    if (fresh.s.wave !== 1 || fresh.s.uptime !== 100 || fresh.s.log.length || fresh.rows || fresh.s.phase !== 'playing') throw new Error('PLAY AGAIN kept the last run');
+    // A quit in the moment before the debrief opens: the next run keeps its screen, and the abandoned run saves nothing.
+    const bests = () => JSON.parse(localStorage.getItem('nsp.v1')).bests;
+    const saved = JSON.stringify(await page.evaluate(bests));
+    await lose(page);
+    await page.evaluate(() => {
+      const app = window.__nsp.app;
+      for (let i = 0; i < 60 * 120 && app.run.state.phase !== 'ended'; i++) app.dispatch(app.run.step(1 / 60));
+      app.quit();
+      app.startRun('campaign');
+    });
+    await page.waitForTimeout(1800);
+    const kept = await page.evaluate(() => ({ screen: window.__nsp.app.screen, shown: !!document.querySelector('#ui .ov.show') }));
+    const same = JSON.stringify(await page.evaluate(bests)) === saved;
+    if (kept.screen !== 'playing' || kept.shown || !same) throw new Error(`a stale debrief: ${JSON.stringify({ ...kept, same })}`);
+    // In Spanish (switched from the pause menu), then back to the title.
+    await page.keyboard.press('p');
+    await page.click('#ui .ov-pause .btn:nth-child(3)');
+    await page.keyboard.press('p');
+    await stepUntil(page, (s) => s.log.length >= 3);
+    await widest(page);
+    await lose(page);
+    await stepUntil(page, (s) => s.phase === 'ended');
+    await page.waitForSelector('#ui .ov-debrief .grade');
+    await fits(page, 'Spanish debrief');
+    await page.screenshot({ path: `${OUT}/debrief-es.png` });
+    await page.click('#ui .ov-debrief .row-btns .btn:nth-child(3)');
+    await page.waitForSelector('#ui .ov-title');
+    if (await page.evaluate(() => window.__nsp.app.run) !== null) throw new Error('TITLE kept the run');
+  },
+  async phone(page) {
+    // A real phone: a small touch screen with no fine pointer gets the card, and the game never boots.
+    const browser = page.context().browser();
+    const device = async (opts) => {
+      const ctx = await browser.newContext(opts), p = await ctx.newPage(), errors = [];
+      p.on('pageerror', (e) => errors.push(e.stack ?? e.message));
+      p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+      await p.goto(URL, { waitUntil: 'networkidle' });
+      return { ctx, p, errors };
+    };
+    const gated = async (name, opts, shot) => {
+      const { ctx, p, errors } = await device(opts);
+      try {
+        await p.waitForSelector('.gate h2');
+        if (shot) await p.screenshot({ path: `${OUT}/${shot}` });
+        if (await p.$('#stage canvas')) throw new Error(`the game booted on ${name}`);
+        const fit = await p.evaluate(() => { const g = document.querySelector('.gate'); return g.scrollHeight <= g.clientHeight && g.scrollWidth <= g.clientWidth; });
+        if (!fit) throw new Error(`the card overflows on ${name}`);
+        if (errors.length) throw new Error(errors.join('\n'));
+      } finally { await ctx.close(); }
+    };
+    const touch = { isMobile: true, hasTouch: true, deviceScaleFactor: 3 };
+    await gated('a phone', { ...touch, viewport: { width: 390, height: 844 }, screen: { width: 390, height: 844 } }, 'phone.png');
+    await gated('a phone on its side', { ...touch, viewport: { width: 844, height: 390 }, screen: { width: 844, height: 390 } });
+    await gated('a touch-only tablet', { ...touch, deviceScaleFactor: 2, viewport: { width: 1366, height: 1024 }, screen: { width: 1366, height: 1024 } });
+    // A desktop window snapped narrow still plays: it has a keyboard, and the stage scales down.
+    const { ctx, p, errors } = await device({ viewport: { width: 640, height: 720 }, screen: { width: 1920, height: 1080 } });
+    try {
+      await p.waitForSelector('#ui .ov-title .btn');
+      if (await p.$('.gate')) throw new Error('a narrow desktop window got the phone card');
+      if (errors.length) throw new Error(errors.join('\n'));
+    } finally { await ctx.close(); }
   },
 };
 

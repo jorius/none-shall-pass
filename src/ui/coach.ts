@@ -1,5 +1,6 @@
 // core
 import type { RunEvent } from '../core/events';
+import type { Screen } from '../core/keys';
 import type { Run } from '../core/run';
 
 // game
@@ -30,6 +31,13 @@ export class Coach implements View {
     const show = run.state.cfg.mode === 'campaign' && !this.store.prefs().coached;
     this.box.style.display = show ? '' : 'none';
     this.shownAt = show ? 0 : -1;
+  }
+
+  // The title's idle field gets no coaching; the next run's start brings it back.
+  screen(s: Screen): void {
+    if (s !== 'title') return;
+    this.box.style.display = 'none';
+    this.shownAt = -1;
   }
 
   event(ev: RunEvent): void {

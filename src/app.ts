@@ -23,6 +23,7 @@ export class App {
   private acc = 0;
   private time = 0;
   private beforeConsole: Screen = 'playing';
+  private endTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(readonly scene: FieldScene, readonly store: Store) {
     scene.onFrame = (ms) => this.frame(ms);
@@ -34,6 +35,7 @@ export class App {
   }
 
   startRun(mode: Mode): void {
+    this.cancelEnd();
     const hints = !this.root && !!this.store.prefs().hints;
     this.run = new Run({ mode, seed: (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, root: this.root, hints });
     this.acc = 0;
@@ -49,8 +51,39 @@ export class App {
       for (const v of this.views) v.event?.(ev, run);
       if (ev.type === 'draftOpened') this.setScreen('draft');
       if (ev.type === 'waveStarted' && this.screen === 'draft') this.setScreen('playing');
-      if (ev.type === 'runEnded') setTimeout(() => { this.setScreen('debrief'); this.onEnd?.(run); }, 1200);
+      if (ev.type === 'runEnded') this.endLater(run);
     }
+  }
+
+  // The last shatter plays out before the debrief. A quit or a new run in the meantime cancels it,
+  // so an abandoned run neither takes over the next one's screen nor gets its result saved.
+  private endLater(run: Run): void {
+    this.cancelEnd();
+    this.endTimer = setTimeout(() => {
+      this.endTimer = null;
+      if (this.run !== run) return;
+      this.setScreen('debrief');
+      this.onEnd?.(run);
+    }, 1200);
+  }
+
+  private cancelEnd(): void {
+    if (this.endTimer !== null) clearTimeout(this.endTimer);
+    this.endTimer = null;
+  }
+
+  pick(i: number): void { if (this.run) this.dispatch(this.run.pick(i)); }
+  reroll(): void { if (this.run) this.dispatch(this.run.reroll()); }
+  nextWave(): void { if (this.run) this.dispatch(this.run.nextWave()); }
+
+  // Back to the title: an idle run resets every view (no packets, cold rack, knight at his post)
+  // so the field reads as a calm backdrop behind the semi-transparent title.
+  quit(): void {
+    this.cancelEnd();
+    const idle = new Run({ mode: 'campaign', seed: 1, root: this.root, hints: false });
+    for (const v of this.views) v.start?.(idle);
+    this.run = null;
+    this.setScreen('title');
   }
 
   setScreen(s: Screen): void {
@@ -105,7 +138,10 @@ export class App {
         this.store.setPrefs({ hints: run.state.hints });
         this.refresh();
         break;
-      case 'pause': this.setScreen(this.screen === 'paused' ? 'playing' : 'paused'); break;
+      // Only from play: paused over a draft, resuming would drop the draft and leave the run stuck between waves.
+      case 'pause':
+        if (this.screen === 'playing' || this.screen === 'paused') this.setScreen(this.screen === 'paused' ? 'playing' : 'paused');
+        break;
       case 'console': this.setScreen('console'); break;
       case 'closeConsole': this.setScreen(this.beforeConsole); break;
     }

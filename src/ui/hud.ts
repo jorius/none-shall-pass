@@ -24,6 +24,7 @@ export class Hud implements View {
   private readonly root: HTMLElement;
   private readonly labels: HTMLElement[] = [];
   private last = '';
+  private started: Run | null = null;
 
   constructor(ui: HTMLElement, app: App) {
     const bar = el('div', 'hud', ui);
@@ -53,13 +54,18 @@ export class Hud implements View {
     this.pauseBtn.textContent = t('hud.pause');
     this.root.textContent = t('hud.root');
     this.last = '';
-    if (run) this.frame(run);
+    const shown = run ?? this.started;
+    if (shown) this.frame(shown);
   }
 
+  // Drawn at once, and kept for a language switch: the title's idle run gets no frames,
+  // and the last run's numbers must not stay up behind it.
   start(run: Run): void {
+    this.started = run;
     this.root.style.display = run.state.cfg.root ? '' : 'none';
     this.hints.style.display = run.state.cfg.root ? 'none' : '';
     this.last = '';
+    this.frame(run);
   }
 
   event(ev: RunEvent, run: Run): void {

@@ -33,7 +33,7 @@
     "bestOvertime": "Tiempo extra · oleada {w} · {s} pts", "rootOn": "MODO ROOT · paquetes más rápidos, sin pistas, puntaje ×1.5", "site": "jorius.github.io ↗"
   },
   "howto": {
-    "title": "CÓMO JUGAR", "back": "VOLVER",
+    "title": "CÓMO JUGAR", "back": "VOLVER", "space": "Espacio", "click": "clic",
     "k1": "elige un carril", "k2": "siguiente paquete en ese carril (Shift: anterior)", "k3": "arroja una lanza al objetivo", "k4": "suelta el objetivo",
     "k5": "haz clic en un paquete para apuntarle", "k6": "pistas: subraya las señales (puntaje ×0.75)", "k7": "pausa",
     "lesson": "Los paquetes que llegan al muro de fuego se queman dentro de tu servidor. Lancea los ataques, deja pasar a los usuarios reales y gasta los créditos de cada oleada en mejoras que enseñan defensas reales. Las reglas baratas fallan y se equivocan; las soluciones de raíz cuestan más y no dejan fugas."
@@ -42,7 +42,7 @@
     "won": "SERVIDOR A SALVO", "serverDown": "SERVIDOR CAÍDO", "usersGone": "SIN USUARIOS", "overtimeOver": "FIN DEL TIEMPO EXTRA", "grade": "NOTA", "score": "PUNTAJE", "waves": "OLEADAS",
     "newBest": "NUEVO RÉCORD", "tampered": "TAMPERED · no se guarda", "hits": "Impactos · obvios / engañosos / sigilosos", "decoys": "Señuelos que dejaste pasar", "squire": "Impactos del escudero",
     "rules": "Bloqueos por reglas", "served": "Usuarios atendidos", "neutralized": "Neutralizados en el servidor", "fps": "Falsos positivos", "breaches": "Brechas", "uptime": "Disponibilidad restante",
-    "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
+    "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "selected": "SELECCIONADO · CTRL+C", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
   },
   "phone": { "title": "Este necesita un teclado.", "body": "None Shall Pass es un juego de escritorio que se juega con las flechas, Tab y Espacio. Envíate el enlace y juégalo en un computador.", "copy": "COPIAR ENLACE", "copied": "COPIADO ✓" },
   "console": { "title": "root@firewall:~", "greeting": "Escribe help." },

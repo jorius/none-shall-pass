@@ -33,7 +33,7 @@
     "bestOvertime": "Overtime · wave {w} · {s} pts", "rootOn": "ROOT MODE · faster packets, no hints, ×1.5 score", "site": "jorius.github.io ↗"
   },
   "howto": {
-    "title": "HOW TO PLAY", "back": "BACK",
+    "title": "HOW TO PLAY", "back": "BACK", "space": "Space", "click": "click",
     "k1": "pick a lane", "k2": "next packet in that lane (Shift: previous)", "k3": "throw a spear at the target", "k4": "let the target go",
     "k5": "click a packet to target it", "k6": "hints: underline the tells (score ×0.75)", "k7": "pause",
     "lesson": "Packets that reach the wall of fire burn into your server. Spear the attacks, let real users through, and spend each wave's credits on upgrades that teach real defences. Cheap rules leak and misfire; root-cause fixes cost more and stay clean."
@@ -42,7 +42,7 @@
     "won": "SERVER HELD", "serverDown": "SERVER DOWN", "usersGone": "USERS GONE", "overtimeOver": "OVERTIME OVER", "grade": "GRADE", "score": "SCORE", "waves": "WAVES",
     "newBest": "NEW BEST", "tampered": "TAMPERED · not saved", "hits": "Hits · obvious / tricky / sneaky", "decoys": "Decoys let through", "squire": "Squire hits",
     "rules": "Rule blocks", "served": "Users served", "neutralized": "Neutralized at the server", "fps": "False positives", "breaches": "Breaches", "uptime": "Uptime left",
-    "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "again": "PLAY AGAIN", "toTitle": "TITLE"
+    "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "selected": "SELECTED · CTRL+C", "again": "PLAY AGAIN", "toTitle": "TITLE"
   },
   "phone": { "title": "This one needs a keyboard.", "body": "None Shall Pass is a desktop game played with the arrow keys, Tab and Space. Send yourself the link and play it on a computer.", "copy": "COPY LINK", "copied": "COPIED ✓" },
   "console": { "title": "root@firewall:~", "greeting": "Type help." },

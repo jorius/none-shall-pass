@@ -153,3 +153,71 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ltile img { display: block; max-width: 100%; max-height: 100%; }
 .ltile:hover { border-color: var(--ink); }
 .ltile.KNIGHT { box-shadow: inset 0 -3px 0 var(--gold); } .ltile.FIREWALL { box-shadow: inset 0 -3px 0 var(--b); } .ltile.SERVER { box-shadow: inset 0 -3px 0 var(--ink); }
+
+/* ---------- overlays ---------- */
+/* Over the loadout (16) and the bottom panels (20): an open screen takes every click, so none reaches the field. */
+.ov { position: absolute; left: 0; top: 56px; width: 1280px; height: 664px; z-index: 40; background: rgba(22,22,22,.95); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; pointer-events: auto; }
+.ov.show { display: flex; }
+.ov.ov-title { top: 0; height: 720px; background: rgba(22,22,22,.82); }
+.ov.ov-howto, .ov.ov-debrief { top: 0; height: 720px; background: rgba(22,22,22,.97); }
+.ov h1 { font-size: 64px; letter-spacing: .12em; margin: 0; text-shadow: -4px 0 var(--r), 4px 0 var(--b); animation: jitter 4s infinite steps(1); }
+.ov h2 { font-size: 30px; letter-spacing: .12em; margin: 0; text-shadow: -3px 0 var(--r), 3px 0 var(--b); }
+.ov p { font-family: var(--body); font-size: 16px; color: var(--dim); margin: 0; max-width: 700px; line-height: 1.45; }
+.ov q { font-size: 18px; }
+.btn { font-family: var(--mono); font-size: 14px; font-weight: 700; letter-spacing: .06em; background: var(--ink); color: var(--paper); border: 1px solid var(--ink); padding: 8px 16px; cursor: pointer; }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.btn:not(:disabled):hover { box-shadow: -3px 0 0 var(--r), 3px 0 0 var(--b); }
+.btn:focus-visible { outline: 2px solid var(--b); outline-offset: 3px; }
+.row-btns { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.note { font-size: 13px; color: var(--dim); }
+.best { font-size: 13px; color: var(--dim); line-height: 1.7; }
+.best b { color: var(--ink); }
+.sitelink { font-size: 13px; color: var(--dim); text-decoration: none; border-bottom: 1px solid var(--mute); }
+.howto-grid { display: grid; grid-template-columns: auto auto; gap: 8px 18px; text-align: left; font-family: var(--body); font-size: 15px; }
+.howto-grid kbd { font-family: var(--mono); font-size: 13px; color: var(--ink); border: 1px solid var(--mute); padding: 1px 6px; justify-self: end; }
+
+.draft-h { font-size: 14px; letter-spacing: .14em; }
+.draft-h span { color: var(--gold); }
+.cards { display: flex; gap: 16px; align-items: stretch; }
+.ucard { width: 330px; background: var(--paper); border: 1px solid var(--dim); padding: 12px 14px 14px; text-align: left; display: flex; flex-direction: column; gap: 6px; }
+.ucard.LEGENDARY { border-color: var(--r); box-shadow: -3px 0 0 var(--r), 3px 0 0 var(--b); }
+.ucard.RARE { border-color: var(--b); }
+.ucard.taken { opacity: .55; }
+.uhead { display: flex; justify-content: space-between; font-size: 13px; }
+.ucat { color: var(--dim); } .ucat.KNIGHT { color: var(--gold); } .ucat.FIREWALL { color: var(--b); }
+.urar { padding: 0 6px; border: 1px solid var(--dim); color: var(--dim); }
+.urar.RARE { border-color: var(--b); color: var(--b); }
+.urar.LEGENDARY { border-color: var(--r); color: var(--ink); background: var(--r); animation: jitter 2.5s infinite steps(1); }
+.uicon { height: 70px; display: flex; align-items: flex-end; justify-content: center; }
+.uname { font-size: 17px; font-weight: 700; }
+.udoes { font-family: var(--body); font-size: 14px; line-height: 1.38; margin: 0; }
+.uirl, .ucatch { font-family: var(--body); font-size: 13px; line-height: 1.38; margin: 0; color: var(--dim); }
+.uirl b { color: var(--b); font-family: var(--mono); font-size: 13px; } .ucatch b { color: var(--r); font-family: var(--mono); font-size: 13px; }
+.ucard .btn { margin-top: auto; align-self: flex-start; }
+
+/* The stats column takes the longest Spanish label beside three-digit hit counts. */
+.debrief { width: 1160px; display: grid; grid-template-columns: 460px 1fr; gap: 28px; text-align: left; }
+.grade { font-size: 120px; font-weight: 700; line-height: 1; text-shadow: -5px 0 var(--r), 5px 0 var(--b); }
+.statlist { font-size: 13px; color: var(--dim); line-height: 1.75; }
+/* A row, not a float: a label too long for the column wraps in place instead of pushing its number onto the next stat. */
+.statlist > div { display: flex; justify-content: space-between; gap: 12px; }
+.statlist b { color: var(--ink); flex: none; }
+.mistakes { max-height: 330px; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 8px; padding-right: 6px; }
+.mistake { border-left: 3px solid var(--r); padding: 4px 10px; background: var(--sub); }
+.mistake code { font-family: var(--code); font-size: 13px; color: var(--ink); word-break: break-all; }
+.mistake p { font-size: 14px; color: var(--dim); max-width: none; margin: 2px 0 0; }
+.newbest { color: var(--paper); background: var(--gold); padding: 0 6px; font-size: 13px; font-weight: 700; }
+/* The share line stays selectable (the copy fallback selects it) inside the otherwise unselectable layer. */
+.share { display: block; margin-top: 10px; font-family: var(--code); font-size: 13px; width: 100%; height: 54px; background: var(--soft); color: var(--ink); border: 1px solid var(--mute); resize: none; -webkit-user-select: text; user-select: text; }
+
+.gate { position: fixed; inset: 0; overflow-y: auto; display: flex; flex-direction: column; justify-content: safe center; gap: 16px; padding: 24px 16px; background: var(--paper); font-family: var(--mono); }
+.gate h1 { font-size: 30px; margin: 0; letter-spacing: .1em; text-shadow: -2px 0 var(--r), 2px 0 var(--b); }
+.gate h2 { font-size: 20px; margin: 0; }
+.gate p { font-family: var(--body); font-size: 16px; line-height: 1.5; color: var(--dim); margin: 0; }
+.gate a { color: var(--dim); font-size: 14px; }
+
+/* Reduced effects also calm the CSS glitches. */
+#ui.reduced .title, #ui.reduced h1, #ui.reduced .urar.LEGENDARY { animation: none; }
+#ui.reduced .hpstrip.tear { animation-duration: .2s; }
+#ui.reduced .scanlines { display: none; }

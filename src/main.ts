@@ -31,6 +31,8 @@ import { Hud } from './ui/hud';
 import { Inspector } from './ui/inspector';
 import { createUiLayer } from './ui/layer';
 import { LoadoutTiles } from './ui/loadout';
+import { Overlays } from './ui/overlays';
+import { renderPhoneGate, shouldGate } from './ui/phoneGate';
 import { UptimeStrip } from './ui/uptime';
 
 const loadFonts = (): Promise<unknown> => Promise.race([
@@ -49,6 +51,9 @@ const boot = async (): Promise<void> => {
   await loadFonts();
   const store = createStore();
   setLang(store.prefs().lang ?? detectLang());
+  // Phones get a card instead of the game, before Phaser ever starts.
+  const coarseOnly = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches;
+  if (shouldGate(Math.min(window.screen.width, window.screen.height), coarseOnly)) { renderPhoneGate(document.getElementById('app')!); return; }
   const game = new Phaser.Game({
     type: Phaser.WEBGL,
     parent: 'stage',
@@ -63,7 +68,8 @@ const boot = async (): Promise<void> => {
   const app = new App(scene, store);
   app.add(new LanesView(scene), new FireWallView(scene), new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene));
   const effects = new EffectsView(scene);
-  effects.reduced = !!store.prefs().reducedFx || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The system setting is the default until the player picks one in the pause menu.
+  effects.reduced = store.prefs().reducedFx ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // The DOM layer comes after the canvas, so the inspector the hover feeds is created further down.
   let inspector: Inspector | null = null;
   app.add(
@@ -81,10 +87,11 @@ const boot = async (): Promise<void> => {
   app.add(inspector, new EventLog(bottom, inspector), new LoadoutTiles(ui, inspector));
   el('div', 'scanlines', ui);
   app.add({ pause: (p) => ui.classList.toggle('paused', p) });
+  app.add(new Overlays(ui, app, { effects }));
+  ui.classList.toggle('reduced', effects.reduced);
   onLang(() => app.refresh());
-  (window as unknown as { __nsp: unknown }).__nsp = { game, app };
-  // Until the title screen exists (Task 18), boot straight into a campaign.
-  app.startRun('campaign');
+  (window as unknown as { __nsp: unknown }).__nsp = { game, app, effects };
+  app.quit();
 };
 
 void boot();
