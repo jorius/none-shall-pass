@@ -852,6 +852,9 @@ const CHECKS = {
     if (!fx.effects || !fx.css || fx.saved !== true || !/· ON$/.test(fx.label)) throw new Error(`reduced effects: ${JSON.stringify(fx)}`);
     await page.click('#ui .ov-pause .btn:nth-child(4)');
     await page.waitForFunction(() => document.documentElement.lang === 'es' && /EN PAUSA/.test(document.querySelector('#ui .ov-pause').textContent));
+    // Every switch of the Spanish menu says SÍ or NO, the reduced effects (switched on just above) with the rest.
+    const reducedEs = await page.textContent('#ui .ov-pause .btn:nth-child(5)');
+    if (reducedEs !== 'EFECTOS REDUCIDOS · SÍ') throw new Error(`the Spanish reduced-effects switch says ${reducedEs}`);
     await fits(page, 'Spanish pause');
     await page.screenshot({ path: `${OUT}/pause-es.png` });
     // P and Esc both resume; Esc in play only lets the target go.

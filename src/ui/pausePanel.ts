@@ -1,3 +1,6 @@
+// audio
+import type { AudioPrefs } from '../audio';
+
 // i18n
 import { t } from '../i18n';
 
@@ -5,7 +8,7 @@ import { t } from '../i18n';
 import { button, el } from './dom';
 
 export const renderPause = (box: HTMLElement, d: {
-  reduced: boolean; audio: { sound: boolean; music: boolean; volume: number };
+  reduced: boolean; audio: { sound: boolean; music: boolean; volume: AudioPrefs['volume'] };
   resume(): void; quit(): void; armory(): void; toggleLang(): void; toggleReduced(): void;
   toggleSound(): void; toggleMusic(): void; cycleVolume(): void;
 }): void => {

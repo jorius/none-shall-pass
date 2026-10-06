@@ -435,15 +435,19 @@ describe('Overlays', () => {
     }
   });
 
-  it('says the sound switches in Spanish, SÍ and NO', () => {
+  it('says the sound switches and the reduced effects in Spanish, SÍ and NO, all of them alike', () => {
     boot();
     app.startRun('campaign');
     app.act('pause');
     named(/^ES$/).click();
-    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SONIDO · SÍ', 'MÚSICA · SÍ', 'VOLUMEN · 2/3']);
+    expect(buttons().map((b) => b.textContent).slice(-4)).toEqual(['EFECTOS REDUCIDOS · NO', 'SONIDO · SÍ', 'MÚSICA · SÍ', 'VOLUMEN · 2/3']);
     named(/^SONIDO/).click();
     named(/^MÚSICA/).click();
-    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SONIDO · NO', 'MÚSICA · NO', 'VOLUMEN · 2/3']);
+    named(/^EFECTOS/).click();
+    expect(buttons().map((b) => b.textContent).slice(-4)).toEqual(['EFECTOS REDUCIDOS · SÍ', 'SONIDO · NO', 'MÚSICA · NO', 'VOLUMEN · 2/3']);
+    // English keeps its ON and OFF.
+    named(/^EN$/).click();
+    expect(buttons().map((b) => b.textContent).slice(-4)).toEqual(['REDUCED EFFECTS · ON', 'SOUND · OFF', 'MUSIC · OFF', 'VOLUME · 2/3']);
   });
 
   it('follows M while the pause menu is open', () => {

@@ -147,8 +147,9 @@ export class AudioView implements View {
   // Whether the music loop is running.
   get looping(): boolean { return this.music?.running ?? false; }
 
-  // M: everything off, remembering which of the two was on, or, when nothing is, what it took away (both, when it took nothing:
-  // a session saved muted, or both switched off by hand).
+  // M: with anything on, everything goes off and the pair that was on is remembered. With nothing on, that pair comes back, whatever was
+  // done to the switches meanwhile: one turned on and off again by hand changes nothing, one left on is on (and M takes that pair instead).
+  // With no pair remembered (a session saved muted, or both switched off by hand) both come on.
   toggleMute(): void {
     const { sound, music } = this.prefs;
     if (sound || music) {

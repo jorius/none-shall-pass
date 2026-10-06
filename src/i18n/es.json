@@ -27,7 +27,7 @@
     "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }, "clean": "Oleada limpia", "armoryHint": "T · mira todas las mejoras en la Armería"
   },
   "recap": { "title": "OLEADA {n} SUPERADA", "breach": "1 brecha", "breaches": "{n} brechas", "fp": "1 falsa alarma", "fps": "{n} falsas alarmas", "what": "LO QUE PASÓ", "clean": "Oleada limpia. No se te escapó nada.", "more": "+{n} más", "continue": "CONTINUAR ▸" },
-  "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "armory": "ARMERÍA · T", "reducedOn": "EFECTOS REDUCIDOS · ON", "reducedOff": "EFECTOS REDUCIDOS · OFF",
+  "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "armory": "ARMERÍA · T", "reducedOn": "EFECTOS REDUCIDOS · SÍ", "reducedOff": "EFECTOS REDUCIDOS · NO",
     "sound": "SONIDO · {s}", "music": "MÚSICA · {s}", "volume": "VOLUMEN · {n}/3", "on": "SÍ", "off": "NO" },
   "title": {
     "tagline": "Protege el servidor. Lee los paquetes. Deja pasar a los usuarios reales.", "play": "JUGAR CAMPAÑA", "overtime": "TIEMPO EXTRA",

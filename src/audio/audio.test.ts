@@ -394,6 +394,22 @@ describe('AudioView', () => {
     expect([hand.settings.sound, hand.settings.music]).toEqual([true, true]);
   });
 
+  it('gives back the pair M took when a switch was turned on and off again by hand meanwhile, not both on', () => {
+    const view = new AudioView(() => null, { sound: true, music: false, volume: 3 });
+    const pair = (): [boolean, boolean] => [view.settings.sound, view.settings.music];
+    view.toggleMute();
+    expect(pair()).toEqual([false, false]);
+    // From the pause menu: MUSIC on, and off again. Nothing is on at the next M, which gives back what the last one took.
+    view.set({ music: true });
+    view.set({ music: false });
+    view.toggleMute();
+    expect(pair()).toEqual([true, false]);
+    // Once given back, there is nothing left to give: SOUND off by hand, then M turns both on (the pair of a while ago is not remembered).
+    view.set({ sound: false });
+    view.toggleMute();
+    expect(pair()).toEqual([true, true]);
+  });
+
   it('starts from sound on, music on and volume 2 for whatever the save leaves out', () => {
     expect(new AudioView(() => null, {}).settings).toEqual(ON);
     expect(new AudioView(() => null, { music: false }).settings).toEqual({ sound: true, music: false, volume: 2 });
