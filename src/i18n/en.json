@@ -16,7 +16,7 @@
     "verdict": "VERDICT · {family}", "decoy": "looked scary, was fine", "loadout": "LOADOUT", "irl": "IN REAL LIFE", "catch": "THE CATCH"
   },
   "log": {
-    "title": "EVENT LOG", "hint": "hover a line for the verdict", "count": "{n} events · {m} mistakes", "all": "ALL", "mistakes": "MISTAKES",
+    "title": "EVENT LOG", "hint": "hover a line for the verdict", "events": "{n} events", "event": "1 event", "nMistakes": "{n} mistakes", "nMistake": "1 mistake", "all": "ALL", "mistakes": "MISTAKES",
     "hit": "HIT", "squire": "SQUIRE HIT", "rule": "RULE BLOCKED", "served": "SERVED", "neutralized": "NEUTRALIZED", "breach": "BREACH", "fp": "FALSE POSITIVE",
     "youHit": "you hit a real user", "squireHit": "the squire hit a real user", "by": "by {rule}", "notFooled": "not fooled", "uptimeLoss": "−{n}% uptime"
   },

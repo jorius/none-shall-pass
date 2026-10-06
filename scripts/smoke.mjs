@@ -199,6 +199,83 @@ const CHECKS = {
     await page.keyboard.press('p');
     await page.waitForFunction(() => ![...document.querySelectorAll('#ui .float')].some((e) => e.textContent === '+777'), null, { timeout: 3000 });
   },
+  async log(page) {
+    const grown = async (n) => page.waitForFunction((k) => window.__nsp.app.run.state.log.length > k, n, { timeout: 20000 });
+    const logLength = () => page.evaluate(() => window.__nsp.app.run.state.log.length);
+    await page.waitForFunction(() => window.__nsp.app.run.state.log.length >= 8, null, { timeout: 40000 });
+    const rows = await page.$$eval('#ui .rows .row', (a) => a.length);
+    if (rows < 8) throw new Error(`only ${rows} log rows`);
+    await page.hover('#ui .rows .row:first-child');
+    await page.waitForSelector('#ui .ins .verdict');
+    // The verdict stays up while the pointer crosses into the inspector, and goes when it leaves the panel.
+    await page.hover('#ui .ins');
+    if (!(await page.$('#ui .ins .verdict'))) throw new Error('the verdict went away on the way to the inspector');
+    await page.hover('#stage canvas', { position: { x: 700, y: 150 } });
+    await page.waitForSelector('#ui .ins .verdict', { state: 'detached' });
+    // Scrolled down to an older row, a new one arriving must not push it away.
+    const before = await page.evaluate(() => {
+      const box = document.querySelector('#ui .rows');
+      box.scrollTop = 30;
+      window.__smokeRow = [...box.children].find((r) => r.getBoundingClientRect().top >= box.getBoundingClientRect().top);
+      return window.__smokeRow.getBoundingClientRect().top;
+    });
+    await grown(await logLength());
+    const after = await page.evaluate(() => window.__smokeRow.getBoundingClientRect().top);
+    if (Math.abs(after - before) > 1) throw new Error(`a new row moved the row being read by ${after - before}px`);
+    // Wave 1's scans all hit the lockdown, so make one mistake for the MISTAKES view to show: spear a real user.
+    await page.waitForFunction(() => window.__nsp.app.run.state.packets.some((p) => p.t.kind === 'legit' && !p.entering && !p.doomed), null, { timeout: 20000 });
+    await page.evaluate(() => {
+      const app = window.__nsp.app, p = app.run.state.packets.find((q) => q.t.kind === 'legit' && !q.entering && !q.doomed);
+      app.dispatch(app.run.target(p.id));
+      app.dispatch(app.run.throwSpear());
+    });
+    await page.waitForFunction(() => window.__nsp.app.run.state.log.some((e) => e.outcome === 'fp'), null, { timeout: 5000 });
+    // Paused, so no new row shifts the list: an attack's verdict, kept while the pointer goes over to the filter.
+    await page.keyboard.press('p');
+    const attack = await page.evaluate(() => Math.max(0, window.__nsp.app.run.state.log.findIndex((e) => e.packet.t.kind !== 'legit')));
+    await page.hover(`#ui .rows .row:nth-child(${attack + 1})`);
+    await page.click('#ui .lfilter button:nth-child(2)');
+    await page.screenshot({ path: `${OUT}/log.png` });
+    if (!(await page.$('#ui .ins .verdict'))) throw new Error('no verdict in the inspector');
+    await page.keyboard.press('p');
+    await grown(await logLength());
+    const filtered = await page.evaluate(() => {
+      const box = document.querySelector('#ui .rows');
+      const shown = [...box.children].filter((r) => r.offsetHeight > 0);
+      return { on: box.classList.contains('mistakes'), shown: shown.length, ok: shown.every((r) => /\b(bad|fp)\b/.test(r.className)) };
+    });
+    if (!filtered.on || !filtered.shown || !filtered.ok) throw new Error(`the mistakes filter did not survive a new row: ${JSON.stringify(filtered)}`);
+    const scrollable = await page.$eval('#ui .rows', (e) => getComputedStyle(e).overflowY);
+    if (scrollable !== 'auto') throw new Error('log not scrollable');
+    // Spanish, at its longest: a held, bugged attack with the lens on keeps the inspector at 760px and its title inside it.
+    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.log?.length >= 3, null, { timeout: 40000 });
+    await page.waitForFunction(() => window.__nsp.app.run.state.packets.some((p) => p.t.kind !== 'legit' && !p.entering), null, { timeout: 20000 });
+    // Off the field and the log, so neither a packet nor a row takes the inspector over.
+    await page.hover('#ui .hud .title');
+    await page.keyboard.press('p');
+    await page.evaluate(() => {
+      const app = window.__nsp.app, s = app.run.state;
+      const p = s.packets.find((q) => q.t.kind !== 'legit' && !q.entering);
+      s.owned.push('obs3', 'lens');
+      s.hints = true;
+      s.locked = p.id;
+      p.held = true;
+    });
+    await page.waitForTimeout(100);
+    const fit = await page.evaluate(() => {
+      const k = document.querySelector('#ui .bottom').getBoundingClientRect().width / 1280;
+      const ins = document.querySelector('#ui .ins'), r = ins.getBoundingClientRect();
+      const over = Math.max(...[...ins.querySelectorAll('.ptitle > *')].map((c) => c.getBoundingClientRect().right - (r.right - 18 * k))) / k;
+      const box = document.querySelector('#ui .rows');
+      const tall = [...box.children].filter((row) => row.getBoundingClientRect().height / k > 26).length;
+      const head = document.querySelector('#ui .log .ptitle').getBoundingClientRect().height / k;
+      return { width: Math.round(r.width / k), over: Math.round(over), tall, wide: box.scrollWidth - box.clientWidth, head: Math.round(head), tags: ins.querySelectorAll('.ptitle .hd, .ptitle .fl').length };
+    });
+    if (fit.width !== 760 || fit.over > 0 || fit.tall || fit.wide > 0 || fit.head > 22 || fit.tags !== 2) throw new Error(`Spanish panels do not fit: ${JSON.stringify(fit)}`);
+    await page.screenshot({ path: `${OUT}/log-es.png` });
+  },
 };
 
 // Whatever already listens on the port is not this build: smoke would test a stale server and report on it.

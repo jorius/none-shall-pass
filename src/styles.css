@@ -13,7 +13,8 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 
 /* ---------- DOM layer ---------- */
 /* Opacity just under 1 keeps Chrome from culling bands of the WebGL canvas under the opaque, animated panels. */
-#ui { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; pointer-events: none; font-family: var(--mono); color: var(--ink); opacity: .999; }
+/* The panels take the pointer, so a double-click must not paint a selection over their labels. */
+#ui { position: absolute; left: 0; top: 0; width: 1280px; height: 720px; transform-origin: 0 0; pointer-events: none; font-family: var(--mono); color: var(--ink); opacity: .999; -webkit-user-select: none; user-select: none; }
 #ui button, #ui .hit { pointer-events: auto; }
 /* The opaque panels swallow clicks, so nothing behind them (a card under the gutter) can be clicked or released. */
 #ui .hud, #ui .gutter, #ui .hpstrip { pointer-events: auto; }
@@ -93,3 +94,58 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 /* In the 19px between the HUD and the top lane's cards, so it never hides a packet. */
 .coach { position: absolute; left: 130px; top: 56px; z-index: 18; font-size: 13px; line-height: 19px; color: var(--paper); background: var(--b); padding: 0 10px; white-space: nowrap; animation: coachpulse 1.4s infinite steps(2); }
 @keyframes coachpulse { 50% { opacity: .75; } }
+
+/* ---------- inspector, log, loadout ---------- */
+.bottom { position: absolute; left: 0; top: 536px; width: 1280px; height: 184px; display: flex; background: var(--paper); z-index: 20; }
+/* A fixed 760px the log's unbreakable Spanish title cannot squeeze; a six-line request scrolls instead of being cut. */
+.ins { flex: none; width: 760px; padding: 12px 18px; border-right: 1px solid var(--mute); overflow: hidden auto; scrollbar-width: thin; scrollbar-color: var(--dim) var(--soft); pointer-events: auto; }
+.ptitle { font-size: 13px; color: var(--dim); letter-spacing: .1em; margin-bottom: 7px; display: flex; gap: 14px; align-items: center; white-space: nowrap; }
+.ptitle span { color: var(--ink); letter-spacing: 0; }
+.ptitle .lk { color: var(--paper); background: var(--r); padding: 0 6px; font-weight: 700; }
+.ptitle .hd { color: var(--paper); background: var(--gold); padding: 0 6px; font-weight: 700; }
+.ptitle .fl { color: var(--ink); background: var(--r); padding: 0 6px; font-weight: 700; }
+/* When the tags crowd the title, the lane goes first (the field shows it), then the network; the tags and the IP stay whole. */
+.ins .ptitle > span { flex-shrink: 0; }
+.ins .ptitle .as, .ins .ptitle .ln { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ins .ptitle .as { flex-shrink: 1; } .ins .ptitle .ln { flex-shrink: 10; }
+:lang(es) .ins .ptitle { gap: 10px; }
+/* A curious player can still select and copy a request. */
+.req { font-family: var(--code); font-size: 14px; line-height: 1.42; margin: 0; white-space: pre-wrap; word-break: break-all; -webkit-user-select: text; user-select: text; }
+.ins mark { background: none; color: inherit; text-decoration: underline wavy var(--r); text-underline-offset: 3px; }
+.ctx { font-size: 13px; color: var(--b); margin-top: 6px; }
+.ask { font-family: var(--body); font-size: 14px; color: var(--dim); margin-top: 6px; }
+.verdict { font-size: 14px; font-weight: 700; margin-top: 6px; }
+.verdict.bad { color: var(--r); } .verdict.ok { color: var(--b); }
+.ptitle + .verdict { margin-top: 0; }
+.why + .req { margin-top: 8px; }
+.why { font-family: var(--body); font-size: 15px; line-height: 1.38; margin: 3px 0 0; }
+.why.dim { color: var(--dim); }
+.why b.irl { color: var(--b); font-family: var(--mono); font-size: 13px; }
+.why b.catch { color: var(--r); font-family: var(--mono); font-size: 13px; }
+.cname { font-size: 17px; font-weight: 700; }
+.empty { font-family: var(--body); font-size: 15px; color: var(--dim); line-height: 1.5; margin: 0; }
+
+.log { flex: 1; padding: 12px 10px 8px 16px; display: flex; flex-direction: column; min-width: 0; min-height: 0; pointer-events: auto; }
+.log .ptitle { gap: 12px; }
+.log .ptitle .count { color: var(--dim); overflow: hidden; text-overflow: ellipsis; }
+.lfilter { margin-left: auto; display: flex; }
+.lfilter button { font-family: var(--mono); font-size: 13px; line-height: 18px; background: transparent; color: var(--dim); border: 1px solid var(--mute); padding: 0 8px; cursor: pointer; }
+.lfilter button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+/* The log holds a scrolled-up row in place itself (EventLog.event), so the browser's own scroll anchoring stays out of it. */
+.rows { flex: 1; overflow-y: auto; overflow-anchor: none; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--dim) var(--soft); padding-right: 4px; }
+.rows.mistakes .row:not(.bad):not(.fp) { display: none; }
+/* The payload keeps at least 56px; long points text (Spanish rule names, the squire's misfire) ellipsizes instead of widening the row. */
+.row { display: grid; grid-template-columns: 28px 18px 128px minmax(56px, 1fr) auto; gap: 8px; align-items: baseline; font-family: var(--code); font-size: 13px; padding: 2px 4px; cursor: help; }
+.row:hover { background: var(--sub); }
+.row .wv { color: var(--dim); font-family: var(--mono); }
+.row .what { font-family: var(--mono); font-weight: 700; }
+.row .pl { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--dim); }
+.row .pts { color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row.ok .what, .row.ok .g { color: var(--b); }
+.row.bad .what, .row.bad .g { color: var(--r); }
+.row.fp .what { color: var(--paper); background: var(--r); padding: 0 4px; }
+
+.loadout { position: absolute; left: 1076px; top: 62px; width: 44px; display: flex; flex-direction: column; gap: 5px; z-index: 16; }
+.ltile { width: 44px; height: 38px; display: flex; align-items: center; justify-content: center; background: var(--soft); border: 1px solid var(--mute); cursor: help; pointer-events: auto; overflow: hidden; }
+.ltile:hover { border-color: var(--ink); }
+.ltile.KNIGHT { box-shadow: inset 0 -3px 0 var(--gold); } .ltile.FIREWALL { box-shadow: inset 0 -3px 0 var(--b); } .ltile.SERVER { box-shadow: inset 0 -3px 0 var(--ink); }

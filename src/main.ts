@@ -24,10 +24,13 @@ import { createStore } from './storage';
 import { Bubble } from './ui/bubble';
 import { Coach } from './ui/coach';
 import { el } from './ui/dom';
+import { EventLog } from './ui/eventLog';
 import { Floats } from './ui/floats';
 import { Gutter } from './ui/gutter';
 import { Hud } from './ui/hud';
+import { Inspector } from './ui/inspector';
 import { createUiLayer } from './ui/layer';
+import { LoadoutTiles } from './ui/loadout';
 import { UptimeStrip } from './ui/uptime';
 
 const loadFonts = (): Promise<unknown> => Promise.race([
@@ -61,16 +64,21 @@ const boot = async (): Promise<void> => {
   app.add(new LanesView(scene), new FireWallView(scene), new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene));
   const effects = new EffectsView(scene);
   effects.reduced = !!store.prefs().reducedFx || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // The DOM layer comes after the canvas, so the inspector the hover feeds is created further down.
+  let inspector: Inspector | null = null;
   app.add(
     new PacketsView(scene, {
       // Like the keys, a click only targets while the field is live, not under the pause or console screen.
       target: (id) => { if (app.run && app.screen === 'playing') app.dispatch(app.run.target(id)); },
-      hover: () => {},
+      hover: (p) => inspector?.hover(p),
     }),
     effects,
   );
   const ui = createUiLayer(document.getElementById('stage')!, game.canvas);
   app.add(new Hud(ui, app), new Gutter(ui), new UptimeStrip(ui), new Bubble(ui), new Floats(ui), new Coach(ui, store));
+  const bottom = el('div', 'bottom', ui);
+  inspector = new Inspector(bottom);
+  app.add(inspector, new EventLog(bottom, inspector), new LoadoutTiles(ui, inspector));
   el('div', 'scanlines', ui);
   app.add({ pause: (p) => ui.classList.toggle('paused', p) });
   onLang(() => app.refresh());
