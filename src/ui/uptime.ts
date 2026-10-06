@@ -45,10 +45,10 @@ export class UptimeStrip implements View {
     this.label.textContent = t('uptime');
   }
 
-  // A new run must not inherit the last run's scramble or a pending settle.
+  // A new run must not inherit the last run's scramble, a pending settle or its flatline.
   start(): void {
     this.scrambleEnd = null;
-    this.box.classList.remove('tear');
+    this.box.classList.remove('tear', 'flat');
     this.uptime = 100;
     this.render();
   }
@@ -66,6 +66,8 @@ export class UptimeStrip implements View {
   }
 
   event(ev: RunEvent): void {
+    // The server going down flatlines the strip: every segment dead and still, a flat line blinking after the number.
+    if (ev.type === 'runEnded') { if (ev.reason === 'serverDown') this.box.classList.add('flat'); return; }
     if (ev.type !== 'uptime') return;
     const before = ev.before;
     this.uptime = ev.after;

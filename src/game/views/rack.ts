@@ -32,6 +32,8 @@ export class RackView implements View {
   private uptime = 100;
   private flashing = false;
   private paused = false;
+  private burnt = false;
+  private won = false;
 
   constructor(private readonly scene: FieldScene) {
     this.box = scene.add.container(RACK.x, RACK.y);
@@ -59,6 +61,8 @@ export class RackView implements View {
   start(): void {
     this.cells.fill(0);
     this.uptime = 100;
+    this.burnt = false;
+    this.won = false;
     this.clearBugs();
   }
 
@@ -77,6 +81,11 @@ export class RackView implements View {
       this.infest(ev.packet.t.kind as MaliciousKind);
     }
     if (ev.type === 'resolved' && ev.outcome === 'neutralized') this.tint(0x9fdcff);
+    // The run's end: a loss chars the rack, puts its LEDs out and lets the fire take it; a win holds every LED green.
+    if (ev.type === 'runEnded') {
+      if (ev.reason === 'won') this.won = true;
+      else { this.burnt = true; this.uptime = 0; }
+    }
   }
 
   // A breach or a neutralization flashes the rack; the char tint resumes afterwards.
@@ -98,6 +107,8 @@ export class RackView implements View {
     if (this.paused) return;
     const low = this.uptime < 35;
     for (const l of this.leds) {
+      if (this.burnt) { l.r.setFillStyle(l.color, 0); continue; }
+      if (this.won) { l.r.setFillStyle(0x3ddc84, 1); continue; }
       const on = Math.floor((time + l.phase) / (low ? 0.2 : 0.55)) % 2 === 0;
       l.r.setFillStyle(low ? 0xff2f2f : l.color, on ? 1 : 0.2);
     }
@@ -137,7 +148,8 @@ export class RackView implements View {
     }
     this.fireTex.getContext().putImageData(this.fireData, 0, 0);
     this.fireTex.refresh();
-    if (!this.flashing) {
+    if (this.burnt) this.rack.setTint(0x2a2a2a);
+    else if (!this.flashing) {
       const v = Math.round(255 * (1 - dmg * 0.5));
       this.rack.setTint(Phaser.Display.Color.GetColor(v, Math.round(v * 0.95), Math.round(v * 0.9)));
     }

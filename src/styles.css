@@ -78,6 +78,10 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .hpstrip.low .segs { animation: lowseg 3.1s infinite steps(1); }
 @keyframes lowg { 0%, 86%, 100% { transform: none; text-shadow: none; } 88% { transform: translateX(-5px) skewX(14deg); text-shadow: -3px 0 var(--b), 3px 0 var(--ink); } 92% { transform: translateX(4px); text-shadow: 3px 0 var(--b); } 95% { transform: none; opacity: .5; } }
 @keyframes lowseg { 0%, 90%, 100% { transform: none; } 92% { transform: translateX(-4px); clip-path: inset(0 30% 0 0); } 95% { transform: translateX(3px); } }
+/* The server down: the segments go flat and still, and a red flat line blinks after the number. */
+.hpstrip.flat .segs i { background: var(--mute); animation: none; }
+.hpstrip.flat b::after { content: ' ▁▁▁▁'; color: var(--r); animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
 
 .bubble { position: absolute; z-index: 30; max-width: 260px; background: var(--ink); color: var(--paper); font-size: 14px; font-weight: 700; padding: 7px 11px; opacity: 0; transition: opacity .15s; }
 .bubble.show { opacity: 1; }

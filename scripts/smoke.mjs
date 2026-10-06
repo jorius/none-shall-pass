@@ -278,6 +278,61 @@ const CHECKS = {
     }), id);
     if (gone.rig || gone.box || gone.parts !== 7 || gone.live) throw new Error(`after the card died: ${JSON.stringify(gone)}`);
   },
+  async charge(page) {
+    // Destrier III: C gallops the knight down his lane and back, spearing every attack in it, with dust at the hooves
+    // and the lane's slow washed gold under him. Every knight has his seven poses as textures.
+    await play(page);
+    const missing = await page.evaluate(() => {
+      const tex = window.__nsp.game.scene.getScene('field').textures, out = [];
+      for (const id of ['black', 'sentinel', 'raider', 'warden', 'ghost', 'forge']) {
+        for (const pose of ['foot-idle', 'foot-throw', 'horse-0', 'horse-1', 'horse-throw', 'down', 'cheer']) if (!tex.exists(`knight-${id}-${pose}`)) out.push(`knight-${id}-${pose}`);
+      }
+      return out;
+    });
+    if (missing.length) throw new Error(`knight textures missing: ${missing.join(', ')}`);
+    await page.evaluate(() => {
+      const app = window.__nsp.app;
+      app.run.state.owned.push('destrier', 'destrier2', 'destrier3');
+      app.dispatch([{ type: 'owned', owned: [...app.run.state.owned] }]);
+      // The dust goes through the crumb emitter; count what the gallop asks for (wave 1 has no biters, so nothing else does).
+      const fx = window.__nsp.effects, real = fx.crumbs.bind(fx);
+      window.__smokeDust = 0;
+      fx.crumbs = (x, y, n) => { if (n > 0) window.__smokeDust++; real(x, y, n); };
+      document.querySelectorAll('#ui .float').forEach((f) => { f.dataset.old = '1'; });
+    });
+    // Wave 1's only attacks are the scans, all on the ports lane: the knight goes down to it first, as a player would.
+    const attack = (s) => s.packets.find((p) => p.t.kind !== 'legit' && p.x > 300 && p.x < 600 && !p.entering && !p.doomed);
+    await stepUntil(page, (s, find) => !!new Function('s', `return (${find})(s);`)(s), attack.toString());
+    const [lane, here] = await page.evaluate((find) => { const s = window.__nsp.app.run.state; return [new Function('s', `return (${find})(s);`)(s).lane, s.knight.lane]; }, attack.toString());
+    for (let i = here; i > lane; i--) await page.keyboard.press('ArrowUp');
+    for (let i = here; i < lane; i++) await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('c');
+    const started = await page.evaluate(() => window.__nsp.app.run.state.knight.charge.t);
+    if (!(started > 0)) throw new Error(`C did not start the charge (charge.t ${started})`);
+    // Frozen on the way out, so the shot catches the gallop mid-lane however long the capture takes.
+    await stepUntil(page, (s) => s.knight.charge.t > 0 && s.knight.x < 700);
+    await freeze(page);
+    const mid = await page.evaluate(() => {
+      const s = window.__nsp.app.run.state, scene = window.__nsp.game.scene.getScene('field');
+      const knight = scene.layers.actors.list.find((o) => o.texture && /^knight-/.test(o.texture.key));
+      const tint = scene.layers.back.list.find((o) => o.fillColor === 0xd9b44a);
+      return { t: s.knight.charge.t, x: s.knight.x, lane: s.knight.lane, key: knight.texture.key, tint: tint && { y: tint.y, alpha: tint.alpha, visible: tint.visible } };
+    });
+    if (!(mid.t > 0) || mid.x >= 700 || !/^knight-black-horse-[01]$/.test(mid.key)) throw new Error(`mid-gallop: ${JSON.stringify(mid)}`);
+    if (!mid.tint || !mid.tint.visible || mid.tint.y !== mid.lane * 90 || Math.abs(mid.tint.alpha - 0.1) > 1e-6) throw new Error(`the lane tint: ${JSON.stringify(mid)}`);
+    await page.waitForTimeout(100);
+    await page.screenshot({ path: `${OUT}/charge.png` });
+    await freeze(page, false);
+    // The dust rides the view clock, which only frames advance (stepping the run in-page skips them, and a slow headless frame
+    // rate advances it 50 ms a frame at most): 24 frames through the scene's own hook are 400 ms of gallop, a puff every 80 ms.
+    await page.evaluate(() => { const scene = window.__nsp.game.scene.getScene('field'); for (let i = 0; i < 24; i++) scene.onFrame(1000 / 60); });
+    await stepUntil(page, (s) => s.knight.charge.t === 0);
+    const after = await page.evaluate(() => ({
+      hits: window.__nsp.app.run.state.stats.chargeHits, x: window.__nsp.app.run.state.knight.x, dust: window.__smokeDust,
+      floats: [...document.querySelectorAll('#ui .float:not([data-old])')].map((f) => f.textContent),
+    }));
+    if (after.hits < 1 || after.x !== 944 || after.dust < 5 || !after.floats.includes('+20')) throw new Error(`after the charge: ${JSON.stringify(after)}`);
+  },
   async objects(page) {
     await play(page);
     await page.evaluate(() => {

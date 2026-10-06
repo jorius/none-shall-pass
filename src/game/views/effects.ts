@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 
 // core
-import { FW_X, PKT_H, PKT_W, RACK_TARGET } from '../../core/constants';
+import { FW_X, LANE_X0, PKT_H, PKT_W, RACK_TARGET } from '../../core/constants';
 import type { RunEvent } from '../../core/events';
 import { CSS, HEX } from '../../core/palette';
 import type { Run } from '../../core/run';
@@ -15,18 +15,21 @@ import type { View } from '../view';
 const GLYPHS = "01<>/'=;%(){}";
 const COLORS: Record<string, string> = { ink: CSS.ink, red: CSS.red, blue: CSS.blue, gold: CSS.gold, brick: '#a8432a', cyan: '#8fdcff' };
 const PALETTES: Record<string, string[]> = {
-  knight: ['ink', 'ink', 'red', 'blue'], rule: ['blue', 'blue', 'ink'], squire: ['gold', 'ink', 'ink'], lockdown: ['red', 'brick', 'ink'], stream: ['ink', 'ink', 'cyan'],
+  knight: ['ink', 'ink', 'red', 'blue'], rule: ['blue', 'blue', 'ink'], squire: ['gold', 'ink', 'ink'], lockdown: ['red', 'brick', 'ink'], charge: ['gold', 'ink', 'red'],
+  stream: ['ink', 'ink', 'cyan'],
 };
 
 // Extra 0s and 1s weight the pick so about three glyphs in four are binary, as in the mock.
 const BITS = '01'.repeat(16);
 const frames = (palette: string[]): string[] => palette.flatMap((c) => [...GLYPHS, ...BITS].map((g) => `${c}:${g}`));
 
-// Spears in flight, packets shattering into binary, the glyphs a burning packet streams into the rack, and the crumbs a bite knocks off a card.
+// Spears in flight, packets shattering into binary, the glyphs a burning packet streams into the rack, the crumbs a bite knocks off a card,
+// and the binary rain a won campaign ends on.
 export class EffectsView implements View {
   private readonly shatter: Record<string, Phaser.GameObjects.Particles.ParticleEmitter> = {};
   private readonly stream: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly crumb: Phaser.GameObjects.Particles.ParticleEmitter;
+  private readonly rainfall: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly emitted = new Map<number, number>();
 
   constructor(private readonly scene: FieldScene) {
@@ -53,6 +56,12 @@ export class EffectsView implements View {
     // What a bite knocks off the frame: a short hop, then it falls and fades.
     this.crumb = scene.add.particles(0, 0, 'crumb', { emitting: false, lifespan: { min: 300, max: 500 }, speed: { min: 20, max: 60 }, gravityY: 200, alpha: { start: 1, end: 0 } });
     fx.add(this.crumb);
+    // Ink 0s and 1s let go just above the lanes, falling faster as they go and fading out before the strip.
+    this.rainfall = scene.add.particles(0, 0, 'glyphs', {
+      frame: ['ink:0', 'ink:1'], emitting: false, lifespan: 2000, x: { min: LANE_X0, max: FW_X }, y: -20,
+      speedY: { min: 20, max: 90 }, gravityY: 180, alpha: { start: 1, end: 0 }, scale: { min: 0.4, max: 0.6 },
+    });
+    fx.add(this.rainfall);
   }
 
   // The switch itself lives on the scene, where the rack reads it too; the pause menu and main.ts set it here.
@@ -62,6 +71,11 @@ export class EffectsView implements View {
   // `n` crumbs from a bite at (x, y) on the field; none asked for (reduced effects) is none emitted.
   crumbs(x: number, y: number, n: number): void {
     if (n > 0) this.crumb.emitParticleAt(x, y, n);
+  }
+
+  // The win: one burst of binary over the lanes; reduced effects get none.
+  rain(): void {
+    this.rainfall.explode(this.reduced ? 0 : 160);
   }
 
   // A 3×3 speck in the dim colour.
@@ -96,7 +110,7 @@ export class EffectsView implements View {
   pause(p: boolean): void {
     this.scene.tweens.timeScale = p ? 0 : 1;
     this.scene.time.paused = p;
-    for (const em of [...Object.values(this.shatter), this.stream, this.crumb]) { if (p) em.pause(); else em.resume(); }
+    for (const em of [...Object.values(this.shatter), this.stream, this.crumb, this.rainfall]) { if (p) em.pause(); else em.resume(); }
   }
 
   start(): void {
@@ -106,15 +120,16 @@ export class EffectsView implements View {
   event(ev: RunEvent): void {
     if (ev.type === 'shattered') {
       const p = ev.packet, y = packetY(p);
+      // Every thrower has a palette: the knight's, the squire's, the charge's gold, or the rule's (the lockdown its own).
       const pal = ev.by === 'rule' ? (ev.ruleId === 'lockdown' ? 'lockdown' : 'rule') : ev.by;
-      // The charge has no palette of its own yet, so its kills burst in the knight's colours.
-      (this.shatter[pal] ?? this.shatter.knight).explode(this.reduced ? 18 : 56, p.x, y);
+      this.shatter[pal].explode(this.reduced ? 18 : 56, p.x, y);
       const box = this.scene.add.rectangle(p.x, y, PKT_W, PKT_H, HEX.ink, 0.75).setOrigin(0, 0);
       this.scene.layers.fx.add(box);
       this.scene.tweens.add({ targets: box, alpha: 0, duration: 140, onComplete: () => box.destroy() });
     }
     if (ev.type === 'thrown') this.spear(ev.from, ev.to, ev.duration, ev.by === 'squire');
     if (ev.type === 'consumed') this.emitted.delete(ev.packetId);
+    if (ev.type === 'runEnded' && ev.reason === 'won') this.rain();
   }
 
   // Flies the arc the core already timed; whether it hits was decided there, so nothing waits on it here.

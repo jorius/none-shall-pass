@@ -74,10 +74,11 @@ const boot = async (): Promise<void> => {
   const scene = await FieldScene.ready;
   const app = new App(scene, store);
   const fireWall = new FireWallView(scene);
-  app.add(new LanesView(scene), fireWall, new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene));
+  // The effects come first: the actors kick their dust up through them. They join the views after the packets, as before.
   const effects = new EffectsView(scene);
   // The system setting is the default until the player picks one in the pause menu.
   effects.reduced = store.prefs().reducedFx ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  app.add(new LanesView(scene), fireWall, new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene, effects));
   // The DOM layer comes after the canvas, so the inspector the hover feeds is created further down.
   let inspector: Inspector | null = null;
   const packets = new PacketsView(scene, {
