@@ -74,10 +74,10 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, best:
   ta.value = text;
   const row = el('div', 'row-btns', box);
   const copy = button(row, 'btn', t('debrief.copy'), () => {
-    track('share-copied', { mode: r.mode });
     // Without clipboard access the line is only selected, and the button says so instead of claiming a copy.
     const fallback = (): void => { ta.focus(); ta.select(); copy.textContent = t('debrief.selected', { k: copyKeys() }); };
-    if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { copy.textContent = t('debrief.copied'); }, fallback);
+    const copied = (): void => { copy.textContent = t('debrief.copied'); track('share-copied', { mode: r.mode }); };
+    if (navigator.clipboard) navigator.clipboard.writeText(text).then(copied, fallback);
     else fallback();
   });
   button(row, 'btn ghost', t('debrief.again'), act.again);

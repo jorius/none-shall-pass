@@ -40,9 +40,17 @@ describe('AnalyticsView', () => {
     expect(sent).toEqual([
       ['root-mode', { on: true }],
       ['game-start', { mode: 'overtime', root: true }],
-      ['wave-cleared', { mode: 'overtime', wave: 1 }],
+      // Skipped from the console, so the wave is marked as a tampered run's.
+      ['wave-cleared', { mode: 'overtime', wave: 1, tampered: true }],
       ['console-opened', null],
     ]);
+  });
+
+  it('reports a wave cleared in play as untampered', () => {
+    app.startRun('campaign');
+    app.run!.state.timeLeft = 0;
+    app.dispatch(app.run!.step(1 / 60));
+    expect(sent.filter(([n]) => n === 'wave-cleared')).toEqual([['wave-cleared', { mode: 'campaign', wave: 1, tampered: false }]]);
   });
 
   it('reports how a run ended in coarse numbers, and nothing of what was on screen', () => {

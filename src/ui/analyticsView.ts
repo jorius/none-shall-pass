@@ -23,7 +23,7 @@ export class AnalyticsView implements View {
   }
 
   event(ev: RunEvent, run: Run): void {
-    if (ev.type === 'waveCleared') track('wave-cleared', { mode: run.state.cfg.mode, wave: ev.wave });
+    if (ev.type === 'waveCleared') track('wave-cleared', { mode: run.state.cfg.mode, wave: ev.wave, tampered: run.state.tampered });
     if (ev.type === 'runEnded') {
       const r = resultOf(run.state);
       track('run-ended', { mode: r.mode, outcome: ev.reason, grade: grade(r) ?? `wave-${r.wave}`, score: scoreBucket(r.score), tampered: r.tampered });

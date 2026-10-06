@@ -200,6 +200,8 @@ describe('Overlays', () => {
   });
 
   it('selects the share line without a clipboard, and says which keys copy it', () => {
+    const sent: unknown[] = [];
+    (window as unknown as { umami?: unknown }).umami = { track: (n: string) => sent.push(n) };
     boot();
     app.startRun('campaign');
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
@@ -212,6 +214,30 @@ describe('Overlays', () => {
     app.refresh();
     named(/COPY RESULT/).click();
     expect(named(/SELECTED/).textContent).toBe('SELECTED · ⌘C');
+    // Nothing was copied, so nothing is counted as shared.
+    expect(sent).toEqual([]);
+    delete (window as unknown as { umami?: unknown }).umami;
+  });
+
+  it('counts a share only once the clipboard took it', async () => {
+    const sent: unknown[] = [];
+    (window as unknown as { umami?: unknown }).umami = { track: (n: string, d: unknown) => sent.push([n, d]) };
+    let take: () => void = () => {};
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => new Promise<void>((r) => { take = r; }) } });
+    try {
+      boot();
+      app.startRun('campaign');
+      app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
+      vi.advanceTimersByTime(1200);
+      named(/COPY RESULT/).click();
+      expect(sent).toEqual([]);
+      take();
+      await Promise.resolve();
+      expect([named(/COPIED/).textContent, sent]).toEqual(['COPIED ✓', [['share-copied', { mode: 'campaign' }]]]);
+    } finally {
+      delete (navigator as unknown as { clipboard?: unknown }).clipboard;
+      delete (window as unknown as { umami?: unknown }).umami;
+    }
   });
 
   it('goes back from the how-to with BACK or Esc', () => {

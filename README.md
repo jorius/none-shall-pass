@@ -43,7 +43,9 @@ Every IP address, network and host in the packets comes from the ranges reserved
 
 ## Privacy
 
-On jorius.github.io the game sends a few cookieless [Umami](https://umami.is) events: a run started (mode, root mode), a wave cleared, how a run ended (grade or wave reached, a coarse score bucket), the console opened, root mode switched and a result copied. Nothing you type or read is sent, and browsers with Do Not Track send nothing.
+On jorius.github.io the game uses cookieless [Umami](https://umami.is) analytics. Every page load counts as a page view, which records the page path, the referrer, your browser, OS, device type, screen size and language, and a rough location (country, region and city) that Umami derives from your IP address; the address itself is not stored.
+
+On top of the page view the game sends a few events: a run started (mode, root mode), a wave cleared (mode, wave, whether the run was tampered with), how a run ended (mode, outcome, grade or wave reached, a coarse score bucket, tampered), the console opened, root mode switched and a result copied to the clipboard. Nothing you type or read in the game is sent, and browsers with Do Not Track send nothing at all.
 
 ## Development
 

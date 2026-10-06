@@ -609,6 +609,34 @@ const CHECKS = {
     if (await page.evaluate(() => window.__nsp.app.run) !== null) throw new Error('TITLE kept the run');
   },
   async console(page) {
+    const open = async () => {
+      await page.keyboard.press('`');
+      await page.waitForSelector('#ui .term.show input');
+      await page.waitForFunction(() => document.activeElement?.tagName === 'INPUT');
+    };
+    const run = async (cmd) => { await page.keyboard.type(cmd); await page.keyboard.press('Enter'); };
+    // In Space Mono, the help list's second column and the nmap table's STATE and SERVICE columns each start at one x.
+    const aligned = (what) => page.evaluate((w) => {
+      const pre = document.querySelector('#ui .term pre'), text = pre.textContent;
+      if (!/Space Mono/.test(getComputedStyle(pre).fontFamily) || !document.fonts.check('14px "Space Mono"')) return `${w}: not in Space Mono`;
+      const nodes = [], walk = document.createTreeWalker(pre, NodeFilter.SHOW_TEXT);
+      for (let n = walk.nextNode(), at = 0; n; at += n.length, n = walk.nextNode()) nodes.push({ n, at });
+      const left = (i) => {
+        const { n, at } = nodes.findLast((e) => e.at <= i), r = document.createRange();
+        r.setStart(n, i - at);
+        r.setEnd(n, i - at + 1);
+        return r.getBoundingClientRect().left;
+      };
+      const cols = {};
+      let at = 0;
+      for (const line of text.split('\n')) {
+        const want = /^(\d+\/tcp|PORT) /.test(line) ? [9, 19] : /^ {2}\S.* {2,}\S/.test(line) ? [23] : [];
+        for (const c of want) (cols[c] ??= []).push(left(at + c));
+        at += line.length + 1;
+      }
+      const off = Object.entries(cols).filter(([, xs]) => xs.length < 2 || Math.max(...xs) - Math.min(...xs) > 0.5);
+      return off.length || !cols[9] || !cols[23] ? `${w}: columns off ${JSON.stringify(cols)}` : '';
+    }, what);
     await play(page);
     await page.keyboard.press('`');
     await page.waitForSelector('#ui .term.show input');
@@ -625,6 +653,8 @@ const CHECKS = {
     await page.keyboard.press('Enter');
     const out = await page.textContent('#ui .term pre');
     if (!/filtered/.test(out) || !/man <attack>|man <ataque>/.test(out)) throw new Error(out);
+    const en = await aligned('English console');
+    if (en) throw new Error(en);
     await page.screenshot({ path: `${OUT}/console.png` });
     await page.keyboard.press('Escape');
     if (await page.evaluate(() => window.__nsp.app.screen) !== 'playing') throw new Error('console did not close');
@@ -639,6 +669,15 @@ const CHECKS = {
     await page.keyboard.type('skip');
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => window.__nsp.app.screen === 'draft' && window.__nsp.app.run.state.tampered);
+    // Spanish, with its longest man page: the same columns line up.
+    await spanish(page);
+    await page.reload({ waitUntil: 'networkidle' });
+    await play(page);
+    await open();
+    for (const cmd of ['help', 'man sqli', 'nmap shop.example']) await run(cmd);
+    const es = await aligned('Spanish console');
+    if (es) throw new Error(es);
+    await page.screenshot({ path: `${OUT}/console-es.png` });
   },
   async konami(page) {
     const code = async () => { for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) await page.keyboard.press(k); };
@@ -656,6 +695,12 @@ const CHECKS = {
     await stepUntil(page, (s) => s.packets.filter((p) => !p.entering).length >= 3);
     // Any refresh (a language switch, the hints key) applies the mode again without stacking a second filter.
     await page.evaluate(() => { window.__nsp.app.refresh(); window.__nsp.app.refresh(); });
+    // A locked target in the shot: its border and brackets are the brightest outline on the amber field.
+    await page.evaluate(() => {
+      const app = window.__nsp.app, p = app.run.state.packets.find((q) => !q.entering);
+      p.x = 320;
+      app.dispatch(app.run.target(p.id));
+    });
     await page.waitForTimeout(150);
     await page.screenshot({ path: `${OUT}/root.png` });
     const on = { ...(await look()), run: await page.evaluate(() => window.__nsp.app.run.state.cfg.root) };
@@ -687,7 +732,7 @@ const CHECKS = {
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => window.__nsp.app.screen === 'draft');
     const sent = JSON.stringify(await page.evaluate(() => window.__sent));
-    const want = JSON.stringify([['game-start', { mode: 'campaign', root: false }], ['console-opened', null], ['wave-cleared', { mode: 'campaign', wave: 1 }]]);
+    const want = JSON.stringify([['game-start', { mode: 'campaign', root: false }], ['console-opened', null], ['wave-cleared', { mode: 'campaign', wave: 1, tampered: true }]]);
     if (sent !== want) throw new Error(`sent ${sent}`);
   },
   async phone(page) {

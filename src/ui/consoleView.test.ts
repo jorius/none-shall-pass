@@ -46,6 +46,13 @@ describe('ConsoleView', () => {
     expect([app.run!.state.hints, app.run!.state.knight.lane, app.screen]).toEqual([false, lane, 'console']);
   });
 
+  it('labels its prompt and announces its replies, in the language on screen', () => {
+    expect([input().getAttribute('aria-label'), ui.querySelector('.term pre')!.getAttribute('aria-live')]).toEqual(['Console command', 'polite']);
+    setLang('es');
+    app.refresh();
+    expect(input().getAttribute('aria-label')).toBe('Comando de la consola');
+  });
+
   it('keeps Tab in the prompt, off the HUD buttons', () => {
     open();
     expect(key(input(), 'Tab').defaultPrevented).toBe(true);

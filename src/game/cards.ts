@@ -9,6 +9,10 @@ const S = 2;
 const BG: Record<CardState, string> = { idle: CSS.sub, hover: '#3b3b3b', locked: '#3a2e2e', held: '#33302a', slowed: '#2c2a26' };
 const BORDER: Record<CardState, string> = { idle: CSS.dim, hover: CSS.ink, locked: CSS.red, held: CSS.gold, slowed: CSS.dim };
 
+// Root mode's amber matrix keeps only luminance, under which the red target would be the darkest outline on the field.
+// White comes out as its brightest amber, above the ink of a hovered card.
+export const targetColor = (root: boolean): string => (root ? '#ffffff' : CSS.red);
+
 const fit = (ctx: CanvasRenderingContext2D, text: string, max: number): string => {
   if (ctx.measureText(text).width <= max) return text;
   let lo = 0, hi = text.length;
@@ -20,11 +24,11 @@ const fit = (ctx: CanvasRenderingContext2D, text: string, max: number): string =
 };
 
 // Draws one packet card into a 2x canvas: source and lane on top, payload below.
-export const drawCard = (ctx: CanvasRenderingContext2D, o: { src: string; port: string; text: string; hints: string[]; hintsOn: boolean; decodedTag: string | null; state: CardState }): void => {
+export const drawCard = (ctx: CanvasRenderingContext2D, o: { src: string; port: string; text: string; hints: string[]; hintsOn: boolean; decodedTag: string | null; state: CardState; root: boolean }): void => {
   ctx.clearRect(0, 0, CARD_TEX_W, CARD_TEX_H);
   ctx.fillStyle = BG[o.state];
   ctx.fillRect(0, 0, CARD_TEX_W, CARD_TEX_H);
-  ctx.strokeStyle = BORDER[o.state];
+  ctx.strokeStyle = o.state === 'locked' ? targetColor(o.root) : BORDER[o.state];
   ctx.lineWidth = 2;
   ctx.strokeRect(1, 1, CARD_TEX_W - 2, CARD_TEX_H - 2);
   if (o.state === 'locked') {

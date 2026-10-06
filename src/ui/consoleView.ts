@@ -25,9 +25,11 @@ export class ConsoleView implements View {
     this.box = el('div', 'term', ui);
     this.bar = el('div', 'bar', this.box, t('console.title'));
     this.out = el('pre', '', this.box);
+    this.out.setAttribute('aria-live', 'polite');
     const row = el('div', 'in', this.box);
     el('span', '', row, '$');
     this.input = el('input', '', row);
+    this.input.setAttribute('aria-label', t('console.input'));
     this.input.spellcheck = false;
     this.input.autocomplete = 'off';
     this.input.addEventListener('keydown', (e) => {
@@ -42,8 +44,9 @@ export class ConsoleView implements View {
     this.box.addEventListener('click', () => this.input.focus());
   }
 
+  // Appended as a new text node, so a screen reader announces only the new lines.
   private print(lines: string[]): void {
-    this.out.textContent += `${lines.join('\n')}\n`;
+    this.out.append(`${lines.join('\n')}\n`);
     this.out.scrollTop = this.out.scrollHeight;
   }
 
@@ -73,6 +76,7 @@ export class ConsoleView implements View {
 
   refresh(): void {
     this.bar.textContent = t('console.title');
+    this.input.setAttribute('aria-label', t('console.input'));
   }
 
   // Closed, the prompt lets the focus go: a hidden input holding it would swallow every game key.

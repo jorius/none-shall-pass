@@ -19,7 +19,7 @@ import { t } from '../../i18n';
 import { RENDER_SCALE } from '../../stage';
 
 // game
-import { CARD_TEX_H, CARD_TEX_W, drawCard, type CardState } from '../cards';
+import { CARD_TEX_H, CARD_TEX_W, drawCard, targetColor, type CardState } from '../cards';
 import type { FieldScene } from '../FieldScene';
 import type { View } from '../view';
 
@@ -92,6 +92,9 @@ export class PacketsView implements View {
 
   start(run: Run): void {
     this.run = run;
+    // In root mode the tag inverts, dark on the bright target colour, so its label stays readable through the amber matrix.
+    const root = run.state.cfg.root;
+    this.tag.setBackgroundColor(targetColor(root)).setColor(root ? CSS.paper : CSS.ink);
     this.hovered = null;
     this.raised = null;
     for (const id of [...this.visuals.keys()]) this.drop(id);
@@ -160,7 +163,7 @@ export class PacketsView implements View {
     const tex = this.scene.textures.get(`card-${v.slot}`) as Phaser.Textures.CanvasTexture;
     drawCard(tex.getContext(), {
       src: p.src, port: PORT_LABEL[p.lane], text: lens ? p.t.decoded! : p.t.card,
-      hints: (lens ? p.t.decodedHints ?? p.t.hints : p.t.hints) ?? [], hintsOn: s.hints, decodedTag: lens ? t('inspector.decoded') : null, state,
+      hints: (lens ? p.t.decodedHints ?? p.t.hints : p.t.hints) ?? [], hintsOn: s.hints, decodedTag: lens ? t('inspector.decoded') : null, state, root: s.cfg.root,
     });
     tex.refresh();
   }
@@ -199,7 +202,7 @@ export class PacketsView implements View {
     const locked = run.state.locked !== null ? run.state.packets.find((p) => p.id === run.state.locked) : undefined;
     if (!locked) return;
     const x = snap(locked.x), y = packetY(locked), r = Math.floor(time / 0.25) % 2 ? 20 : 16;
-    this.overlay.lineStyle(3, HEX.red, 1);
+    this.overlay.lineStyle(3, parseInt(targetColor(run.state.cfg.root).slice(1), 16), 1);
     this.corner(x - 9, y - 9 + r, x - 9, y - 9, x - 9 + r, y - 9);
     this.corner(x + PKT_W + 9 - r, y + PKT_H + 9, x + PKT_W + 9, y + PKT_H + 9, x + PKT_W + 9, y + PKT_H + 9 - r);
     if (locked.held) {
