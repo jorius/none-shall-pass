@@ -80,14 +80,13 @@ const boot = async (): Promise<void> => {
   effects.reduced = store.prefs().reducedFx ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // The DOM layer comes after the canvas, so the inspector the hover feeds is created further down.
   let inspector: Inspector | null = null;
-  app.add(
-    new PacketsView(scene, {
-      // Like the keys, a click only targets while the field is live, not under the pause or console screen.
-      target: (id) => { if (app.run && app.screen === 'playing') app.dispatch(app.run.target(id)); },
-      hover: (p) => inspector?.hover(p),
-    }),
-    effects,
-  );
+  const packets = new PacketsView(scene, {
+    // Like the keys, a click only targets while the field is live, not under the pause or console screen.
+    target: (id) => { if (app.run && app.screen === 'playing') app.dispatch(app.run.target(id)); },
+    hover: (p) => inspector?.hover(p),
+  });
+  packets.effects = effects;
+  app.add(packets, effects);
   const ui = createUiLayer(document.getElementById('stage')!, game.canvas);
   app.add(new Hud(ui, app), new Gutter(ui), new UptimeStrip(ui), new Bubble(ui), new Floats(ui), new Coach(ui, store));
   const bottom = el('div', 'bottom', ui);
@@ -100,7 +99,7 @@ const boot = async (): Promise<void> => {
   app.add(new AnalyticsView(app));
   ui.classList.toggle('reduced', effects.reduced);
   onLang(() => app.refresh());
-  (window as unknown as { __nsp: unknown }).__nsp = { game, app, effects };
+  (window as unknown as { __nsp: unknown }).__nsp = { game, app, effects, packets };
   app.quit();
 };
 

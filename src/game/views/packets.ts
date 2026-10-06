@@ -23,28 +23,21 @@ import { CARD_TEX_H, CARD_TEX_W, drawCard, targetColor, type CardState } from '.
 import type { FieldScene } from '../FieldScene';
 import type { View } from '../view';
 
+// local
+import { BugRig } from './bugs';
+import type { EffectsView } from './effects';
+
 const POOL = 48;
 
 // Cards sit on whole device pixels, so the 2x canvas is drawn 1:1 and never resampled.
 const snap = (v: number): number => Math.round(v * RENDER_SCALE) / RENDER_SCALE;
 
-interface Visual { slot: number; box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; bugs: { s: Phaser.GameObjects.Sprite; kind: BugKind; path: number; phase: number }[]; key: string }
+interface Visual { slot: number; box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; rig: BugRig | null; key: string }
 
-// Bug paths around a card (local coords): along the top, along the bottom, a worm's wiggle, a fly's buzz.
-const bugPose = (kind: BugKind, path: number, time: number, phase: number): { x: number; y: number; rot: number; flip: boolean } => {
-  if (kind === 'fly' || kind === 'gnat') {
-    const a = time * (path ? 6.1 : 7.3) + phase;
-    return { x: (path ? 40 : PKT_W - 40) + Math.sin(a) * 14, y: -10 + Math.cos(a * 1.3) * 20, rot: Math.sin(a * 0.7) * 0.4, flip: false };
-  }
-  const u = ((time / (path ? 6.5 : 5)) + phase) % 1;
-  const out = u < 0.5, k = out ? u / 0.5 : (u - 0.5) / 0.5;
-  const x = out ? 8 + k * (PKT_W - 48) : PKT_W - 40 - k * (PKT_W - 48);
-  if (kind === 'worm') return { x, y: -6, rot: 0, flip: !out };
-  return { x: path ? PKT_W - 32 - x : x, y: path ? PKT_H : -10, rot: (out !== !!path ? 1 : -1) * Math.PI / 2, flip: false };
-};
-
-// Packet cards on pooled 2x canvases, the bugs that crawl on them, and the target brackets.
+// Packet cards on pooled 2x canvases, the bugs that eat their frames, and the target brackets.
 export class PacketsView implements View {
+  // Set by main.ts once both views exist: a bite's crumbs fall on the effects layer.
+  effects: EffectsView | null = null;
   private readonly visuals = new Map<number, Visual>();
   private readonly free: number[] = Array.from({ length: POOL }, (_, i) => i);
   private readonly overlay: Phaser.GameObjects.Graphics;
@@ -52,6 +45,9 @@ export class PacketsView implements View {
   private hovered: number | null = null;
   private raised: number | null = null;
   private run: Run | null = null;
+  // The view clock as of the last frame, and how far the smoke's debugTick has run the rigs ahead of it.
+  private now = 0;
+  private lead = 0;
 
   constructor(private readonly scene: FieldScene, private readonly intents: { target(id: number | null): void; hover(p: Packet | null): void }) {
     for (let i = 0; i < POOL; i++) scene.textures.createCanvas(`card-${i}`, CARD_TEX_W, CARD_TEX_H);
@@ -121,22 +117,19 @@ export class PacketsView implements View {
     // Newest on top, as in the mock, but under the locked card, the brackets and the tag.
     const raised = this.raised !== null ? this.visuals.get(this.raised)?.box : undefined;
     layer.addAt(box, layer.getIndex(raised ?? this.overlay));
-    const bugs: Visual['bugs'] = [];
+    let rig: BugRig | null = null;
     if (isBugged(p.t, run.state.owned)) {
       const kind = BUG_OF[p.t.kind as Exclude<typeof p.t.kind, 'legit'>];
-      const count = p.t.tier === 1 ? 2 : 1;
-      for (let i = 0; i < count; i++) {
-        const s = this.scene.add.sprite(0, 0, `bug-${kind}-0`);
-        box.add(s);
-        bugs.push({ s, kind, path: i, phase: Math.random() });
-      }
+      // The crumbs fall where the bite is, in field coordinates; reduced effects drop none.
+      rig = new BugRig(this.scene, box, kind, PKT_W, PKT_H, p.id * 7919, (x, y) => this.effects?.crumbs(snap(p.x) + x, packetY(p) + y, this.scene.reduced ? 0 : 2));
     }
-    this.visuals.set(p.id, { slot, box, img, bugs, key: '' });
+    this.visuals.set(p.id, { slot, box, img, rig, key: '' });
   }
 
   private drop(id: number): void {
     const v = this.visuals.get(id);
     if (!v) return;
+    v.rig?.destroy();
     v.box.destroy();
     this.free.push(v.slot);
     this.visuals.delete(id);
@@ -179,7 +172,20 @@ export class PacketsView implements View {
     g.strokePath();
   }
 
-  frame(run: Run | null, _dt: number, time: number): void {
+  // Debug hooks for the smoke test: the live rigs, and a clock that runs them ahead of the view in 60 Hz steps,
+  // so a check can watch a lap's worth of bites without waiting a lap.
+  rigs(): { id: number; kind: BugKind; bites: number }[] {
+    return [...this.visuals].flatMap(([id, v]) => (v.rig ? [{ id, kind: v.rig.kind, bites: v.rig.bites }] : []));
+  }
+
+  debugTick(secs: number): void {
+    const steps = Math.round(secs * 60), from = this.lead;
+    for (let i = 1; i <= steps; i++) for (const v of this.visuals.values()) v.rig?.frame(this.now + from + i / 60, 1 / 60, this.scene.reduced);
+    this.lead = from + steps / 60;
+  }
+
+  frame(run: Run | null, dt: number, time: number): void {
+    this.now = time;
     this.overlay.clear();
     this.tag.setVisible(false);
     if (!run) return;
@@ -193,12 +199,8 @@ export class PacketsView implements View {
       this.paint(p, v, run);
       v.box.setPosition(x, packetY(p));
       v.img.setCrop(0, 0, p.entering ? Math.max(0, (FW_X - x) * 2) : CARD_TEX_W, CARD_TEX_H);
-      for (const b of v.bugs) {
-        const pose = bugPose(b.kind, b.path, time, b.phase);
-        b.s.setPosition(pose.x, pose.y).setRotation(pose.rot).setFlipX(pose.flip);
-        b.s.setTexture(`bug-${b.kind}-${Math.floor(time / 0.12) % 2}`);
-        b.s.setVisible(x + pose.x < FW_X);
-      }
+      // The rig runs on the view clock (it stops with a pause) and, like the card, nothing of it shows past the fire.
+      if (v.rig) { v.rig.frame(time + this.lead, dt, this.scene.reduced); v.rig.clip(FW_X - x); }
     }
     const locked = run.state.locked !== null ? run.state.packets.find((p) => p.id === run.state.locked) : undefined;
     if (!locked) return;

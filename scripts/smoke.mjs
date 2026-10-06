@@ -209,6 +209,75 @@ const CHECKS = {
     await page.waitForTimeout(100);
     if (await top() !== b) throw new Error('the released card did not go back under the newer one');
   },
+  async bugs(page) {
+    // A bugged card carries one bug on its edge. The crawlers bite the frame once a lap and the bites stay until the card dies;
+    // the flies never bite. Wave 3 brings the spiders, the quickest biters: nine seconds of rig time guarantee a notch.
+    await play(page);
+    for (let i = 0; i < 2; i++) {
+      await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+      await page.waitForFunction(() => window.__nsp.app.screen === 'draft');
+      await page.evaluate(() => window.__nsp.app.nextWave());
+      await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    }
+    await page.evaluate(() => { const app = window.__nsp.app; app.run.state.owned.push('obs3'); app.dispatch([{ type: 'owned', owned: [...app.run.state.owned] }]); });
+    await stepUntil(page, (s) => s.wave === 3 && s.packets.some((p) => p.t.kind === 'sqli' && p.x > 200 && p.x < 500 && !p.entering && !p.doomed));
+    const id = await page.evaluate(() => window.__nsp.app.run.state.packets.find((p) => p.t.kind === 'sqli' && p.x > 200 && p.x < 500 && !p.entering && !p.doomed).id);
+    const rigs = () => page.evaluate(() => window.__nsp.packets.rigs());
+    const bugAt = (name) => page.evaluate((n) => { const s = window.__nsp.game.scene.getScene('field').layers.packets.list.find((o) => o.name === n).list.at(-1); return [s.x, s.y]; }, name);
+    // Frozen, the card stays put while its rig runs ahead on the debug clock; the crumbs are counted at the effects call.
+    await freeze(page);
+    const before = await rigs();
+    if (before.find((r) => r.id === id)?.kind !== 'spider') throw new Error(`packet ${id} has no spider: ${JSON.stringify(before)}`);
+    await page.evaluate(() => { const fx = window.__nsp.effects, real = fx.crumbs.bind(fx); window.__smokeCrumbs = 0; fx.crumbs = (x, y, n) => { window.__smokeCrumbs += n; real(x, y, n); }; });
+    await page.evaluate(() => window.__nsp.packets.debugTick(9));
+    const after = await rigs(), crumbs = await page.evaluate(() => window.__smokeCrumbs);
+    const spider = after.find((r) => r.id === id);
+    const newBites = after.reduce((n, r) => n + r.bites - (before.find((b) => b.id === r.id)?.bites ?? 0), 0);
+    if (!spider || spider.bites < 1 || spider.bites > 2) throw new Error(`the spider on ${id} took ${spider?.bites} bites in 9 s`);
+    if (crumbs !== 2 * newBites) throw new Error(`${newBites} bites dropped ${crumbs} crumbs`);
+    if (after.some((r) => (r.kind === 'fly' || r.kind === 'gnat') && r.bites)) throw new Error('a fly bit the frame');
+    // The bites sit in the card's box between the card and the bug, and the pause holds the bug where it is.
+    const stack = await page.evaluate((n) => {
+      const b = window.__nsp.game.scene.getScene('field').layers.packets.list.find((o) => o.name === n);
+      return { n: b.list.length, first: b.list[0].texture.key, last: b.list.at(-1).texture.key };
+    }, `packet-${id}`);
+    if (stack.n !== 2 + spider.bites || !stack.first.startsWith('card-') || !stack.last.startsWith('bug-spider')) throw new Error(`the spider's box: ${JSON.stringify(stack)}`);
+    const held = await bugAt(`packet-${id}`);
+    await page.waitForTimeout(300);
+    if (JSON.stringify(await bugAt(`packet-${id}`)) !== JSON.stringify(held)) throw new Error('the pause did not freeze the bug');
+    await page.screenshot({ path: `${OUT}/bugs.png` });
+    // Reduced effects: at most two bites a card and no crumbs however long the bug stays, and a fly sits still on its spot.
+    await page.evaluate(() => { window.__nsp.effects.reduced = true; window.__smokeCrumbs = 0; window.__nsp.packets.debugTick(30); });
+    const less = await rigs(), none = await page.evaluate(() => window.__smokeCrumbs);
+    if (less.find((r) => r.id === id).bites !== 2 || less.some((r) => r.bites > 2) || none) throw new Error(`reduced effects: ${JSON.stringify({ rigs: less, crumbs: none })}`);
+    const fly = less.find((r) => r.kind === 'fly' || r.kind === 'gnat');
+    if (fly) {
+      const sat = await bugAt(`packet-${fly.id}`);
+      await page.evaluate(() => window.__nsp.packets.debugTick(1));
+      if (JSON.stringify(await bugAt(`packet-${fly.id}`)) !== JSON.stringify(sat)) throw new Error('a fly moved with reduced effects on');
+    }
+    // Full effects again: the bites resume to the cap of six, each at its own spot, two crumbs apiece.
+    await page.evaluate(() => { window.__nsp.effects.reduced = false; window.__smokeCrumbs = 0; window.__nsp.packets.debugTick(40); });
+    const all = await rigs(), capped = all.find((r) => r.id === id), more = await page.evaluate(() => window.__smokeCrumbs);
+    const resumed = all.reduce((n, r) => n + r.bites - (less.find((b) => b.id === r.id)?.bites ?? 0), 0);
+    const spots = await page.evaluate((n) => {
+      const b = window.__nsp.game.scene.getScene('field').layers.packets.list.find((o) => o.name === n);
+      return b.list.slice(1, -1).map((m) => `${m.x.toFixed(1)},${m.y.toFixed(1)}`);
+    }, `packet-${id}`);
+    if (capped.bites !== 6 || more !== 2 * resumed || spots.length !== 6 || new Set(spots).size < 3) throw new Error(`at the cap: ${JSON.stringify({ capped, resumed, crumbs: more, spots })}`);
+    // The bug and its bites go with the card: once it is consumed, its rig is gone and every part of it is destroyed.
+    await page.evaluate((n) => {
+      window.__smokeBox = window.__nsp.game.scene.getScene('field').layers.packets.list.find((o) => o.name === n);
+      window.__smokeParts = window.__smokeBox.list.slice(1);
+    }, `packet-${id}`);
+    await freeze(page, false);
+    await stepUntil(page, (s, pid) => !s.packets.some((p) => p.id === pid), id);
+    const gone = await page.evaluate((pid) => ({
+      rig: window.__nsp.packets.rigs().some((r) => r.id === pid), box: window.__smokeBox.active || !!window.__smokeBox.scene,
+      parts: window.__smokeParts.length, live: window.__smokeParts.filter((o) => o.active || o.scene).length,
+    }), id);
+    if (gone.rig || gone.box || gone.parts !== 7 || gone.live) throw new Error(`after the card died: ${JSON.stringify(gone)}`);
+  },
   async objects(page) {
     await play(page);
     await page.evaluate(() => {

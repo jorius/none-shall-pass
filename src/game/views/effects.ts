@@ -22,14 +22,16 @@ const PALETTES: Record<string, string[]> = {
 const BITS = '01'.repeat(16);
 const frames = (palette: string[]): string[] => palette.flatMap((c) => [...GLYPHS, ...BITS].map((g) => `${c}:${g}`));
 
-// Spears in flight, packets shattering into binary, and the glyphs a burning packet streams into the rack.
+// Spears in flight, packets shattering into binary, the glyphs a burning packet streams into the rack, and the crumbs a bite knocks off a card.
 export class EffectsView implements View {
   private readonly shatter: Record<string, Phaser.GameObjects.Particles.ParticleEmitter> = {};
   private readonly stream: Phaser.GameObjects.Particles.ParticleEmitter;
+  private readonly crumb: Phaser.GameObjects.Particles.ParticleEmitter;
   private readonly emitted = new Map<number, number>();
 
   constructor(private readonly scene: FieldScene) {
     this.buildGlyphs();
+    this.buildCrumb();
     const fx = scene.layers.fx;
     for (const [name, pal] of Object.entries(PALETTES)) {
       if (name === 'stream') continue;
@@ -48,11 +50,29 @@ export class EffectsView implements View {
       alpha: { start: 1, end: 0.15 }, scale: { start: 0.55, end: 0.25 },
     });
     fx.add(this.stream);
+    // What a bite knocks off the frame: a short hop, then it falls and fades.
+    this.crumb = scene.add.particles(0, 0, 'crumb', { emitting: false, lifespan: { min: 300, max: 500 }, speed: { min: 20, max: 60 }, gravityY: 200, alpha: { start: 1, end: 0 } });
+    fx.add(this.crumb);
   }
 
   // The switch itself lives on the scene, where the rack reads it too; the pause menu and main.ts set it here.
   get reduced(): boolean { return this.scene.reduced; }
   set reduced(on: boolean) { this.scene.reduced = on; }
+
+  // `n` crumbs from a bite at (x, y) on the field; none asked for (reduced effects) is none emitted.
+  crumbs(x: number, y: number, n: number): void {
+    if (n > 0) this.crumb.emitParticleAt(x, y, n);
+  }
+
+  // A 3×3 speck in the dim colour.
+  private buildCrumb(): void {
+    if (this.scene.textures.exists('crumb')) return;
+    const tex = this.scene.textures.createCanvas('crumb', 3, 3)!;
+    const ctx = tex.getContext();
+    ctx.fillStyle = CSS.dim;
+    ctx.fillRect(0, 0, 3, 3);
+    tex.refresh();
+  }
 
   // One 2x canvas with every glyph in every colour, sliced into named frames.
   private buildGlyphs(): void {
@@ -76,7 +96,7 @@ export class EffectsView implements View {
   pause(p: boolean): void {
     this.scene.tweens.timeScale = p ? 0 : 1;
     this.scene.time.paused = p;
-    for (const em of [...Object.values(this.shatter), this.stream]) { if (p) em.pause(); else em.resume(); }
+    for (const em of [...Object.values(this.shatter), this.stream, this.crumb]) { if (p) em.pause(); else em.resume(); }
   }
 
   start(): void {
