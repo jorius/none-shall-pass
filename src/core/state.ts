@@ -1,7 +1,9 @@
 // core
-import { BASE_SPEED, HINT_MULT, KN_X, LANE_H, MAX_REP, PKT_Y, ROOT_MULT, ROOT_SPEED } from './constants';
+import { BASE_SPEED, HINT_MULT, KN_X, LANE_H, PKT_Y, ROOT_MULT, ROOT_SPEED } from './constants';
 import { STARTING_LOADOUT, type Card, type CardId } from './content/cards';
+import type { KnightId } from './content/knights';
 import { waveFor, type Mode } from './content/waves';
+import { allowsHints, DIFFICULTIES, type Difficulty } from './difficulty';
 import type { LogEntry } from './events';
 import type { LaneIndex, MaliciousKind, Template, Tier } from './types';
 
@@ -51,7 +53,7 @@ export interface Stats {
 
 export interface DraftState { picks: Card[]; free: boolean; taken: CardId[] }
 
-export interface RunConfig { mode: Mode; seed: number; root: boolean; hints: boolean }
+export interface RunConfig { mode: Mode; seed: number; root: boolean; hints: boolean; difficulty: Difficulty; knight: KnightId }
 
 export interface RunState {
   cfg: RunConfig;
@@ -88,6 +90,7 @@ export interface RunState {
 
 export const knightY = (lane: number, isMounted: boolean): number => lane * LANE_H + (isMounted ? -6 : 0);
 export const packetY = (p: { lane: number }): number => p.lane * LANE_H + PKT_Y;
+export const repCap = (cfg: RunConfig): number => DIFFICULTIES[cfg.difficulty].rep;
 
 const emptyStats = (): Stats => ({
   hits: { 1: 0, 2: 0, 3: 0 }, squireHits: 0, ruleBlocks: 0, served: 0, decoysKept: 0, neutralized: 0, falsePositives: 0,
@@ -110,8 +113,8 @@ export const createState = (cfg: RunConfig): RunState => ({
   score: 0,
   credits: 0,
   uptime: 100,
-  rep: MAX_REP,
-  hints: cfg.hints,
+  rep: repCap(cfg),
+  hints: cfg.hints && allowsHints(cfg.difficulty),
   owned: [...STARTING_LOADOUT],
   fails: {},
   seen: {},
@@ -129,6 +132,7 @@ export const createState = (cfg: RunConfig): RunState => ({
 
 export const mounted = (s: RunState): boolean => s.owned.includes('destrier');
 export const findPacket = (s: RunState, id: number): Packet | undefined => s.packets.find((p) => p.id === id && !p.dead);
-export const multiplier = (s: RunState): number => (s.hints ? HINT_MULT : 1) * (s.cfg.root ? ROOT_MULT : 1);
-export const packetSpeed = (s: RunState): number => BASE_SPEED * (s.cfg.root ? ROOT_SPEED : 1) * waveFor(s.cfg.mode, s.wave).speedMult;
+export const multiplier = (s: RunState): number => (s.hints ? HINT_MULT : 1) * (s.cfg.root ? ROOT_MULT : 1) * DIFFICULTIES[s.cfg.difficulty].mult;
+export const packetSpeed = (s: RunState): number =>
+  BASE_SPEED * (s.cfg.root ? ROOT_SPEED : 1) * waveFor(s.cfg.mode, s.wave).speedMult * DIFFICULTIES[s.cfg.difficulty].speed;
 export const breachTotal = (st: Stats): number => Object.values(st.breaches).reduce((a, b) => a + b, 0);

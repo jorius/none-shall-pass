@@ -50,4 +50,11 @@ describe('Hud', () => {
     hud.refresh(run);
     expect(clock()).toBe('DESPEJANDO');
   });
+
+  it('draws one pip per point of the difficulty\'s reputation', () => {
+    expect(ui.querySelectorAll('.pips i').length).toBe(10);
+    hud.start(new Run(cfg({ difficulty: 'zeroday' })));
+    expect(ui.querySelectorAll('.pips i').length).toBe(5);
+    expect(ui.querySelectorAll('.pips i.off').length).toBe(0);
+  });
 });

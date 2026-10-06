@@ -1,6 +1,7 @@
 // core
 import { STEP } from './core/constants';
 import type { Mode } from './core/content/waves';
+import { allowsHints } from './core/difficulty';
 import type { RunEvent } from './core/events';
 import { konamiMatcher, routeKey, type Action, type Screen } from './core/keys';
 import { frameSteps } from './core/loop';
@@ -47,7 +48,8 @@ export class App {
   startRun(mode: Mode): void {
     this.cancelEnd();
     const hints = !this.root && !!this.store.prefs().hints;
-    this.run = new Run({ mode, seed: (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, root: this.root, hints });
+    // Every run is an Analyst on the Black Knight until the setup screen hands in the player's choice.
+    this.run = new Run({ mode, seed: (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, root: this.root, hints, difficulty: 'analyst', knight: 'black' });
     this.acc = 0;
     for (const v of this.views) v.start?.(this.run);
     this.setScreen('playing');
@@ -92,7 +94,7 @@ export class App {
   // so the field reads as a calm backdrop behind the semi-transparent title.
   quit(): void {
     this.cancelEnd();
-    const idle = new Run({ mode: 'campaign', seed: 1, root: this.root, hints: false });
+    const idle = new Run({ mode: 'campaign', seed: 1, root: this.root, hints: false, difficulty: 'analyst', knight: 'black' });
     for (const v of this.views) v.start?.(idle);
     this.run = null;
     this.setScreen('title');
@@ -152,7 +154,7 @@ export class App {
       case 'throw': this.dispatch(run.throwSpear()); break;
       case 'release': this.dispatch(run.target(null)); break;
       case 'hints':
-        if (run.state.cfg.root) break;
+        if (run.state.cfg.root || !allowsHints(run.state.cfg.difficulty)) break;
         run.setHints(!run.state.hints);
         this.store.setPrefs({ hints: run.state.hints });
         this.refresh();

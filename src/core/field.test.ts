@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 // core
 import { BASE_SPEED, ENTER_MULT, FW_X, HOLD_MULT, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY } from './constants';
 import { CAMPAIGN } from './content/waves';
+import type { Difficulty } from './difficulty';
 import type { RunEvent } from './events';
 import { pickTemplate, spawn, stepPackets, stepPending } from './field';
 import { mulberry32 } from './rng';
@@ -39,6 +40,17 @@ describe('spawn', () => {
       if (a !== b && a.lane === b.lane) expect(Math.abs(a.x - b.x)).toBeGreaterThanOrEqual(PKT_W);
     }
     expect(s.packets.length).toBeLessThanOrEqual(5);
+  });
+  it('deals no tricky or sneaky packet to an intern before wave 4', () => {
+    const tiers = (difficulty: Difficulty): number[] => {
+      const s = freshState({ difficulty }), ev: RunEvent[] = [], rng = mulberry32(9), out: number[] = [];
+      s.wave = 3;
+      for (let i = 0; i < 500; i++) { s.packets = []; out.push(spawn(s, rng, ev)!.t.tier ?? 1); }
+      return out;
+    };
+    expect(tiers('intern').every((t) => t === 1)).toBe(true);
+    // The same wave deals them to an analyst, so it is the gate that keeps them out.
+    expect(tiers('analyst').some((t) => t > 1)).toBe(true);
   });
 });
 

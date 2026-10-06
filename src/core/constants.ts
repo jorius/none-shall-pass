@@ -39,7 +39,7 @@ export const KNIGHT_FOOT_SPEED = 700;
 export const KNIGHT_HORSE_SPEED = 950;
 export const ROOT_SPEED = 1.25;
 
-// Scoring.
+// Scoring. The reputation here is the Analyst's; the state reads every difficulty's own cap from difficulty.ts.
 export const MAX_REP = 10;
 export const POINTS = {
   tier: { 1: 50, 2: 100, 3: 150 } as Record<Tier, number>,

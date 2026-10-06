@@ -1,8 +1,8 @@
 // core
-import { MAX_REP } from '../core/constants';
 import { CAMPAIGN } from '../core/content/waves';
 import type { RunEvent } from '../core/events';
 import type { Run } from '../core/run';
+import { repCap } from '../core/state';
 
 // game
 import type { View } from '../game/view';
@@ -93,7 +93,7 @@ export class Hud implements View {
     this.waveEl.replaceChildren(`${t('hud.wave')} `, el('b', '', undefined, n), ' · ', el('b', '', undefined, name), ' · ', el('b', '', undefined, clock));
     this.score.textContent = fmtNum(s.score);
     this.credits.textContent = fmtNum(s.credits);
-    this.pips.innerHTML = Array.from({ length: MAX_REP }, (_, i) => `<i class="${i < s.rep ? '' : 'off'}"></i>`).join('');
+    this.pips.innerHTML = Array.from({ length: repCap(s.cfg) }, (_, i) => `<i class="${i < s.rep ? '' : 'off'}"></i>`).join('');
     this.hints.textContent = s.hints ? t('hud.hintsOn') : t('hud.hintsOff');
     this.hints.classList.toggle('on', s.hints);
   }

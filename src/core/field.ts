@@ -2,35 +2,40 @@
 import { BRUTE_IPS, ENTER_MULT, FW_X, HOLD_MULT, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, TAR_MULT } from './constants';
 import { TEMPLATES } from './content/packets';
 import { waveFor, type WaveDef } from './content/waves';
+import { tierWeight } from './difficulty';
 import type { RunEvent } from './events';
 import { kill, resolve, untarget } from './outcomes';
 import { docIp, pick, type Rng } from './rng';
 import { firewallRule, lockdownBlocks, tarpitSlows } from './rules';
 import { packetSpeed, type Packet, type RunState } from './state';
-import type { Template } from './types';
+import type { Template, Tier } from './types';
 
-const weightIn = (def: WaveDef, t: Template): number => {
+// The difficulty's say on the deal: a weight multiplier per tier, 0 keeping that tier out of the wave.
+type TierMult = (tier: Tier) => number;
+
+const weightIn = (def: WaveDef, t: Template, tierMult: TierMult): number => {
   if (def.only && !def.only.includes(t.kind)) return 0;
-  return t.weight * (def.boost[t.kind] ?? 1) * (t.tier === 3 ? def.tier3Mult : 1);
+  return t.weight * (def.boost[t.kind] ?? 1) * (t.tier === 3 ? def.tier3Mult : 1) * tierMult(t.tier ?? 1);
 };
 
-export const pickTemplate = (rng: Rng, def: WaveDef): Template => {
-  const total = TEMPLATES.reduce((a, t) => a + weightIn(def, t), 0);
+export const pickTemplate = (rng: Rng, def: WaveDef, tierMult: TierMult = () => 1): Template => {
+  const total = TEMPLATES.reduce((a, t) => a + weightIn(def, t, tierMult), 0);
   let r = rng() * total;
   for (const t of TEMPLATES) {
-    const w = weightIn(def, t);
+    const w = weightIn(def, t, tierMult);
     if (w <= 0) continue;
     r -= w;
     if (r < 0) return t;
   }
-  return TEMPLATES.filter((t) => weightIn(def, t) > 0).at(-1)!;
+  return TEMPLATES.filter((t) => weightIn(def, t, tierMult) > 0).at(-1)!;
 };
 
 export const spawn = (s: RunState, rng: Rng, ev: RunEvent[]): Packet | null => {
   const def = waveFor(s.cfg.mode, s.wave);
+  const tierMult: TierMult = (tier) => tierWeight(s.cfg.difficulty, s.wave, tier);
   const startX = LANE_X0 - PKT_W;
   for (let tries = 0; tries < 5; tries++) {
-    const t = pickTemplate(rng, def);
+    const t = pickTemplate(rng, def, tierMult);
     if (s.packets.some((p) => !p.dead && p.lane === t.lane && p.x < startX + PKT_W + SPAWN_GAP)) continue;
     const src = t.fixedSrc ?? (t.kind === 'brute' && rng() < 0.6 ? pick(rng, BRUTE_IPS) : docIp(rng));
     if (t.lane <= 1) s.seen[src] = (s.seen[src] ?? 0) + 1;

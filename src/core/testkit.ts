@@ -2,7 +2,7 @@
 import { templateById } from './content/packets';
 import { createState, type Packet, type RunConfig, type RunState } from './state';
 
-export const cfg = (over: Partial<RunConfig> = {}): RunConfig => ({ mode: 'campaign', seed: 1, root: false, hints: false, ...over });
+export const cfg = (over: Partial<RunConfig> = {}): RunConfig => ({ mode: 'campaign', seed: 1, root: false, hints: false, difficulty: 'analyst', knight: 'black', ...over });
 
 export const freshState = (over: Partial<RunConfig> = {}): RunState => createState(cfg(over));
 

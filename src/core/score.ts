@@ -1,5 +1,7 @@
 // core
+import type { KnightId } from './content/knights';
 import type { Mode } from './content/waves';
+import type { Difficulty } from './difficulty';
 import { breachTotal, type EndReason, type RunState, type Stats } from './state';
 import type { Lang } from './types';
 
@@ -7,6 +9,8 @@ export type Grade = 'S' | 'A' | 'B' | 'C' | 'D' | 'F';
 
 export interface RunResult {
   mode: Mode;
+  difficulty: Difficulty;
+  knight: KnightId;
   root: boolean;
   tampered: boolean;
   won: boolean;
@@ -23,6 +27,8 @@ export const SHARE_URL = 'jorius.github.io/none-shall-pass';
 
 export const resultOf = (s: RunState): RunResult => ({
   mode: s.cfg.mode,
+  difficulty: s.cfg.difficulty,
+  knight: s.cfg.knight,
   root: s.cfg.root,
   tampered: s.tampered,
   won: s.endReason === 'won',

@@ -23,7 +23,7 @@ const throwing: Storage = {
 };
 
 const result = (over: Partial<RunResult>): RunResult => ({
-  mode: 'campaign', root: false, tampered: false, won: true, reason: 'won', score: 1000, wave: 6, wavesCleared: 6, uptime: 90, rep: 10,
+  mode: 'campaign', difficulty: 'analyst', knight: 'black', root: false, tampered: false, won: true, reason: 'won', score: 1000, wave: 6, wavesCleared: 6, uptime: 90, rep: 10,
   stats: { hits: { 1: 0, 2: 0, 3: 0 }, squireHits: 0, ruleBlocks: 0, served: 0, decoysKept: 0, neutralized: 0, falsePositives: 0, breaches: { sqli: 0, xss: 0, brute: 0, scan: 0, flood: 0 }, wavesCleared: 6 },
   ...over,
 });
