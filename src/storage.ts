@@ -1,22 +1,31 @@
 // core
+import { KNIGHT_IDS, type KnightId } from './core/content/knights';
+import { DIFFICULTY_IDS, type Difficulty } from './core/difficulty';
 import { grade as gradeOf, type Grade, type RunResult } from './core/score';
 import type { Lang } from './core/types';
 
+// A best is kept per difficulty and root mode: 'analyst-normal', 'zeroday-root' and so on.
+export type Slot = `${Difficulty}-${'normal' | 'root'}`;
+export const slotOf = (r: { difficulty: Difficulty; root: boolean }): Slot => `${r.difficulty}-${r.root ? 'root' : 'normal'}`;
+
 export interface Bests {
-  campaign: Partial<Record<'normal' | 'root', { score: number; grade: Grade }>>;
-  overtime: Partial<Record<'normal' | 'root', { wave: number; score: number }>>;
+  campaign: Partial<Record<Slot, { score: number; grade: Grade }>>;
+  overtime: Partial<Record<Slot, { wave: number; score: number }>>;
   won: boolean;
 }
-export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean; coached?: boolean }
-interface Saved { bests: Bests; prefs: Prefs }
+export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean; coached?: boolean; knight?: KnightId; difficulty?: Difficulty; sound?: boolean; music?: boolean; volume?: 0 | 1 | 2 | 3 }
+interface Saved { version: 2; bests: Bests; prefs: Prefs }
 
+// The key never changed: a v1 save (no version, one difficulty) reads into the Analyst's slots and is written back as v2.
 const KEY = 'nsp.v1';
-const SLOTS = ['normal', 'root'] as const;
+const SLOTS: readonly Slot[] = DIFFICULTY_IDS.flatMap((d) => [`${d}-normal`, `${d}-root`] as Slot[]);
 const GRADES: readonly string[] = ['S', 'A', 'B', 'C', 'D', 'F'] satisfies Grade[];
-const empty = (): Saved => ({ bests: { campaign: {}, overtime: {}, won: false }, prefs: {} });
+const empty = (): Saved => ({ version: 2, bests: { campaign: {}, overtime: {}, won: false }, prefs: {} });
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+const isSlot = (k: string): k is Slot => (SLOTS as readonly string[]).includes(k);
+const oneOf = (ids: readonly string[], x: unknown): boolean => typeof x === 'string' && ids.includes(x);
 
 // A hand-edited or corrupted save keeps only the fields that still have the right shape.
 const parse = (raw: string | null): Saved => {
@@ -26,18 +35,29 @@ const parse = (raw: string | null): Saved => {
   if (!isObj(v)) return out;
   const b = isObj(v.bests) ? v.bests : {};
   const camp = isObj(b.campaign) ? b.campaign : {}, over = isObj(b.overtime) ? b.overtime : {};
-  for (const slot of SLOTS) {
-    const c = camp[slot], o = over[slot];
-    if (isObj(c) && isNum(c.score) && typeof c.grade === 'string' && GRADES.includes(c.grade)) {
+  // Before v2 there was one difficulty, so a v1 save's two slots are the Analyst's.
+  const v2 = v.version === 2;
+  const rename = (k: string): string => (v2 ? k : k === 'normal' ? 'analyst-normal' : k === 'root' ? 'analyst-root' : k);
+  for (const [k, c] of Object.entries(camp)) {
+    const slot = rename(k);
+    if (isSlot(slot) && isObj(c) && isNum(c.score) && typeof c.grade === 'string' && GRADES.includes(c.grade)) {
       out.bests.campaign[slot] = { score: c.score, grade: c.grade as Grade };
     }
-    if (isObj(o) && isNum(o.wave) && isNum(o.score)) out.bests.overtime[slot] = { wave: o.wave, score: o.score };
+  }
+  for (const [k, o] of Object.entries(over)) {
+    const slot = rename(k);
+    if (isSlot(slot) && isObj(o) && isNum(o.wave) && isNum(o.score)) out.bests.overtime[slot] = { wave: o.wave, score: o.score };
   }
   out.bests.won = b.won === true;
-  // Every pref except the language is a flag, including ones added later.
+  // The prefs named here have a shape of their own; every other pref is a flag, including ones added later.
   const prefs = out.prefs as Record<string, unknown>;
   for (const [k, x] of Object.entries(isObj(v.prefs) ? v.prefs : {})) {
-    if (k === 'lang' ? x === 'en' || x === 'es' : typeof x === 'boolean') prefs[k] = x;
+    const ok = k === 'lang' ? x === 'en' || x === 'es'
+      : k === 'knight' ? oneOf(KNIGHT_IDS, x)
+        : k === 'difficulty' ? oneOf(DIFFICULTY_IDS, x)
+          : k === 'volume' ? Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 3
+            : typeof x === 'boolean';
+    if (ok) prefs[k] = x;
   }
   return out;
 };
@@ -59,7 +79,7 @@ export const createStore = (backend: Storage | null = browserStorage()) => {
     setPrefs(p: Partial<Prefs>): void { data.prefs = { ...data.prefs, ...p }; save(); },
     recordResult(r: RunResult): { newBest: boolean } {
       if (r.tampered) return { newBest: false };
-      const slot = r.root ? 'root' : 'normal';
+      const slot = slotOf(r);
       let newBest = false;
       if (r.mode === 'campaign') {
         if (r.won) data.bests.won = true;

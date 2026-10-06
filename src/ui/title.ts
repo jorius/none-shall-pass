@@ -1,13 +1,17 @@
+// core
+import type { Difficulty } from '../core/difficulty';
+
 // i18n
 import { fmtNum, t } from '../i18n';
 
 // local
-import type { Bests } from '../storage';
+import { slotOf, type Bests } from '../storage';
 import { button, el } from './dom';
 
 export interface TitleDeps {
   bests: Bests;
   root: boolean;
+  difficulty: Difficulty;
   play(): void;
   overtime(): void;
   howto(): void;
@@ -25,7 +29,7 @@ export const renderTitle = (box: HTMLElement, d: TitleDeps): void => {
   button(btns, 'btn ghost', t('title.howto'), d.howto);
   button(btns, 'btn ghost', t('lang.toggle'), d.toggleLang);
   if (!d.bests.won) el('div', 'note', box, `${t('title.overtime')}: ${t('title.overtimeLocked')}`);
-  const slot = d.root ? 'root' : 'normal';
+  const slot = slotOf({ difficulty: d.difficulty, root: d.root });
   const c = d.bests.campaign[slot], o = d.bests.overtime[slot];
   if (c || o) {
     const best = el('div', 'best', box);

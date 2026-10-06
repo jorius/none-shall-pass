@@ -428,6 +428,7 @@ const CHECKS = {
     await fits(page, 'title');
     await page.screenshot({ path: `${OUT}/title.png` });
     // After a won campaign Overtime opens and the bests show; at their longest, in Spanish too.
+    // A v1 save, as a returning player has one: it reads into the Analyst's slots, the ones the title shows.
     await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ bests: { campaign: { normal: { score: 188420, grade: 'A' } }, overtime: { normal: { wave: 14, score: 288888 } }, won: true }, prefs: { lang: 'en', coached: true } })));
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('#ui .ov-title .best');
@@ -635,7 +636,7 @@ const CHECKS = {
     await page.screenshot({ path: `${OUT}/debrief.png` });
     const shown = await page.evaluate(() => ({
       share: document.querySelector('#ui .share').value, mistakes: document.querySelectorAll('#ui .mistake').length,
-      best: JSON.parse(localStorage.getItem('nsp.v1')).bests.campaign.normal, grade: document.querySelector('#ui .grade').textContent,
+      best: JSON.parse(localStorage.getItem('nsp.v1')).bests.campaign['analyst-normal'], grade: document.querySelector('#ui .grade').textContent,
     }));
     if (!shown.share.includes('jorius.github.io/none-shall-pass')) throw new Error('share text missing link');
     if (!shown.mistakes || shown.grade !== 'F' || !shown.best) throw new Error(`debrief: ${JSON.stringify(shown)}`);
@@ -804,7 +805,7 @@ const CHECKS = {
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => window.__nsp.app.screen === 'draft');
     const sent = JSON.stringify(await page.evaluate(() => window.__sent));
-    const want = JSON.stringify([['game-start', { mode: 'campaign', root: false }], ['console-opened', null], ['wave-cleared', { mode: 'campaign', wave: 1, tampered: true }]]);
+    const want = JSON.stringify([['game-start', { mode: 'campaign', root: false, difficulty: 'analyst', knight: 'black' }], ['console-opened', null], ['wave-cleared', { mode: 'campaign', wave: 1, tampered: true }]]);
     if (sent !== want) throw new Error(`sent ${sent}`);
   },
   async phone(page) {

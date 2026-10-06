@@ -19,7 +19,7 @@ export class AnalyticsView implements View {
 
   // Views also start with the idle run behind the title; only the App's own run is a game.
   start(run: Run): void {
-    if (run === this.app.run) track('game-start', { mode: run.state.cfg.mode, root: run.state.cfg.root });
+    if (run === this.app.run) track('game-start', { mode: run.state.cfg.mode, root: run.state.cfg.root, difficulty: run.state.cfg.difficulty, knight: run.state.cfg.knight });
   }
 
   event(ev: RunEvent, run: Run): void {

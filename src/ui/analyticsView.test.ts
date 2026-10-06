@@ -26,7 +26,7 @@ describe('AnalyticsView', () => {
     expect(sent).toEqual([]);
     app.startRun('campaign');
     app.quit();
-    expect(sent).toEqual([['game-start', { mode: 'campaign', root: false }]]);
+    expect(sent).toEqual([['game-start', { mode: 'campaign', root: false, difficulty: 'analyst', knight: 'black' }]]);
   });
 
   it('reports cleared waves, the console and the root switch, once each', () => {
@@ -39,7 +39,7 @@ describe('AnalyticsView', () => {
     app.act('console');
     expect(sent).toEqual([
       ['root-mode', { on: true }],
-      ['game-start', { mode: 'overtime', root: true }],
+      ['game-start', { mode: 'overtime', root: true, difficulty: 'analyst', knight: 'black' }],
       // Skipped from the console, so the wave is marked as a tampered run's.
       ['wave-cleared', { mode: 'overtime', wave: 1, tampered: true }],
       ['console-opened', null],

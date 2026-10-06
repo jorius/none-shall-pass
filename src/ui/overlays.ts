@@ -13,6 +13,7 @@ import { lang, setLang } from '../i18n';
 
 // local
 import type { App } from '../app';
+import { slotOf } from '../storage';
 import { renderDebrief, type PrevBest } from './debrief';
 import { el } from './dom';
 import { renderDraft } from './draftPanel';
@@ -32,7 +33,7 @@ export class Overlays implements View {
     app.onScreen = (s) => this.onScreen(s);
     // Saved the moment the run ends, once; the debrief comes up later with the best it had to beat.
     app.onEnd = (run) => {
-      const r = resultOf(run.state), slot = r.root ? 'root' : 'normal', bests = app.store.bests();
+      const r = resultOf(run.state), slot = slotOf(r), bests = app.store.bests();
       const before = r.mode === 'campaign' ? bests.campaign[slot] : bests.overtime[slot];
       const prev = before ? { ...before } : null;
       const { newBest } = app.store.recordResult(r);
@@ -119,7 +120,8 @@ export class Overlays implements View {
     const a = this.app;
     switch (this.kind) {
       case 'title':
-        renderTitle(this.box, { bests: a.store.bests(), root: a.root, play: () => a.startRun('campaign'), overtime: () => a.startRun('overtime'), howto: () => this.show('howto'), toggleLang: this.toggleLang });
+        // The title shows the bests of the difficulty last chosen (the Analyst's until one is), as the setup screen will set it.
+        renderTitle(this.box, { bests: a.store.bests(), root: a.root, difficulty: a.store.prefs().difficulty ?? 'analyst', play: () => a.startRun('campaign'), overtime: () => a.startRun('overtime'), howto: () => this.show('howto'), toggleLang: this.toggleLang });
         break;
       case 'howto':
         renderHowto(this.box, () => this.show('title'));

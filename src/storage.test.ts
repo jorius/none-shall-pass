@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 
 // local
 import type { RunResult } from './core/score';
-import { createStore } from './storage';
+import { createStore, slotOf } from './storage';
 
-const memory = (): Storage => {
+const fakeStorage = (): Storage => {
   const m = new Map<string, string>();
   return {
     get length() { return m.size; },
@@ -30,88 +30,88 @@ const result = (over: Partial<RunResult>): RunResult => ({
 
 describe('store', () => {
   it('records campaign bests per mode and marks the campaign as won', () => {
-    const st = createStore(memory());
+    const st = createStore(fakeStorage());
     expect(st.recordResult(result({ score: 1000 })).newBest).toBe(true);
     expect(st.recordResult(result({ score: 500 })).newBest).toBe(false);
     expect(st.recordResult(result({ score: 2000, root: true })).newBest).toBe(true);
     const b = st.bests();
-    expect(b.campaign.normal?.score).toBe(1000);
-    expect(b.campaign.root?.score).toBe(2000);
+    expect(b.campaign['analyst-normal']?.score).toBe(1000);
+    expect(b.campaign['analyst-root']?.score).toBe(2000);
     expect(b.won).toBe(true);
   });
 
   it('records overtime by wave, then score', () => {
-    const st = createStore(memory());
+    const st = createStore(fakeStorage());
     st.recordResult(result({ mode: 'overtime', wave: 4, score: 9000, won: false, reason: 'serverDown' }));
     expect(st.recordResult(result({ mode: 'overtime', wave: 5, score: 100, won: false, reason: 'serverDown' })).newBest).toBe(true);
-    expect(st.bests().overtime.normal).toEqual({ wave: 5, score: 100 });
+    expect(st.bests().overtime['analyst-normal']).toEqual({ wave: 5, score: 100 });
   });
 
   it('never saves tampered runs', () => {
-    const st = createStore(memory());
+    const st = createStore(fakeStorage());
     expect(st.recordResult(result({ tampered: true, score: 99999 })).newBest).toBe(false);
-    expect(st.bests().campaign.normal).toBeUndefined();
+    expect(st.bests().campaign['analyst-normal']).toBeUndefined();
     expect(st.bests().won).toBe(false);
   });
 
   it('survives a blocked backend and garbage data', () => {
     const st = createStore(throwing);
     expect(st.recordResult(result({})).newBest).toBe(true);
-    expect(st.bests().campaign.normal?.score).toBe(1000);
+    expect(st.bests().campaign['analyst-normal']?.score).toBe(1000);
     st.setPrefs({ lang: 'es' });
     expect(st.prefs().lang).toBe('es');
-    const m = memory();
+    const m = fakeStorage();
     m.setItem('nsp.v1', '{not json');
     expect(createStore(m).bests()).toEqual({ campaign: {}, overtime: {}, won: false });
     expect(createStore(null).prefs()).toEqual({});
   });
 
   it('persists prefs across instances', () => {
-    const m = memory();
+    const m = fakeStorage();
     createStore(m).setPrefs({ hints: true, lang: 'en' });
     expect(createStore(m).prefs()).toEqual({ hints: true, lang: 'en' });
   });
 
   it('remembers bests and their grade across instances, and only a win marks the campaign won', () => {
-    const m = memory();
+    const m = fakeStorage();
     const st = createStore(m);
     st.recordResult(result({ won: false, reason: 'serverDown', uptime: 0, score: 700 }));
     expect(st.bests().won).toBe(false);
     st.recordResult(result({ score: 1200 }));
     st.recordResult(result({ mode: 'overtime', wave: 3, score: 50, won: false, reason: 'serverDown' }));
-    expect(createStore(m).bests()).toEqual({ campaign: { normal: { score: 1200, grade: 'S' } }, overtime: { normal: { wave: 3, score: 50 } }, won: true });
+    expect(createStore(m).bests()).toEqual({ campaign: { 'analyst-normal': { score: 1200, grade: 'S' } }, overtime: { 'analyst-normal': { wave: 3, score: 50 } }, won: true });
   });
 
   it('ranks a campaign win above any loss, then by score, and a tie keeps the best it has', () => {
-    const st = createStore(memory());
+    const st = createStore(fakeStorage());
     const lost = (score: number): RunResult => result({ won: false, reason: 'serverDown', uptime: 0, score });
     // An S grade needs a clean, healthy win; a C only a win.
     const won = (score: number, uptime = 95): RunResult => result({ score, uptime });
     expect(st.recordResult(won(15000)).newBest).toBe(true);
     expect(st.recordResult(lost(16000)).newBest).toBe(false);
-    expect(st.bests().campaign.normal).toEqual({ score: 15000, grade: 'S' });
+    expect(st.bests().campaign['analyst-normal']).toEqual({ score: 15000, grade: 'S' });
     expect(st.recordResult(won(15000)).newBest).toBe(false);
     expect(st.recordResult(won(15001)).newBest).toBe(true);
     expect(st.recordResult(won(9000, 30)).newBest).toBe(false);
-    expect(st.bests().campaign.normal).toEqual({ score: 15001, grade: 'S' });
+    expect(st.bests().campaign['analyst-normal']).toEqual({ score: 15001, grade: 'S' });
     // The root slot starts with a loss: a higher-scoring loss replaces it, then a lower-scoring win replaces that.
     expect(st.recordResult({ ...lost(16000), root: true }).newBest).toBe(true);
     expect(st.recordResult({ ...lost(12000), root: true }).newBest).toBe(false);
     expect(st.recordResult({ ...lost(17000), root: true }).newBest).toBe(true);
-    expect(st.bests().campaign.root).toEqual({ score: 17000, grade: 'F' });
+    expect(st.bests().campaign['analyst-root']).toEqual({ score: 17000, grade: 'F' });
     expect(st.recordResult({ ...won(9000, 30), root: true }).newBest).toBe(true);
-    expect(st.bests().campaign.root).toEqual({ score: 9000, grade: 'C' });
+    expect(st.bests().campaign['analyst-root']).toEqual({ score: 9000, grade: 'C' });
     expect(st.bests().won).toBe(true);
   });
 
   it('breaks an overtime wave tie on score', () => {
-    const st = createStore(memory());
+    const st = createStore(fakeStorage());
     const ot = (wave: number, score: number): RunResult => result({ mode: 'overtime', wave, score, won: false, reason: 'serverDown' });
     st.recordResult(ot(5, 100));
     expect(st.recordResult(ot(5, 90)).newBest).toBe(false);
     expect(st.recordResult(ot(5, 200)).newBest).toBe(true);
     expect(st.recordResult(ot(4, 9000)).newBest).toBe(false);
-    expect(st.bests().overtime.normal).toEqual({ wave: 5, score: 200 });
+    expect(st.bests().overtime['analyst-normal']).toEqual({ wave: 5, score: 200 });
   });
 });
 
@@ -129,7 +129,7 @@ const withGlobalStorage = (desc: PropertyDescriptor, fn: () => void): void => {
 
 describe('store against a hostile browser', () => {
   it('uses the browser localStorage by default', () => {
-    const m = memory();
+    const m = fakeStorage();
     withGlobalStorage({ value: m }, () => { createStore().setPrefs({ hints: true }); });
     expect(createStore(m).prefs()).toEqual({ hints: true });
   });
@@ -139,12 +139,12 @@ describe('store against a hostile browser', () => {
     withGlobalStorage({ get() { throw new DOMException('denied', 'SecurityError'); } }, () => {
       const st = createStore();
       expect(st.recordResult(result({})).newBest).toBe(true);
-      expect(st.bests().campaign.normal?.score).toBe(1000);
+      expect(st.bests().campaign['analyst-normal']?.score).toBe(1000);
     });
   });
 
   it('drops saved values of the wrong shape and keeps the rest', () => {
-    const m = memory();
+    const m = fakeStorage();
     m.setItem('nsp.v1', JSON.stringify({
       bests: {
         campaign: { normal: { score: 'lots', grade: 'S' }, root: { score: 4000, grade: 'A' } },
@@ -154,7 +154,8 @@ describe('store against a hostile browser', () => {
       prefs: { lang: 'fr', hints: 'yes', reducedFx: true },
     }));
     const st = createStore(m);
-    expect(st.bests()).toEqual({ campaign: { root: { score: 4000, grade: 'A' } }, overtime: {}, won: false });
+    // A v1 save (no version): what survives lands in the Analyst's slots.
+    expect(st.bests()).toEqual({ campaign: { 'analyst-root': { score: 4000, grade: 'A' } }, overtime: {}, won: false });
     expect(st.prefs()).toEqual({ reducedFx: true });
     expect(st.recordResult(result({ score: 10 })).newBest).toBe(true);
     for (const raw of ['null', '[]', '"x"', '42', '{"bests":"x","prefs":[true]}', '{"bests":{"campaign":{"normal":{"score":5,"grade":"Z"}}}}']) {
@@ -166,8 +167,42 @@ describe('store against a hostile browser', () => {
 
   it('keeps boolean prefs it does not know yet', () => {
     // Later prefs (the coach's seen-flag) are booleans too, so they survive without touching the validator.
-    const m = memory();
+    const m = fakeStorage();
     m.setItem('nsp.v1', '{"prefs":{"lang":"es","coached":true}}');
     expect(createStore(m).prefs()).toEqual({ lang: 'es', coached: true });
+  });
+});
+
+describe('v2 bests', () => {
+  it('keys the bests by difficulty and root', () => {
+    const st = createStore(fakeStorage());
+    st.recordResult(result({ difficulty: 'intern', score: 500, won: true }));
+    st.recordResult(result({ difficulty: 'zeroday', root: true, score: 900, won: false }));
+    expect(st.bests().campaign['intern-normal']).toEqual({ score: 500, grade: expect.any(String) });
+    expect(st.bests().campaign['zeroday-root']).toEqual({ score: 900, grade: 'F' });
+    expect(st.bests().campaign['analyst-normal']).toBeUndefined();
+    expect(slotOf({ difficulty: 'incident', root: false })).toBe('incident-normal');
+  });
+
+  it('migrates a v1 save into the Analyst slots and keeps the win', () => {
+    const backend = fakeStorage();
+    backend.setItem('nsp.v1', JSON.stringify({ bests: { campaign: { normal: { score: 15000, grade: 'S' }, root: { score: 200, grade: 'F' } }, overtime: { root: { wave: 7, score: 9000 } }, won: true }, prefs: { lang: 'es', hints: true } }));
+    const st = createStore(backend);
+    expect(st.bests().campaign['analyst-normal']).toEqual({ score: 15000, grade: 'S' });
+    expect(st.bests().campaign['analyst-root']).toEqual({ score: 200, grade: 'F' });
+    expect(st.bests().overtime['analyst-root']).toEqual({ wave: 7, score: 9000 });
+    expect(st.bests().won).toBe(true);
+    expect(st.prefs()).toEqual({ lang: 'es', hints: true });
+    st.setPrefs({ difficulty: 'incident' });
+    expect(JSON.parse(backend.getItem('nsp.v1')!).version).toBe(2);
+  });
+
+  it('keeps only valid knight, difficulty and volume prefs', () => {
+    const backend = fakeStorage();
+    backend.setItem('nsp.v1', JSON.stringify({ version: 2, bests: { campaign: {}, overtime: {}, won: false }, prefs: { knight: 'ghost', difficulty: 'nightmare', volume: 7, sound: false, music: 'yes' } }));
+    const st = createStore(backend);
+    expect(st.prefs()).toEqual({ knight: 'ghost', sound: false });
+    st.setPrefs({ volume: 2, difficulty: 'intern' });
+    expect(createStore(backend).prefs()).toMatchObject({ volume: 2, difficulty: 'intern' });
   });
 });

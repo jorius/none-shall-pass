@@ -289,7 +289,7 @@ describe('Overlays', () => {
     expect(box().querySelector('.mistake code')?.textContent).toBe('W1 · FALSE POSITIVE · <img src=x onerror="window.__pwned=1">');
     expect(box().querySelector('img')).toBeNull();
     expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('OVERTIME');
-    expect(store.bests().overtime.normal).toEqual({ wave: 1, score: 0 });
+    expect(store.bests().overtime['analyst-normal']).toEqual({ wave: 1, score: 0 });
     named(/PLAY AGAIN/).click();
     expect([app.screen, app.run?.state.cfg.mode, app.run?.state.log.length]).toEqual(['playing', 'overtime', 0]);
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
