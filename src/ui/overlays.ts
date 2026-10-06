@@ -48,6 +48,8 @@ export class Overlays implements View {
   // Drawn again (a pick, a refresh, a language switch), the same hand or run comes up finished, not replayed.
   private dealt: object | null = null;
   private debriefed: object | null = null;
+  // What a pick has sent flying (the icon's copy, then the tile's twin): they live on the layer, outside the box, so a screen change clears them.
+  private readonly flying = new Set<HTMLElement>();
 
   constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView; audio: Pick<AudioView, 'settings' | 'set'> }) {
     this.box = el('div', 'ov', ui);
@@ -106,6 +108,7 @@ export class Overlays implements View {
   }
 
   private show(kind: Kind): void {
+    this.clearFlights();
     // The Armory gives CLOSE the focus to everyone, so on the way out the focus tells nothing about the player: the way in does.
     // A keyboard player gets back the button they left (a draft opened on T from card 3 comes back on card 3, never on card 1,
     // where the next Space would spend the free pick), and a player with none gets none (never a card under Space).
@@ -122,6 +125,7 @@ export class Overlays implements View {
   }
 
   private hide(): void {
+    this.clearFlights();
     this.kind = 'none';
     this.box.className = 'ov';
     this.box.innerHTML = '';
@@ -148,20 +152,48 @@ export class Overlays implements View {
   }
 
   private fly(img: HTMLImageElement, from: DOMRect): void {
-    const tiles = this.ui.querySelectorAll('.loadout .ltile'), tile = tiles[tiles.length - 1];
+    const tiles = this.ui.querySelectorAll<HTMLElement>('.loadout .ltile'), tile = tiles[tiles.length - 1];
     if (!tile || this.opts.effects.reduced || typeof img.animate !== 'function') return;
     // The layer is scaled to the window, so screen measurements are divided by that scale to get back to its own 1280×720 pixels.
     const ui = this.ui.getBoundingClientRect(), k = ui.width / SCREEN_W || 1, to = tile.getBoundingClientRect();
+    const place = (e: HTMLElement, r: DOMRect): void => {
+      e.style.left = `${(r.left - ui.left) / k}px`;
+      e.style.top = `${(r.top - ui.top) / k}px`;
+      e.style.width = `${r.width / k}px`;
+      e.style.height = `${r.height / k}px`;
+    };
     img.classList.add('fly');
-    img.style.left = `${(from.left - ui.left) / k}px`;
-    img.style.top = `${(from.top - ui.top) / k}px`;
-    img.style.width = `${from.width / k}px`;
-    img.style.height = `${from.height / k}px`;
+    place(img, from);
     this.ui.appendChild(img);
-    // Centre to centre; it shrinks on the way, and is gone when it lands (the tile pulses once the field is back in view).
+    this.flying.add(img);
+    // The column is under the screen's backdrop (and, from its fifth tile down, under the third card), so a copy that landed there would land
+    // on nothing. It is swapped for a twin of the tile at the tile's own place, over the screen, which pulses once as the real tile will when
+    // the field is back in view. The twin is made now: a rebuilt column would take the tile away from under it.
+    const twin = tile.cloneNode(true) as HTMLElement;
+    twin.classList.add('ltile-ghost', 'flash');
+    twin.removeAttribute('title');
+    twin.setAttribute('aria-hidden', 'true');
+    place(twin, to);
+    twin.addEventListener('animationend', () => this.release(twin));
+    // Centre to centre; it shrinks on the way. A screen change in the meantime has cleared it, and nothing is left to land.
     const dx = (to.left + to.width / 2 - (from.left + from.width / 2)) / k, dy = (to.top + to.height / 2 - (from.top + from.height / 2)) / k;
     const flight = img.animate([{ transform: 'translate(0,0)' }, { transform: `translate(${dx}px, ${dy}px) scale(.6)` }], { duration: 300, easing: 'ease-in' });
-    flight.onfinish = () => img.remove();
+    flight.onfinish = () => {
+      if (!this.flying.has(img)) return;
+      this.release(img);
+      this.ui.appendChild(twin);
+      this.flying.add(twin);
+    };
+  }
+
+  private release(e: HTMLElement): void {
+    e.remove();
+    this.flying.delete(e);
+  }
+
+  private clearFlights(): void {
+    for (const e of this.flying) e.remove();
+    this.flying.clear();
   }
 
   private toggleLang = (): void => {

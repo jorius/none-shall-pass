@@ -2,7 +2,7 @@
 import Phaser from 'phaser';
 
 // core
-import { FIELD_TOP, FW_X, PKT_H, PKT_W } from '../../core/constants';
+import { FIELD_TOP, FW_X, LANE_X0, PKT_H, PKT_W } from '../../core/constants';
 import type { RunEvent } from '../../core/events';
 import { CSS } from '../../core/palette';
 import { isBugged } from '../../core/rules';
@@ -29,10 +29,14 @@ import type { EffectsView } from './effects';
 
 const POOL = 48;
 
+// A card pops once, the first frame it stands wholly clear of the lane gutter (it spawns under it): it drops to this share of its size
+// about its centre, and settles back to full size, with a little overshoot, over this many seconds of the view clock.
+const POP_FROM = 0.9, POP_SECS = 0.12;
+
 // Cards sit on whole device pixels, so the 2x canvas is drawn 1:1 and never resampled.
 const snap = (v: number): number => Math.round(v * RENDER_SCALE) / RENDER_SCALE;
 
-interface Visual { slot: number; box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; rig: BugRig | null; key: string }
+interface Visual { slot: number; box: Phaser.GameObjects.Container; img: Phaser.GameObjects.Image; rig: BugRig | null; key: string; popped: boolean; popAt: number | null }
 
 // Packet cards on pooled 2x canvases, the bugs that eat their frames, and the target brackets.
 export class PacketsView implements View {
@@ -114,11 +118,6 @@ export class PacketsView implements View {
     const img = this.scene.add.image(0, 0, `card-${slot}`).setOrigin(0, 0).setScale(1 / 2);
     // One box per packet holds its card and its bugs; the name lets the smoke test read the stacking.
     const box = this.scene.add.container(snap(p.x), packetY(p), [img]).setName(`packet-${p.id}`);
-    // The card pops in a touch small and settles to full size; reduced effects have it full size from the start.
-    if (!this.scene.reduced) {
-      box.setScale(0.9);
-      this.scene.tweens.add({ targets: box, scale: 1, duration: 120, ease: 'Back.easeOut' });
-    }
     // Newest on top, as in the mock, but under the locked card, the brackets and the tag.
     const raised = this.raised !== null ? this.visuals.get(this.raised)?.box : undefined;
     layer.addAt(box, layer.getIndex(raised ?? this.overlay));
@@ -128,7 +127,7 @@ export class PacketsView implements View {
       // The crumbs fall where the bite is, in field coordinates; reduced effects drop none.
       rig = new BugRig(this.scene, box, kind, PKT_W, PKT_H, p.id * 7919, (x, y) => this.effects?.crumbs(snap(p.x) + x, packetY(p) + y, this.scene.reduced ? 0 : 2));
     }
-    this.visuals.set(p.id, { slot, box, img, rig, key: '' });
+    this.visuals.set(p.id, { slot, box, img, rig, key: '', popped: false, popAt: null });
   }
 
   private drop(id: number): void {
@@ -139,6 +138,19 @@ export class PacketsView implements View {
     this.free.push(v.slot);
     this.visuals.delete(id);
     if (this.hovered === id) { this.hovered = null; this.intents.hover(null); }
+  }
+
+  // The card's scale this frame. The pop starts on the first frame the card's left edge is at the gutter's (a card spawns with its right
+  // edge there, so a pop at spawn is hidden), once per card, on the view clock so a pause holds it; reduced effects have none.
+  private pop(v: Visual, x: number, time: number): number {
+    if (!v.popped && x >= LANE_X0) {
+      v.popped = true;
+      if (!this.scene.reduced) v.popAt = time;
+    }
+    if (v.popAt === null) return 1;
+    const k = (time - v.popAt) / POP_SECS;
+    if (k >= 1) { v.popAt = null; return 1; }
+    return POP_FROM + (1 - POP_FROM) * Phaser.Math.Easing.Back.Out(k);
   }
 
   // Spawn order with the locked card raised above the rest, like the mock's z-index.
@@ -202,8 +214,10 @@ export class PacketsView implements View {
       if (!v) continue;
       const x = snap(p.x);
       this.paint(p, v, run);
-      // A one-pixel bob on the card alone, each on its own phase (a 1.6 s period); hit tests and the brackets go by the lane, not by it.
-      v.box.setPosition(x, packetY(p) + (this.scene.reduced ? 0 : Math.round(Math.sin(time * 3.9 + p.id))));
+      // A one-pixel bob on the card alone, each on its own phase (a 1.6 s period), and the pop, which scales it about its centre: a container
+      // scales about its corner, so the corner moves in by the share the card has shrunk. Hit tests and the brackets go by the lane, not by these.
+      const scale = this.pop(v, x, time), bob = this.scene.reduced ? 0 : Math.round(Math.sin(time * 3.9 + p.id));
+      v.box.setScale(scale).setPosition(x + (1 - scale) * PKT_W / 2, packetY(p) + bob + (1 - scale) * PKT_H / 2);
       v.img.setCrop(0, 0, p.entering ? Math.max(0, (FW_X - x) * 2) : CARD_TEX_W, CARD_TEX_H);
       // The rig runs on the view clock (it stops with a pause) and, like the card, nothing of it shows past the fire.
       if (v.rig) { v.rig.frame(time + this.lead, dt, this.scene.reduced); v.rig.clip(FW_X - x); }

@@ -9,8 +9,8 @@ import { chromium } from 'playwright';
 const PORT = 4318;
 const URL = `http://localhost:${PORT}/none-shall-pass/`;
 const OUT = 'smoke-out';
-// A packet card's size and its offset in the lane, as src/core/constants.ts has them: the page does not expose them.
-const PKT_W = 340, PKT_H = 54, PKT_Y = 18;
+// A packet card's size, its offset in the lane and the lane gutter's edge, as src/core/constants.ts has them: the page does not expose them.
+const PKT_W = 340, PKT_H = 54, PKT_Y = 18, LANE_X0 = 110;
 
 // Steps the run inside the page until `cond(state, arg)` holds, so a check gets its log entries however slow the frame rate.
 const stepUntil = async (page, cond, arg) => {
@@ -1300,9 +1300,9 @@ const CHECKS = {
       app.dispatch([{ type: 'resolved', packet, outcome: 'breach', damage: 10 }]);
       return { calls: [...window.__smokeSparks], fresh: sparks.getAliveParticleCount() - before, lane: packet.lane };
     });
-    // The draft with the first card that is not the backup taken (the backup has no tile to fly to): what flew, if anything.
+    // The draft with the first card still to take that is not the backup taken (the backup has no tile to fly to): what flew, if anything.
     const take = () => page.evaluate(() => {
-      const d = window.__nsp.app.run.state.draft, i = d.picks.findIndex((c) => c.id !== 'backup');
+      const d = window.__nsp.app.run.state.draft, i = d.picks.findIndex((c) => c.id !== 'backup' && !d.taken.includes(c.id));
       document.querySelectorAll('#ui .ov-draft .ucard .btn')[i].click();
       const copy = document.querySelector('#ui > img.fly'), tile = [...document.querySelectorAll('#ui .loadout .ltile')].at(-1);
       if (!copy) return null;
@@ -1335,14 +1335,25 @@ const CHECKS = {
       app.dispatch([k === 'entered' ? { type: 'entered', packetId: packet.id } : { type: 'shattered', packet, by: 'rule', ruleId: k }]);
       return { alpha: wall.alpha, duration: scene.tweens.getTweensOf(wall)[0]?.duration ?? null, snaps: fx.debugFlashes() - snaps };
     }, kind);
-    // The next card to spawn: its scale as it is born and, over 100 frames of the view clock (past one 1.6 s bob), how far it rides from its lane.
-    const newcomer = () => page.evaluate(() => {
+    // The next card to spawn, followed frame by frame on the view clock (each frame steps the run too) until it has been clear of the gutter for 40
+    // frames: its scale on the way there (the pop waits for the gutter, never on the spawn) and from there, whether the pop holds its centre, and how
+    // far it rides from its lane.
+    const newcomer = () => page.evaluate(([w, h, y0, gutter]) => {
       const app = window.__nsp.app, scene = window.__nsp.game.scene.getScene('field'), s = app.run.state, n = s.nextId;
       for (let i = 0; i < 1200 && s.nextId === n; i++) app.dispatch(app.run.step(1 / 60));
-      const p = s.packets.at(-1), box = scene.layers.packets.list.find((o) => o.name === `packet-${p.id}`), scale = box.scaleX, rides = new Set();
-      for (let i = 0; i < 100; i++) { scene.onFrame(1000 / 60); rides.add(box.y - (p.lane * 90 + 18)); }
-      return { scale, rides: [...rides].sort() };
-    });
+      const p = s.packets.at(-1), box = scene.layers.packets.list.find((o) => o.name === `packet-${p.id}`), before = [], after = [], rides = new Set();
+      let off = 0, from = -1;
+      for (let i = 0; i < 1500 && (from < 0 || i - from < 40); i++) {
+        scene.onFrame(1000 / 60);
+        const x = Math.round(p.x * 2) / 2, scale = box.scaleX;
+        // Whatever its scale, the card's centre stays where it was, and what is left of its height is the bob.
+        off = Math.max(off, Math.abs(box.x + scale * w / 2 - (x + w / 2)));
+        rides.add(Math.round((box.y + scale * h / 2 - (p.lane * 90 + y0 + h / 2)) * 1e6) / 1e6);
+        if (from < 0 && x >= gutter) from = i;
+        (from < 0 ? before : after).push(scale);
+      }
+      return { before, after, rides: [...rides].sort(), off };
+    }, [PKT_W, PKT_H, PKT_Y, LANE_X0]);
     const frames = (n) => page.evaluate((k) => { const scene = window.__nsp.game.scene.getScene('field'); for (let i = 0; i < k; i++) scene.onFrame(1000 / 60); }, n);
     // The knight's sprite height over `n` frames of the view clock (more than a second at 60), and the pose he was in.
     const heights = (n) => page.evaluate((k) => {
@@ -1382,10 +1393,13 @@ const CHECKS = {
     }
     const idle = await flare('lockdown');
     if (idle.alpha !== 0 || idle.duration !== null || idle.snaps) throw new Error(`the fire on the lockdown's shatter: ${JSON.stringify(idle)}`);
-    // A card pops in at 90% and settles to full size; it rides a pixel up or down on its own phase.
-    const born = await newcomer();
-    if (born.scale !== 0.9 || born.rides.length < 2 || born.rides.some((d) => Math.abs(d) > 1)) throw new Error(`a new card: ${JSON.stringify(born)}`);
-    await page.waitForFunction(() => window.__nsp.game.scene.getScene('field').layers.packets.list.filter((o) => o.name?.startsWith('packet-')).every((b) => b.scaleX === 1));
+    // A card is full size on its way out from under the gutter and pops once it is wholly clear of it: to 90% about its centre, and back to full size,
+    // overshooting a little, inside ten frames; it rides a pixel up or down on its own phase.
+    const born = await newcomer(), peak = Math.max(...born.after);
+    if (born.before.length < 100 || born.before.some((v) => v !== 1) || born.after[0] !== 0.9 || !(peak > 1 && peak < 1.05) || born.after.slice(10).some((v) => v !== 1)
+      || born.off > 1e-6 || born.rides.length < 2 || born.rides.some((d) => Math.abs(d) > 1)) {
+      throw new Error(`a new card: ${JSON.stringify({ frames: born.before.length, scaled: born.before.filter((v) => v !== 1).length, pop: born.after.slice(0, 12), late: born.after.slice(10).filter((v) => v !== 1).length, off: born.off, rides: born.rides })}`);
+    }
     // The dealt hand flips in, each card after its own delay; the bought card's icon flies to the new tile in 300 ms and is gone when it lands.
     await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
     await toDraft(page);
@@ -1395,8 +1409,22 @@ const CHECKS = {
     const flight = await take();
     if (!flight || flight.timing[0] !== 300 || flight.timing[1] !== 'ease-in' || !flight.miss || flight.miss.some((d) => Math.abs(d) > 1)) throw new Error(`the bought card's flight: ${JSON.stringify(flight)}`);
     await page.waitForFunction(() => !document.querySelector('#ui > img.fly'));
+    // The copy lands as the tile's twin at the tile's own place (the real column is under the draft's backdrop), over the screen, pulsing once; it goes with the pulse.
+    const twin = await page.evaluate(() => {
+      const ghost = document.querySelector('#ui > .ltile-ghost'), tile = [...document.querySelectorAll('#ui .loadout .ltile')].at(-1);
+      if (!ghost) return null;
+      const g = ghost.getBoundingClientRect(), t = tile.getBoundingClientRect(), cs = getComputedStyle(ghost);
+      return { miss: [g.left - t.left, g.top - t.top, g.width - t.width, g.height - t.height], pulse: cs.animationName, z: cs.zIndex, clicks: cs.pointerEvents, icon: !!ghost.querySelector('img.px') };
+    });
+    if (!twin || twin.miss.some((d) => Math.abs(d) > 1) || twin.pulse !== 'tileflash' || twin.z !== '42' || twin.clicks !== 'none' || !twin.icon) throw new Error(`the tile's twin: ${JSON.stringify(twin)}`);
+    await page.waitForFunction(() => !document.querySelector('#ui > .ltile-ghost'));
+    // Another card bought and the wave started at once: the flight goes with the draft, and no twin lands on the field afterwards.
+    await page.evaluate(() => { const a = window.__nsp.app; a.run.state.credits = 5000; a.refresh(); });
+    if (!(await take())) throw new Error('the second card did not fly');
     await page.evaluate(() => window.__nsp.app.nextWave());
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    await page.waitForTimeout(450);
+    if (await page.evaluate(() => !!document.querySelector('#ui > .fly, #ui > .ltile-ghost'))) throw new Error('a flight outlived its draft');
 
     // Reduced effects: no snap, no flash, no sparks, no flip and no flight; the hand still carries its places.
     await setReduced(page, true);
@@ -1412,13 +1440,17 @@ const CHECKS = {
       if (f.alpha !== 0.6 || f.duration !== 140 || f.snaps) throw new Error(`reduced effects, the fire's flare on ${kind}: ${JSON.stringify(f)}`);
     }
     const still = await newcomer();
-    if (still.scale !== 1 || JSON.stringify(still.rides) !== '[0]') throw new Error(`reduced effects, a new card: ${JSON.stringify(still)}`);
+    if (still.after.length < 40 || [...still.before, ...still.after].some((v) => v !== 1) || still.off > 1e-6 || JSON.stringify(still.rides) !== '[0]') {
+      throw new Error(`reduced effects, a new card: ${JSON.stringify({ scaled: [...still.before, ...still.after].filter((v) => v !== 1).length, after: still.after.length, off: still.off, rides: still.rides })}`);
+    }
     await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
     await toDraft(page);
     await page.waitForSelector('#ui .ov-draft .ucard');
     const flat = await redeal();
     if (JSON.stringify(flat.places) !== '["0","1","2"]' || flat.flips.length) throw new Error(`reduced effects, the hand: ${JSON.stringify(flat)}`);
     if (await take()) throw new Error('reduced effects: the bought card flew');
+    await page.waitForTimeout(450);
+    if (await page.evaluate(() => !!document.querySelector('#ui > .fly, #ui > .ltile-ghost'))) throw new Error('reduced effects: a twin landed');
     await page.evaluate(() => window.__nsp.app.nextWave());
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
 
@@ -1450,7 +1482,7 @@ const CHECKS = {
       return { g: grade.dataset.g, grade: css('#ui .grade'), score: css('#ui .best .num'), served: css('#ui .statlist b.ok'), breaches: css('#ui .statlist b.bad') };
     });
     if (colours.g !== 'F' || colours.grade !== red || colours.score !== gold || colours.served !== blue || colours.breaches !== red) throw new Error(`the debrief's colours: ${JSON.stringify(colours)}`);
-    await page.waitForFunction((want) => window.__smokeDebrief.scores.at(-1) === want && !document.querySelector('#ui .ov.shake'), final);
+    await page.waitForFunction((want) => window.__smokeDebrief.scores.at(-1) === want && !document.querySelector('#ui .ov.shake'), final, { timeout: 1500 });
     const { scores, classes } = await page.evaluate(() => window.__smokeDebrief);
     const counted = scores.map((t) => Number(t.replace(/\D/g, '')));
     if (scores[0] !== 'SCORE 0' || scores.length < 4 || counted.some((n, i) => i && n < counted[i - 1])) throw new Error(`the score's count: ${JSON.stringify(scores)}`);

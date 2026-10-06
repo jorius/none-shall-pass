@@ -175,6 +175,9 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 
 /* The bought card's icon on its way to the loadout column (Overlays.fly): over the open screen, out of the pointer's way. */
 .fly { position: absolute; z-index: 42; margin: 0; pointer-events: none; }
+/* Where it lands: the column sits under the screen's backdrop, so the new tile's twin (a clone of the tile, pulsing as `.ltile.flash` does) shows
+   at the tile's own place over the screen, for as long as the pulse runs. */
+.ltile.ltile-ghost { position: absolute; z-index: 42; margin: 0; pointer-events: none; }
 
 /* ---------- overlays ---------- */
 /* Over the loadout (16) and the bottom panels (20): an open screen takes every click, so none reaches the field. */

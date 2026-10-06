@@ -803,12 +803,17 @@ describe('Overlays', () => {
       const column = (tiles: number): void => {
         const col = document.createElement('div');
         col.className = 'loadout';
-        for (let i = 0; i < tiles; i++) col.appendChild(Object.assign(document.createElement('div'), { className: 'ltile' }));
+        for (let i = 0; i < tiles; i++) {
+          const tile = Object.assign(document.createElement('div'), { className: 'ltile KNIGHT', title: `Tile ${i}` });
+          tile.innerHTML = '<img class="px" src="data:image/png;tile" alt="Tile">';
+          col.appendChild(tile);
+        }
         ui.appendChild(col);
       };
       const take = (card: number): void => { box().querySelectorAll<HTMLButtonElement>('.ucard .btn')[card].click(); };
-      // The first card on the panel that is not the backup (which has no tile to fly to): a reroll's hand is dealt at random.
-      const tiled = (): number => app.run!.state.draft!.picks.findIndex((c) => c.id !== 'backup');
+      // The first card on the panel still to be taken that is not the backup (which has no tile to fly to): a hand is dealt at random, and
+      // only the first draft's first two cards are fixed.
+      const tiled = (): number => { const d = app.run!.state.draft!; return d.picks.findIndex((c) => c.id !== 'backup' && !d.taken.includes(c.id)); };
       beforeEach(() => {
         flights = [];
         Object.defineProperty(HTMLElement.prototype, 'animate', {
@@ -834,6 +839,14 @@ describe('Overlays', () => {
         expect([copy === original, original.isConnected, ui.querySelectorAll('.fly').length]).toEqual([false, false, 1]);
         flights[0].onfinish!();
         expect(ui.querySelector('.fly')).toBeNull();
+        // It lands as the tile's twin at the tile's own place (the real column is under the backdrop), pulsing once; the real tile is as it was.
+        const twin = ui.querySelector<HTMLElement>(':scope > .ltile-ghost')!;
+        expect([twin.className, twin.title, twin.getAttribute('aria-hidden'), twin.style.left, twin.style.top, twin.style.width, twin.style.height])
+          .toEqual(['ltile KNIGHT ltile-ghost flash', '', 'true', '1076px', '320px', '44px', '38px']);
+        expect([twin.querySelector('img.px')?.getAttribute('src'), ui.querySelectorAll('.loadout .flash').length, ui.querySelectorAll('.ltile-ghost').length]).toEqual(['data:image/png;tile', 0, 1]);
+        // Gone when its pulse ends.
+        twin.dispatchEvent(new Event('animationend'));
+        expect(ui.querySelector('.ltile-ghost')).toBeNull();
         // A bought card flies too, and a reroll's new hand has its own cards to fly.
         named(/REROLL/).click();
         take(tiled());
@@ -845,17 +858,18 @@ describe('Overlays', () => {
         draft();
         stage();
         // No column on the screen yet: the free pick has nowhere to land.
-        take(0);
+        take(tiled());
         expect([flights.length, ui.querySelector('.fly')]).toEqual([0, null]);
         column(1);
         effects.reduced = true;
-        take(1);
-        expect([flights.length, ui.querySelector('.fly')]).toEqual([0, null]);
+        take(tiled());
+        expect([flights.length, ui.querySelector('.fly'), ui.querySelector('.ltile-ghost')]).toEqual([0, null, null]);
         effects.reduced = false;
-        // The backup heals the rack and has no tile.
-        app.run!.state.draft!.picks[2] = cardById('backup');
+        // The backup heals the rack and has no tile: the card still on the panel is swapped for it.
+        const spare = app.run!.state.draft!.picks.findIndex((c) => !app.run!.state.draft!.taken.includes(c.id));
+        app.run!.state.draft!.picks[spare] = cardById('backup');
         app.refresh();
-        take(2);
+        take(spare);
         expect([app.run!.state.draft!.taken.length, flights.length]).toEqual([3, 0]);
         // A card still on the panel whose price the credits no longer cover: the core refuses it, so no flight.
         named(/REROLL/).click();
@@ -866,6 +880,26 @@ describe('Overlays', () => {
         app.run!.state.credits = 5000;
         take(tiled());
         expect([app.run!.state.draft!.taken.length, flights.length]).toEqual([4, 1]);
+      });
+
+      it('takes the flight with the screen: a copy still flying is dropped and lands nothing, and a twin goes when the draft is covered', () => {
+        draft();
+        stage();
+        column(1);
+        take(tiled());
+        expect(ui.querySelectorAll('.fly')).toHaveLength(1);
+        // The wave starts under the copy: it goes, and a landing reported late leaves nothing behind.
+        named(/NEXT WAVE/).click();
+        expect([app.screen, ui.querySelectorAll('.fly').length]).toEqual(['playing', 0]);
+        flights[0].onfinish!();
+        expect(ui.querySelector('.ltile-ghost')).toBeNull();
+        // And a twin already on the screen goes with it when the Armory opens over the draft.
+        app.dispatch(app.run!.cheat('skip'));
+        take(tiled());
+        flights[1].onfinish!();
+        expect(ui.querySelectorAll('.ltile-ghost')).toHaveLength(1);
+        press('t');
+        expect([app.screen, ui.querySelectorAll('.ltile-ghost').length, ui.querySelectorAll('.fly').length]).toEqual(['armory', 0, 0]);
       });
     });
   });
