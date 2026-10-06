@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP } from './constants';
+import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, STUFF_IP, TAR_X0 } from './constants';
 import { CAMPAIGN } from './content/waves';
 import type { Difficulty } from './difficulty';
 import type { RunEvent } from './events';
@@ -173,12 +173,21 @@ describe('queueing', () => {
 
   it('releases the queue once the head enters the fire', () => {
     const s = freshState();
-    const head = place(s, 'legit-login', 560), next = place(s, 'legit-login', 560 - PKT_W - SPAWN_GAP);
-    for (let i = 0; i < 90 && !head.entering; i++) stepPackets(s, 1 / 60, []);
+    s.owned.push('tarpit');
+    s.seen[STUFF_IP] = 3; // a repeat visitor: the tar slows the head to 40%; the follower is a first-timer at full speed
+    // The head starts in the tar (x + PKT_W > TAR_X0) and stays in it (x < TAR_X1) all the way to the fire at x = FW_X - PKT_W.
+    // The follower starts 50 px short of the gap: it closes in, is held behind the head, and is let go only once the head is entering.
+    const head = place(s, 'brute-stuffing', TAR_X0, STUFF_IP), next = place(s, 'legit-login', TAR_X0 - PKT_W - SPAWN_GAP - 50);
+    let held = 0;
+    for (let i = 0; i < 300 && !head.entering; i++) {
+      stepPackets(s, 1 / 60, []);
+      if (!head.entering && head.slowed && Math.abs(next.x - (head.x - PKT_W - SPAWN_GAP)) <= 1e-6) held++;
+    }
     expect(head.entering).toBe(true);
+    expect(held).toBeGreaterThan(0);
     const x = next.x;
     stepPackets(s, 1 / 60, []);
-    expect(next.x - x).toBeCloseTo(72 / 60, 3);
+    expect(next.x - x).toBeCloseTo(BASE_SPEED / 60, 6);
   });
 });
 

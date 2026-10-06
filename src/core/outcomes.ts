@@ -1,5 +1,5 @@
 // core
-import { DAMAGE, LOG_MAX, MISTAKES_MAX, PKT_W, POINTS, RACK } from './constants';
+import { DAMAGE, KN_X, LOG_MAX, MISTAKES_MAX, PKT_W, POINTS, RACK } from './constants';
 import type { CardId } from './content/cards';
 import type { LineId } from './content/lines';
 import type { FloatKind, LogEntry, RunEvent } from './events';
@@ -40,8 +40,17 @@ export const untarget = (s: RunState, ev: RunEvent[]): void => {
   ev.push({ type: 'targeted', packetId: null });
 };
 
+// Home from the gallop, at once: the post, facing the lane, the view told. Also how a wave or a run that ends mid-charge cuts it short.
+export const endCharge = (s: RunState, ev: RunEvent[]): void => {
+  const k = s.knight;
+  k.charge.t = 0; k.x = KN_X; k.moving = false; k.facing = 'left';
+  ev.push({ type: 'chargeEnded' });
+};
+
 export const endRun = (s: RunState, reason: EndReason, ev: RunEvent[]): void => {
   untarget(s, ev);
+  // A gallop still under way comes home before the run is called, so no debrief opens on a knight mid-lane.
+  if (s.knight.charge.t > 0) endCharge(s, ev);
   s.phase = 'ended';
   s.endReason = reason;
   ev.push({ type: 'runEnded', reason });

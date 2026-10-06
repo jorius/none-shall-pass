@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { KN_X, LOCK_X, PKT_W, STEP } from './constants';
+import { FW_X, KN_X, LOCK_X, PKT_W, STEP } from './constants';
 import type { RunEvent } from './events';
 import { Run } from './run';
 import { cfg, place } from './testkit';
@@ -237,6 +237,25 @@ describe('Run', () => {
     const ev = run.cheat('skip');
     expect(ev.filter((e) => e.type === 'chargeEnded')).toHaveLength(1);
     expect(ev.findIndex((e) => e.type === 'chargeEnded')).toBeLessThan(ev.findIndex((e) => e.type === 'waveCleared'));
+    expect(s.knight).toMatchObject({ x: KN_X, moving: false, facing: 'left' });
+    expect(s.knight.charge.t).toBe(0);
+  });
+
+  it('brings a galloping knight home when a breach ends the run mid-charge', () => {
+    const run = new Run(cfg());
+    run.start();
+    const s = run.state;
+    s.owned.push('destrier', 'destrier2', 'destrier3');
+    run.charge();
+    // The gallop never kills a real user, so a run ends under it from elsewhere: a breach already in the rack lands this step, on 1% uptime.
+    s.uptime = 1;
+    const hit = place(s, 'sqli-union', FW_X);
+    hit.dead = true;
+    s.pending.push({ packet: hit, t: 0.01 });
+    const ev = run.step(STEP);
+    expect([s.phase, s.endReason]).toEqual(['ended', 'serverDown']);
+    expect(ev.filter((e) => e.type === 'chargeEnded')).toHaveLength(1);
+    expect(ev.findIndex((e) => e.type === 'chargeEnded')).toBeLessThan(ev.findIndex((e) => e.type === 'runEnded'));
     expect(s.knight).toMatchObject({ x: KN_X, moving: false, facing: 'left' });
     expect(s.knight.charge.t).toBe(0);
   });

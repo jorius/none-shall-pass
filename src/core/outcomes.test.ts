@@ -2,9 +2,9 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { MISTAKES_MAX } from './constants';
+import { CHARGE_SECS, KN_X, MISTAKES_MAX } from './constants';
 import type { RunEvent } from './events';
-import { checkEnd, earn, kill, resolve, untarget } from './outcomes';
+import { checkEnd, earn, endRun, kill, resolve, untarget } from './outcomes';
 import { freshState, place } from './testkit';
 
 const types = (ev: RunEvent[]) => ev.map((e) => e.type);
@@ -128,6 +128,24 @@ describe('resolve', () => {
     resolve(s, place(s, 'sqli-union', 906), ev);
     expect(s.uptime).toBe(0);
     expect(s.endReason).toBe('serverDown');
+  });
+});
+
+describe('endRun', () => {
+  it('brings a galloping knight home before the run is called, once', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    Object.assign(s.knight, { charge: { t: CHARGE_SECS / 2, used: true }, x: 400, moving: true, facing: 'right' });
+    endRun(s, 'serverDown', ev);
+    expect(s.knight).toMatchObject({ x: KN_X, moving: false, facing: 'left', charge: { t: 0, used: true } });
+    expect(ev.filter((e) => e.type === 'chargeEnded')).toHaveLength(1);
+    expect(ev.findIndex((e) => e.type === 'chargeEnded')).toBeLessThan(ev.findIndex((e) => e.type === 'runEnded'));
+    expect(s.phase).toBe('ended');
+  });
+
+  it('ends no charge that is not under way', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    endRun(s, 'usersGone', ev);
+    expect(types(ev)).toEqual(['runEnded', 'say']);
   });
 });
 

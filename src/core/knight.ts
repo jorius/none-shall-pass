@@ -1,7 +1,7 @@
 // core
 import { CHARGE_SECS, CHARGE_X, FW_X, KN_X, KNIGHT_FOOT_SPEED, KNIGHT_HORSE_SPEED, LANE_COUNT, LANE_X0, PKT_H, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, SQUIRE_HAND, TAR_MULT, THROW_COOLDOWN } from './constants';
 import type { RunEvent } from './events';
-import { kill, say, untarget } from './outcomes';
+import { endCharge, kill, say, untarget } from './outcomes';
 import { destrierLevel } from './rules';
 import { findPacket, knightY, laneSlow, mounted, packetSpeed, packetY, type Packet, type RunState, type Thrower } from './state';
 import type { LaneIndex, Point } from './types';
@@ -74,13 +74,6 @@ export const startCharge = (s: RunState, ev: RunEvent[]): void => {
   k.charge = { t: CHARGE_SECS, used: true };
   k.moving = true;
   ev.push({ type: 'chargeStarted', lane: k.lane });
-};
-
-// Home from the gallop, at once: the post, facing the lane, the view told. Also how a wave that ends mid-charge cuts it short.
-export const endCharge = (s: RunState, ev: RunEvent[]): void => {
-  const k = s.knight;
-  k.charge.t = 0; k.x = KN_X; k.moving = false; k.facing = 'left';
-  ev.push({ type: 'chargeEnded' });
 };
 
 // Out to the lane head and back; every attack the knight's x crosses on the way is speared,

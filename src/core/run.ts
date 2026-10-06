@@ -5,8 +5,8 @@ import { allowsHints } from './difficulty';
 import { deal, PRICE, REROLL_COST } from './draft';
 import type { RunEvent } from './events';
 import { spawn, stepPackets, stepPending } from './field';
-import { cycleTarget, endCharge, setLane, startCharge, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
-import { endRun, untarget } from './outcomes';
+import { cycleTarget, setLane, startCharge, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
+import { endCharge, endRun, untarget } from './outcomes';
 import { mulberry32, type Rng } from './rng';
 import { createState, multiplier, type RunConfig, type RunState } from './state';
 
