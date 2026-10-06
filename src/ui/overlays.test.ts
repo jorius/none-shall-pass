@@ -469,6 +469,30 @@ describe('Overlays', () => {
     expect([audio.settings.sound, audio.settings.music, app.screen, detail(), cards()[3].classList.contains('sel')]).toEqual([false, false, 'armory', hovered, true]);
   });
 
+  it('walks the Armory with the arrow keys, the detail following, and T, M and Esc go on working from wherever the focus is', () => {
+    boot();
+    app.startRun('campaign');
+    press('t');
+    const arrow = (key: string): void => { document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })); };
+    const now = (): [string | undefined, string | null | undefined] => [(document.activeElement as HTMLElement).dataset.id, box().querySelector('.ar-detail h6')?.textContent];
+    // CLOSE has the focus on opening; an arrow goes in at the first card, then on across and down.
+    arrow('ArrowDown');
+    expect(now()).toEqual(['destrier', 'Destrier I']);
+    arrow('ArrowRight');
+    arrow('ArrowDown');
+    expect(now()).toEqual(['quote', 'Quote filter']);
+    expect(app.screen).toBe('armory');
+    // The App's keys are the same from a card as from CLOSE.
+    press('m');
+    expect([audio.settings.sound, audio.settings.music, app.screen]).toEqual([false, false, 'armory']);
+    press('Escape');
+    expect([app.screen, box().className]).toEqual(['playing', 'ov']);
+    // And the arrows are the field's again: the knight changes lane (and does so once).
+    const lane = app.run!.state.knight.lane;
+    press('ArrowUp');
+    expect(app.run!.state.knight.lane).toBe(lane - 1);
+  });
+
   it('opens the Armory from the pause menu on the run in hand, and closes it back onto the pause', () => {
     boot();
     app.startRun('campaign');

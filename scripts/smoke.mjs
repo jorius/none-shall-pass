@@ -1104,6 +1104,14 @@ const CHECKS = {
     for (let i = 0; i < 3; i++) await page.keyboard.press('Tab');
     const third = await shown();
     if (third.id !== 'squire' || third.name !== 'Squire' || third.name === run.name) throw new Error(`Tab went to ${JSON.stringify(third)}`);
+    // The arrow keys walk the cards as they sit: → to the same row of the next branch, ↓ down it, ← and ↑ back, the detail following.
+    const walked = [];
+    for (const key of ['ArrowRight', 'ArrowDown', 'ArrowLeft', 'ArrowUp']) {
+      await page.keyboard.press(key);
+      const now = await shown();
+      walked.push(`${now.id}:${now.name}`);
+    }
+    if (walked.join() !== 'f2b:fail2ban,tarpit:Tarpit,lens:Decoding lens,squire:Squire') throw new Error(`the arrows went ${walked}`);
     await page.keyboard.press('t');
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing' && !document.querySelector('#ui .ov.show'));
     const resumed = await timeLeft();

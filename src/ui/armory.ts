@@ -61,8 +61,8 @@ export const stateText = (e: ArmoryEntry): string => {
 
 const COLUMNS: readonly (readonly [Category, string])[] = [['KNIGHT', 'armory.knightIntro'], ['FIREWALL', 'armory.firewallIntro'], ['SERVER', 'armory.serverIntro']];
 
-// A read-only codex: three branches of cards (buttons, so Tab walks them) and a detail panel that follows the hovered or focused one.
-// It shows and never sells. CLOSE has the focus for everyone, so Space, Enter, T and Esc all put it away.
+// A read-only codex: three branches of cards (buttons, so Tab walks them, and so do the arrow keys) and a detail panel that follows the
+// hovered or focused one. It shows and never sells. CLOSE has the focus for everyone, so Space, Enter, T and Esc all put it away.
 export const renderArmory = (box: HTMLElement, d: ArmoryDeps): void => {
   box.innerHTML = '';
   const entries = armoryEntries(d.owned);
@@ -97,14 +97,19 @@ export const renderArmory = (box: HTMLElement, d: ArmoryDeps): void => {
   };
 
   let first: (() => void) | null = null;
+  // The cards as they sit on the screen, a list per branch, for the arrow keys.
+  const grid: HTMLButtonElement[][] = [];
   for (const [cat, intro] of COLUMNS) {
     const col = el('div', `ar-col ${cat}`, body);
     el('h5', '', col).append(el('b', '', undefined, t(`draft.cat.${cat}`)), ` · ${t(intro)}`);
     const cards = el('div', 'ar-cards', col);
+    const column: HTMLButtonElement[] = [];
+    grid.push(column);
     for (const e of entries.filter((x) => cardById(x.id).cat === cat)) {
       const c = shown(e);
       const card = button(cards, `cx ${c.rarity} ${e.state}`, '', () => fill(e, card));
       card.dataset.id = e.id;
+      column.push(card);
       const img = el('img', 'px', el('span', 'ic', card));
       img.src = iconUrl(c.icon, 'tile');
       img.alt = '';
@@ -129,6 +134,22 @@ export const renderArmory = (box: HTMLElement, d: ArmoryDeps): void => {
     }
   }
   body.append(detail);
+  // The arrow keys walk the cards as they sit (Tab still walks them in order, and the detail follows the focus either way): ← → to the same
+  // row of the next branch, or the last row of a shorter one, ↑ ↓ along the branch, each stopping at its ends. From CLOSE, where the screen
+  // opens, any arrow goes in at the first card. Only the plain arrows: Alt+← is the browser's, and every other key stays with the focus.
+  // The listener is on this draw's own root, which the next screen replaces; one on the box, which every screen shares, would outlive the
+  // Armory and keep taking the arrows of the screens after it.
+  ar.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+    const across = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0, along = e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0;
+    if (!across && !along) return;
+    e.preventDefault();
+    const col = grid.findIndex((cards) => cards.includes(e.target as HTMLButtonElement));
+    if (col < 0) { grid[0][0]?.focus(); return; }
+    const row = grid[col].indexOf(e.target as HTMLButtonElement);
+    const to = Math.min(Math.max(col + across, 0), grid.length - 1);
+    grid[to][Math.min(Math.max(across ? row : row + along, 0), grid[to].length - 1)].focus();
+  });
   // It opens on the first card, so the panel is never empty.
   first?.();
   close.focus();

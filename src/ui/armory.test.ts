@@ -216,6 +216,82 @@ describe('renderArmory', () => {
     expect(text('.ar-detail h6')).toBe('Sort-column allow-list');
   });
 
+  describe('the arrow keys', () => {
+    const press = (key: string, over: KeyboardEventInit = {}): KeyboardEvent => {
+      const ev = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...over });
+      document.activeElement!.dispatchEvent(ev);
+      return ev;
+    };
+    // The card that has the focus, by its id (CLOSE has none).
+    const at = (): string | undefined => (document.activeElement as HTMLElement).dataset.id;
+    // Each press from the card named, to the card the focus lands on.
+    const walk = (from: string, keys: string[]): (string | undefined)[] => {
+      card(from).focus();
+      return keys.map((key) => { press(key); return at(); });
+    };
+    beforeEach(() => mount());
+
+    it('walks up and down a branch, one card a press, and stops at its ends', () => {
+      expect(walk('destrier', ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown'])).toEqual(['obs1', 'squire', 'lens', 'lens', 'lens']);
+      expect(walk('lens', ['ArrowUp', 'ArrowUp', 'ArrowUp', 'ArrowUp'])).toEqual(['squire', 'obs1', 'destrier', 'destrier']);
+      expect(walk('lockdown', ['ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown', 'ArrowDown'])).toEqual(['quote', 'f2b', 'tarpit', 'cdn', 'cdn']);
+    });
+
+    it('jumps to the same row of the next branch, and to the last row of a shorter one, stopping at the ends', () => {
+      // KNIGHT has four cards, FIREWALL and SERVER five.
+      expect(walk('obs1', ['ArrowRight', 'ArrowRight', 'ArrowRight'])).toEqual(['quote', 'sortlist', 'sortlist']);
+      expect(walk('sortlist', ['ArrowLeft', 'ArrowLeft', 'ArrowLeft'])).toEqual(['quote', 'obs1', 'obs1']);
+      expect(walk('cdn', ['ArrowLeft'])).toEqual(['lens']);
+      expect(walk('backup', ['ArrowLeft', 'ArrowLeft', 'ArrowRight'])).toEqual(['cdn', 'lens', 'tarpit']);
+    });
+
+    it('fills the detail from the card the arrow lands on, and lights only that one', () => {
+      card('destrier').focus();
+      press('ArrowRight');
+      expect([at(), text('.ar-detail h6'), [...box.querySelectorAll('.cx.sel')].length]).toEqual(['lockdown', 'Port lockdown', 1]);
+      press('ArrowDown');
+      expect([at(), text('.ar-detail h6'), text('.ar-detail .stat')]).toEqual(['quote', 'Quote filter', 'IN THE DRAFT · 250']);
+      expect([...box.querySelectorAll('.cx.sel')].map((c) => (c as HTMLElement).dataset.id)).toEqual(['quote']);
+    });
+
+    it('goes in at the first card from CLOSE, where the screen opens, whichever arrow is pressed', () => {
+      for (const key of ['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight']) {
+        mount();
+        expect(document.activeElement).toBe(box.querySelector('.ar-head .btn'));
+        expect(press(key).defaultPrevented, key).toBe(true);
+        expect([at(), text('.ar-detail h6')], key).toEqual(['destrier', 'Destrier I']);
+      }
+    });
+
+    it('takes the plain arrows and nothing else: every other key, and an arrow with a modifier held, is left to the browser', () => {
+      card('lockdown').focus();
+      for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) expect(press(key).defaultPrevented, key).toBe(true);
+      card('lockdown').focus();
+      for (const [key, over] of [['Tab', {}], ['Tab', { shiftKey: true }], ['t', {}], ['T', {}], ['Escape', {}], ['Enter', {}], [' ', {}], ['m', {}],
+        ['ArrowDown', { altKey: true }], ['ArrowLeft', { ctrlKey: true }], ['ArrowRight', { metaKey: true }], ['ArrowUp', { shiftKey: true }]] as const) {
+        const ev = press(key, over);
+        expect([key, ev.defaultPrevented, at()], `${key} ${JSON.stringify(over)}`).toEqual([key, false, 'lockdown']);
+      }
+    });
+
+    it('steps once a press however many times the screen has been drawn', () => {
+      mount();
+      mount();
+      mount({ owned: ['lockdown', 'f2b'] });
+      expect(walk('destrier', ['ArrowDown'])).toEqual(['obs1']);
+      expect(walk('obs1', ['ArrowRight'])).toEqual(['quote']);
+    });
+
+    it('takes the arrows only while it is on screen: the box is every screen\'s, and what it draws next gets its arrows back', () => {
+      // The Armory is drawn into the box the title, the setup and the rest share; the next screen replaces it, and its keys are its own.
+      const next = document.createElement('button');
+      box.replaceChildren(next);
+      next.focus();
+      for (const key of ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']) expect(press(key).defaultPrevented, key).toBe(false);
+      expect(document.activeElement).toBe(next);
+    });
+  });
+
   it('reads in Spanish, the thousands with a dot', () => {
     setLang('es');
     mount({ credits: 1234, owned: ['lockdown', 'destrier'] });
