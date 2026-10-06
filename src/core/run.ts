@@ -1,6 +1,7 @@
 // core
 import { POINTS } from './constants';
 import { CAMPAIGN, waveFor, type WaveDef } from './content/waves';
+import { allowsHints } from './difficulty';
 import { deal, PRICE, REROLL_COST } from './draft';
 import type { RunEvent } from './events';
 import { spawn, stepPackets, stepPending } from './field';
@@ -56,7 +57,7 @@ export class Run {
   charge(): RunEvent[] { return this.act((ev) => startCharge(this.state, ev)); }
 
   setHints(on: boolean): void {
-    this.state.hints = on;
+    this.state.hints = on && allowsHints(this.state.cfg.difficulty);
   }
 
   private clearWave(ev: RunEvent[]): void {

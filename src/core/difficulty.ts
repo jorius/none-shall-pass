@@ -23,7 +23,7 @@ export const DIFFICULTIES: Record<Difficulty, DifficultyDef> = {
   incident: { id: 'incident', mult: 1.5, speed: 1.25, rep: 8, hints: true, name: { en: 'Incident', es: 'Incidente' },
     desc: { en: 'Packets at 125%, 8 reputation, tricky attacks twice as common from wave 2.', es: 'Paquetes al 125%, 8 de reputación, ataques engañosos el doble de comunes desde la oleada 2.' } },
   zeroday: { id: 'zeroday', mult: 2, speed: 1.5, rep: 5, hints: false, name: { en: 'Zero-day', es: 'Día cero' },
-    desc: { en: 'Packets at 150%, 5 reputation, sneaky attacks from wave 1, no hints.', es: 'Paquetes al 150%, 5 de reputación, ataques sigilosos desde la oleada 1, sin pistas.' } },
+    desc: { en: 'Packets at 150%, 5 reputation, sneaky attacks from their first wave and more of them, no hints.', es: 'Paquetes al 150%, 5 de reputación, ataques sigilosos desde su primera oleada y más de ellos, sin pistas.' } },
 };
 
 // A weight multiplier on a template's tier for this difficulty and wave: 0 removes it from the deal.

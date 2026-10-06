@@ -43,10 +43,10 @@ describe('card catalogue', () => {
     expect(d2.does.en).toMatch(/50%/);
     expect(d3.does.en).toMatch(/\bC\b/);
     for (const c of [d1, d2, d3]) { expect(c.icon).toBe('horse'); expect(c.cat).toBe('KNIGHT'); }
-    // Three of the six knights are women: the copy speaks to the player and never of "he".
+    // Three of the six knights are women: the copy speaks to the player and never of "he" or "el caballero".
     for (const c of [d1, d2, d3]) for (const f of [c.does, c.catch]) {
       expect(f.en).not.toMatch(/ he |He /);
-      expect(f.es).not.toMatch(/Él/);
+      expect(f.es).not.toMatch(/Él|caballero/);
     }
   });
 });

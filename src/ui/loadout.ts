@@ -17,8 +17,11 @@ import { loc } from '../i18n';
 import { el } from './dom';
 import type { Inspector } from './inspector';
 
-// Observability tiers replace each other, so only the highest owned one gets a tile.
-const shown = (owned: CardId[]): CardId[] => owned.filter((id) => !(id === 'obs1' && (owned.includes('obs2') || owned.includes('obs3'))) && !(id === 'obs2' && owned.includes('obs3')));
+// Tiered cards replace each other, so only the highest owned tier of a chain gets a tile.
+const CHAINS: readonly (readonly CardId[])[] = [['obs1', 'obs2', 'obs3'], ['destrier', 'destrier2', 'destrier3']];
+const outranked = (id: CardId, owned: CardId[]): boolean =>
+  CHAINS.some((chain) => { const i = chain.indexOf(id); return i >= 0 && chain.slice(i + 1).some((higher) => owned.includes(higher)); });
+const shown = (owned: CardId[]): CardId[] => owned.filter((id) => !outranked(id, owned));
 
 // The column runs from .loadout's top to a few px above the uptime strip, which starts where the field ends.
 // It cannot grow sideways (the knight's post is to its left, the rack to its right), so a long run shrinks the tiles.

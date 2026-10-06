@@ -15,6 +15,12 @@ describe('difficulty', () => {
     expect(DIFFICULTIES.zeroday).toMatchObject({ mult: 2, speed: 1.5, rep: 5, hints: false });
   });
 
+  // Wave 1 deals scans and logins only, so Zero-day's sneaky packets come with their family's first wave, not wave 1.
+  it('describes Zero-day without promising sneaky packets in wave 1', () => {
+    expect(DIFFICULTIES.zeroday.desc.en).toBe('Packets at 150%, 5 reputation, sneaky attacks from their first wave and more of them, no hints.');
+    expect(DIFFICULTIES.zeroday.desc.es).toBe('Paquetes al 150%, 5 de reputación, ataques sigilosos desde su primera oleada y más de ellos, sin pistas.');
+  });
+
   it('gates the tiers: no tricky packets for an intern before wave 4, more of them for the harder ones', () => {
     expect(tierWeight('intern', 3, 2)).toBe(0);
     expect(tierWeight('intern', 3, 3)).toBe(0);

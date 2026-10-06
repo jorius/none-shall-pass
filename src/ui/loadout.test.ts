@@ -39,6 +39,13 @@ describe('LoadoutTiles', () => {
     expect(all()[1].querySelector('img')?.getAttribute('src')).toBe('data:image/png;eye-tile');
   });
 
+  it('shows the highest Destrier tier on one tile, as the observability tiers do', () => {
+    tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2', 'destrier3', 'obs1'] });
+    expect(all().map((t) => t.title)).toEqual(['Port lockdown', 'Destrier III · charge', 'Observability I · logs']);
+    tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2'] });
+    expect(all().map((t) => t.title)).toEqual(['Port lockdown', 'Destrier II']);
+  });
+
   it('explains a tile in the inspector while the pointer is on the column', () => {
     all()[0].dispatchEvent(new MouseEvent('mouseenter'));
     expect(ui.querySelector('.ins .cname')?.textContent).toBe('Port lockdown');
@@ -67,8 +74,8 @@ describe('LoadoutTiles', () => {
   });
 
   it('shrinks the tiles of the longest possible loadout, 13 of them', () => {
-    // Every card but the one-shot backup; the three observability tiers share a tile.
-    tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'squire', 'lens', 'obs1', 'obs2', 'obs3', 'quote', 'f2b', 'tarpit', 'cdn', 'prepared', 'sortlist', 'mfa', 'csp'] });
+    // Every card but the one-shot backup; the three observability tiers share a tile, and so do the three Destrier tiers.
+    tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2', 'destrier3', 'squire', 'lens', 'obs1', 'obs2', 'obs3', 'quote', 'f2b', 'tarpit', 'cdn', 'prepared', 'sortlist', 'mfa', 'csp'] });
     expect(all()).toHaveLength(13);
     expect(all().every((t) => t.style.height === '31px')).toBe(true);
     expect((ui.querySelector('.loadout') as HTMLElement).style.gap).toBe('3px');

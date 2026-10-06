@@ -96,7 +96,7 @@ Success: Jose plays a full campaign on the test server and sees every item below
   | Intern | ×0.5 | 75% | 14 | tier 1 only until wave 4 | allowed |
   | Analyst | ×1 | 100% | 10 | as v1 | allowed |
   | Incident | ×1.5 | 125% | 8 | tricky from wave 2 | allowed |
-  | Zero-day | ×2 | 150% | 5 | sneaky from wave 1 | disabled |
+  | Zero-day | ×2 | 150% | 5 | sneaky from their first wave, ×2.5 | disabled |
 
 - **Bests** are kept per difficulty and per root/normal (campaign: score + grade with the win-beats-loss rule; Overtime: wave + score). Saved data migrates: v1's `normal`/`root` entries become Analyst. Any campaign win on any difficulty unlocks Overtime. The title shows the bests for the selected difficulty.
 - The debrief and the share line name the knight and the difficulty.

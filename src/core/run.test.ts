@@ -163,6 +163,17 @@ describe('Run', () => {
     expect(s.knight.cooldown).toBe(0);
   });
 
+  it('keeps the hints off where the difficulty forbids them', () => {
+    const z = new Run(cfg({ difficulty: 'zeroday' }));
+    z.setHints(true);
+    expect(z.state.hints).toBe(false);
+    const a = new Run(cfg());
+    a.setHints(true);
+    expect(a.state.hints).toBe(true);
+    a.setHints(false);
+    expect(a.state.hints).toBe(false);
+  });
+
   it('keeps the wave clock: spawns on cadence, none in the last 4 s, clears only an empty field', () => {
     const run = new Run(cfg({ seed: 42 }));
     run.start();

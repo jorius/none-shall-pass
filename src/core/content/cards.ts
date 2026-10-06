@@ -29,7 +29,7 @@ export const CARDS: readonly Card[] = [
     catch: { en: 'Only the lane you are in.', es: 'Solo el carril en el que estás.' } },
   { id: 'destrier2', cat: 'KNIGHT', rarity: 'RARE', icon: 'horse', req: 'destrier',
     name: { en: 'Destrier II', es: 'Destrero II' },
-    does: { en: "The knight's lane slows to 50%.", es: 'El carril del caballero baja al 50%.' },
+    does: { en: "The knight's lane slows to 50%.", es: 'El carril en el que estás baja al 50%.' },
     irl: { en: 'Heavier throttling on the traffic under investigation.', es: 'Limitación más fuerte sobre el tráfico bajo investigación.' },
     catch: { en: 'Still one lane at a time.', es: 'Sigue siendo un carril a la vez.' } },
   { id: 'destrier3', cat: 'KNIGHT', rarity: 'LEGENDARY', icon: 'horse', req: 'destrier2',
