@@ -168,8 +168,11 @@ export class App {
     }
     const el = e.target as HTMLElement | null;
     const inField = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+    // BACK and the language button on the setup carry data-keeps-enter (setup.ts): Enter there is their own click, which the browser makes
+    // when nobody takes the key.
+    const keepsEnter = !!el?.closest?.('[data-keeps-enter]');
     const action = routeKey({
-      key: e.key, code: e.code, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey, repeat: e.repeat, inField,
+      key: e.key, code: e.code, shiftKey: e.shiftKey, ctrlKey: e.ctrlKey, metaKey: e.metaKey, repeat: e.repeat, inField, keepsEnter,
     }, this.screen);
     if (!action) return;
     e.preventDefault();

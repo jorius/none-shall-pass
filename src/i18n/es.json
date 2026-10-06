@@ -1,5 +1,5 @@
 {
-  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0,75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT", "clearing": "DESPEJE", "muted": "SILENCIO · M" },
+  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS SÍ ×0,75", "hintsOff": "PISTAS NO", "pause": "PAUSA · P", "root": "ROOT", "clearing": "DESPEJE", "muted": "SILENCIO · M" },
   "lane": { "0": "ssh", "1": "acceso", "2": "búsqueda", "3": "comentarios", "4": "otros" },
   "uptime": "DISPONIBILIDAD",
   "actor": { "you": "TÚ", "squire": "ESCUDERO", "target": "OBJETIVO · ESPACIO" },

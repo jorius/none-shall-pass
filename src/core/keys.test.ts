@@ -4,7 +4,7 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 // core
 import { konamiMatcher, KONAMI, routeKey, type Screen } from './keys';
 
-type KeyOver = Partial<{ code: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; repeat: boolean; inField: boolean }>;
+type KeyOver = Partial<{ code: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; repeat: boolean; inField: boolean; keepsEnter: boolean }>;
 const k = (key: string, over: KeyOver = {}) => ({ key, shiftKey: false, inField: false, ...over });
 
 describe('routeKey', () => {
@@ -65,6 +65,19 @@ describe('routeKey', () => {
       expect(routeKey(k(key, { ctrlKey: true }), 'setup'), `${key} with Ctrl`).toBeNull();
     }
     for (const screen of ['playing', 'paused', 'recap', 'draft', 'title', 'debrief', 'console'] as const) expect(routeKey(k('Escape'), screen), screen).not.toBe('back');
+  });
+
+  it('leaves Enter to a focused button that keeps it (the setup\'s BACK and language buttons), and starts the run from every other focus', () => {
+    // The App reads the flag off the focused element, as it does inField; the router only sees the boolean.
+    expect(routeKey(k('Enter', { keepsEnter: true }), 'setup')).toBeNull();
+    expect(routeKey(k('Enter', { keepsEnter: false }), 'setup')).toBe('continue');
+    expect(routeKey(k('Enter'), 'setup')).toBe('continue');
+    // The flag is about Enter alone: Esc is BACK's own shortcut from any button, and no other key changes.
+    expect(routeKey(k('Escape', { keepsEnter: true }), 'setup')).toBe('back');
+    for (const key of [' ', 'Tab', 'p', 'c', 'h', 'ArrowUp']) expect(routeKey(k(key, { keepsEnter: true }), 'setup'), key).toBeNull();
+    // A held Enter and an Enter from a field stay nobody's, flag or no flag.
+    expect(routeKey(k('Enter', { keepsEnter: false, repeat: true }), 'setup')).toBeNull();
+    expect(routeKey(k('Enter', { keepsEnter: false, inField: true }), 'setup')).toBeNull();
   });
 
   it('has no screen for the how-to: it is a view of the title, where its keys are the title\'s', () => {

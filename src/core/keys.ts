@@ -1,7 +1,9 @@
 // The how-to is no screen of the App's: Overlays shows it over the title, which is the screen the App is on while it is up.
 export type Screen = 'title' | 'setup' | 'playing' | 'paused' | 'recap' | 'draft' | 'armory' | 'console' | 'debrief';
 export type Action = 'laneUp' | 'laneDown' | 'next' | 'prev' | 'throw' | 'release' | 'charge' | 'hints' | 'pause' | 'console' | 'closeConsole' | 'continue' | 'back' | 'armory' | 'mute' | null;
-export type KeyInput = { key: string; code?: string; shiftKey: boolean; ctrlKey?: boolean; metaKey?: boolean; repeat?: boolean; inField: boolean };
+// `inField`: the focus is in a text field (the console's prompt). `keepsEnter`: it is on a button that keeps Enter for its own click (the
+// setup's BACK and language buttons). The App reads both off the DOM, so the router itself stays free of it.
+export type KeyInput = { key: string; code?: string; shiftKey: boolean; ctrlKey?: boolean; metaKey?: boolean; repeat?: boolean; inField: boolean; keepsEnter?: boolean };
 
 // A held key may keep moving lanes or cycling targets, but must not toggle a screen, throw, charge, go on or go back again.
 const NO_REPEAT: ReadonlySet<Action> = new Set<Action>(['console', 'closeConsole', 'pause', 'hints', 'throw', 'charge', 'continue', 'back', 'armory', 'mute']);
@@ -21,9 +23,10 @@ const route = (k: KeyInput, screen: Screen): Action => {
   if (screen === 'armory') return k.key === 'Escape' || isT(k) ? 'armory' : null;
   if (isT(k) && (screen === 'title' || screen === 'paused' || screen === 'draft' || screen === 'playing')) return 'armory';
   // The recap has one key: Space or Enter goes on to the draft. The setup has two: Esc goes back to the title, and Enter starts the run
-  // whichever button has the focus. Space is left to the focused button, as for any button: START starts, a card is picked.
+  // wherever the focus is, except on a button that keeps Enter for itself (BACK and the language button: keepsEnter), where Enter is that
+  // button's own click. Space is left to the focused button, as for any button: START starts, a card is picked.
   if (screen === 'recap') return k.key === ' ' || k.key === 'Enter' ? 'continue' : null;
-  if (screen === 'setup') return k.key === 'Escape' ? 'back' : k.key === 'Enter' ? 'continue' : null;
+  if (screen === 'setup') return k.key === 'Escape' ? 'back' : k.key === 'Enter' && !k.keepsEnter ? 'continue' : null;
   if (screen === 'paused') return k.key === 'p' || k.key === 'P' || k.key === 'Escape' ? 'pause' : null;
   if (screen !== 'playing') return null;
   switch (k.key) {

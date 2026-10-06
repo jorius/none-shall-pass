@@ -39,7 +39,8 @@ const mult = (m: number): string => `×${lang() === 'es' ? String(m).replace('.'
 
 // The screen between the title and wave 1: six knights, four difficulties, the current pair marked (and pressed, for a screen reader).
 // A pick calls back and the caller redraws; START takes the focus for every player, so Space starts the run (the label says so), and
-// so does Enter, wherever the focus is (the App takes that key). The language button sits after START and BACK on the foot.
+// so does Enter, wherever the focus is (the App takes that key), except on BACK and the language button: they carry data-keeps-enter,
+// and Enter there is their own click. The language button sits after START and BACK on the foot.
 export const renderSetup = (box: HTMLElement, d: SetupDeps): void => {
   box.innerHTML = '';
   el('h2', '', box, t('setup.title'));
@@ -79,8 +80,9 @@ export const renderSetup = (box: HTMLElement, d: SetupDeps): void => {
   });
   const foot = el('div', 'foot', box);
   button(foot, 'btn', t('setup.start'), d.start).focus();
-  button(foot, 'btn ghost', t('setup.back'), d.back);
-  button(foot, 'btn ghost', t('lang.toggle'), d.toggleLang);
+  // Actions their labels name, so a focused one keeps Enter for its own click; the marker tells the App to leave the key to it.
+  button(foot, 'btn ghost', t('setup.back'), d.back).dataset.keepsEnter = '';
+  button(foot, 'btn ghost', t('lang.toggle'), d.toggleLang).dataset.keepsEnter = '';
   const chosen = DIFFICULTIES[d.difficulty];
   el('span', 'note', foot, `${loc(KNIGHTS[d.knight].name)} · ${loc(chosen.name)} · ${mult(chosen.mult)}`);
 };

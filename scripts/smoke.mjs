@@ -417,11 +417,12 @@ const CHECKS = {
       const hud = document.querySelector('#ui .hud'), k = hud.getBoundingClientRect().width / 1280;
       const l = hud.querySelector('.hud-l').getBoundingClientRect(), r = hud.querySelector('.hud-r').getBoundingClientRect();
       const tall = [...hud.querySelectorAll('.hud-l > *, .hud-r > *')].filter((e) => e.getBoundingClientRect().height / k > 32).length;
-      return { clock: hud.querySelector('.wave b:last-child').textContent, tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - hud.getBoundingClientRect().right) / k) };
+      return { clock: hud.querySelector('.wave b:last-child').textContent, hints: hud.querySelector('.toggle').textContent, tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - hud.getBoundingClientRect().right) / k) };
     }, timeLeft);
     for (const [left, clock] of [[42, '0:42'], [0, 'DESPEJE']]) {
       const fit = await widest(left);
-      if (fit.clock !== clock || fit.tall || fit.room < 8 || fit.over > 0) throw new Error(`Spanish HUD does not fit with the clock at ${clock}: ${JSON.stringify(fit)}`);
+      // The hints switch is on (the widest the bar gets) and says SÍ, like the pause menu's switches.
+      if (fit.hints !== 'PISTAS SÍ ×0,75' || fit.clock !== clock || fit.tall || fit.room < 8 || fit.over > 0) throw new Error(`Spanish HUD does not fit with the clock at ${clock}: ${JSON.stringify(fit)}`);
       await page.screenshot({ path: `${OUT}/${clock === 'DESPEJE' ? 'hud-es-clearing' : 'hud-es'}.png` });
     }
   },
@@ -695,7 +696,23 @@ const CHECKS = {
     if (toggled.screen !== 'setup' || toggled.knight !== 'warden' || toggled.level !== 'incident' || toggled.pressed.join() !== 'warden,incident') throw new Error(`after the language button: ${JSON.stringify(toggled)}`);
     await page.click('#ui .ov-setup .foot .btn:nth-child(3)');
     await page.waitForFunction(() => document.documentElement.lang === 'en' && /CHOOSE YOUR KNIGHT/.test(document.querySelector('#ui .ov-setup h2')?.textContent));
-    // Enter starts the run from wherever the focus is, once: on a knight's card that is not the marked one it starts on the pair marked,
+    // Enter on a focused language button is that button's own click, and no run starts: the setup switches in place with the focus still on
+    // the button (now EN), and Enter on that switches it back. Enter on a focused BACK goes back to the title, with no run.
+    await page.focus('#ui .ov-setup .foot .btn:nth-child(3)');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.documentElement.lang === 'es' && /ELIGE A TU CABALLERO/.test(document.querySelector('#ui .ov-setup h2')?.textContent));
+    const keyed = await page.evaluate(() => ({ screen: window.__nsp.app.screen, run: window.__nsp.app.run, focused: document.activeElement?.textContent, knight: document.querySelector('#ui .ov-setup .kn.sel')?.dataset.id }));
+    if (keyed.screen !== 'setup' || keyed.run !== null || keyed.focused !== 'EN' || keyed.knight !== 'warden') throw new Error(`Enter on the language button: ${JSON.stringify(keyed)}`);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => document.documentElement.lang === 'en' && /CHOOSE YOUR KNIGHT/.test(document.querySelector('#ui .ov-setup h2')?.textContent));
+    await page.focus('#ui .ov-setup .foot .btn:nth-child(2)');
+    await page.keyboard.press('Enter');
+    await page.waitForSelector('#ui .ov-title .btn');
+    const backed = await page.evaluate(() => ({ screen: window.__nsp.app.screen, run: window.__nsp.app.run }));
+    if (backed.screen !== 'title' || backed.run !== null) throw new Error(`Enter on BACK: ${JSON.stringify(backed)}`);
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(1)');
+    await page.waitForSelector('#ui .ov-setup .foot .btn');
+    // Enter starts the run from everywhere else, once: on a knight's card that is not the marked one it starts on the pair marked,
     // and the card is not picked (the browser's own click on Enter is cancelled).
     await page.evaluate(() => {
       const app = window.__nsp.app, real = app.startRun.bind(app);

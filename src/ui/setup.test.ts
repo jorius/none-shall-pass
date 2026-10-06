@@ -52,16 +52,28 @@ describe('renderSetup', () => {
     expect(box.querySelectorAll('.foot [aria-pressed]')).toHaveLength(0);
   });
 
-  it('switches the language from the foot, after START and BACK, and START keeps the focus', () => {
+  it('switches the language from the foot, after START and BACK', () => {
     renderSetup(box, deps);
     const foot = [...box.querySelectorAll<HTMLButtonElement>('.foot button')];
     expect(foot.map((b) => b.textContent)).toEqual(['START · SPACE', 'BACK · ESC', 'ES']);
     foot[2].click();
     expect(picked).toEqual(['lang']);
-    expect(document.activeElement).toBe(foot[0]);
     setLang('es');
     renderSetup(box, deps);
     expect([...box.querySelectorAll('.foot button')].map((b) => b.textContent)).toEqual(['EMPEZAR · ESPACIO', 'VOLVER · ESC', 'EN']);
+  });
+
+  it('marks BACK and the language button as keeping Enter for their own click, and nothing else on the screen', () => {
+    renderSetup(box, deps);
+    const marked = (): (string | null)[] => [...box.querySelectorAll('[data-keeps-enter]')].map((b) => b.textContent);
+    expect(marked()).toEqual(['BACK · ESC', 'ES']);
+    // START, the knights and the difficulties go on with Enter (the App takes the key), so none of them carries the marker.
+    expect(box.querySelectorAll('.kn[data-keeps-enter], .dl[data-keeps-enter]')).toHaveLength(0);
+    expect(box.querySelector('.foot .btn:first-child')?.hasAttribute('data-keeps-enter')).toBe(false);
+    // Drawn again in the other language, it is on the same two buttons.
+    setLang('es');
+    renderSetup(box, deps);
+    expect(marked()).toEqual(['VOLVER · ESC', 'EN']);
   });
 
   it('paints each knight on foot in their own colours, once for every render', () => {

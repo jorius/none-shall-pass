@@ -236,6 +236,28 @@ describe('App', () => {
     expect(start).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves Enter to the focused button that carries the keep-Enter marker, and takes it from every other element', () => {
+    app.quit();
+    app.openSetup('campaign');
+    const start = vi.spyOn(app, 'startRun');
+    // The setup marks BACK and its language button (data-keeps-enter); the App reads the marker off the element the key came from.
+    const own = document.body.appendChild(Object.assign(document.createElement('button'), { textContent: 'BACK' }));
+    own.dataset.keepsEnter = '';
+    const inner = own.appendChild(document.createElement('span'));
+    const other = document.body.appendChild(Object.assign(document.createElement('button'), { textContent: 'START' }));
+    const press = (target: EventTarget): KeyboardEvent => {
+      const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      target.dispatchEvent(ev);
+      return ev;
+    };
+    // The key is not taken, so the browser clicks the button; no run starts.
+    expect([press(own).defaultPrevented, press(inner).defaultPrevented, start.mock.calls.length, app.screen]).toEqual([false, false, 0, 'setup']);
+    // Anywhere else it is taken, and starts one run.
+    expect([press(other).defaultPrevented, start.mock.calls.length, app.screen]).toEqual([true, 1, 'playing']);
+    own.remove();
+    other.remove();
+  });
+
   it('starts a first visit\'s run on the Black Knight and the Analyst when Enter is pressed at the setup, and only from the setup', () => {
     app.act('continue');
     expect([app.screen, app.run]).toEqual(['title', null]);

@@ -52,6 +52,22 @@ describe('Hud', () => {
     expect(clock()).toBe('DESPEJE');
   });
 
+  it('says the hints switch ON and OFF in English and SÍ and NO in Spanish, like the pause menu\'s switches', () => {
+    const hints = (): string | null => ui.querySelector('.toggle')!.textContent;
+    run.setHints(true);
+    hud.refresh(run);
+    expect(hints()).toBe('HINTS ON ×0.75');
+    run.setHints(false);
+    hud.refresh(run);
+    expect(hints()).toBe('HINTS OFF');
+    setLang('es');
+    hud.refresh(run);
+    expect(hints()).toBe('PISTAS NO');
+    run.setHints(true);
+    hud.refresh(run);
+    expect(hints()).toBe('PISTAS SÍ ×0,75');
+  });
+
   it('draws one pip per point of the difficulty\'s reputation', () => {
     expect(ui.querySelectorAll('.pips i').length).toBe(10);
     hud.start(new Run(cfg({ difficulty: 'zeroday' })));

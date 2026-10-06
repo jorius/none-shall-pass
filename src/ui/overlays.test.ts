@@ -234,21 +234,51 @@ describe('Overlays', () => {
       expect(store.prefs().knight).toBe('forge');
     });
 
-    // Enter is the key to go on wherever the focus is, and Space is the focused button's own: the setup's other buttons are pressed with Space.
-    for (const [name, find] of [
-      ['a difficulty row', (): HTMLElement => box().querySelector<HTMLElement>('.dl[data-id="intern"]')!],
-      ['BACK', (): HTMLElement => named(/^BACK/)],
-      ['the language button', (): HTMLElement => named(/^ES$/)],
-    ] as const) {
-      it(`starts one run on the pair marked when ${name} has the focus, and does not press it`, () => {
-        const start = open();
-        const target = find();
-        target.focus();
-        expect(enter(target).defaultPrevented).toBe(true);
-        expect(start).toHaveBeenCalledTimes(1);
-        expect([app.screen, app.run?.state.cfg.knight, app.run?.state.cfg.difficulty, store.prefs().lang]).toEqual(['playing', 'forge', 'incident', undefined]);
-      });
-    }
+    it('starts one run on the pair marked when a difficulty row has the focus, and does not press it', () => {
+      const start = open();
+      const row = box().querySelector<HTMLElement>('.dl[data-id="intern"]')!;
+      row.focus();
+      expect(enter(row).defaultPrevented).toBe(true);
+      expect(start).toHaveBeenCalledTimes(1);
+      expect([app.screen, app.run?.state.cfg.knight, app.run?.state.cfg.difficulty]).toEqual(['playing', 'forge', 'incident']);
+    });
+
+    it('starts one run when nothing has the focus', () => {
+      const start = open();
+      (document.activeElement as HTMLElement).blur();
+      expect(document.activeElement).toBe(document.body);
+      expect(enter(document.body).defaultPrevented).toBe(true);
+      expect(start).toHaveBeenCalledTimes(1);
+      expect([app.screen, app.run?.state.cfg.knight, app.run?.state.cfg.difficulty]).toEqual(['playing', 'forge', 'incident']);
+    });
+
+    // BACK and the language button are actions their labels name, so a focused one keeps Enter for its own click, and no run starts.
+    it('goes back to the title on Enter when BACK has the focus, and starts no run', () => {
+      const start = open();
+      const back = named(/^BACK/);
+      back.focus();
+      expect(enter(back).defaultPrevented).toBe(false);
+      expect([app.screen, app.run, box().className, start.mock.calls.length]).toEqual(['title', null, 'ov show ov-title', 0]);
+      // The pair picked on the way is the one the title now names.
+      expect(box().textContent).toContain('Playing as Forge · Incident');
+    });
+
+    it('switches the language on Enter when the language button has the focus: the setup stays, the pair is kept, the focus is on the EN button and no run starts', () => {
+      const start = open();
+      const es = named(/^ES$/);
+      es.focus();
+      expect(enter(es).defaultPrevented).toBe(false);
+      expect([app.screen, app.run, store.prefs().lang, start.mock.calls.length]).toEqual(['setup', null, 'es', 0]);
+      expect(box().querySelector('h2')?.textContent).toBe('ELIGE A TU CABALLERO');
+      expect(document.activeElement).toBe(named(/^EN$/));
+      expect([box().querySelector<HTMLElement>('.kn.sel')?.dataset.id, box().querySelector<HTMLElement>('.dl.sel')?.dataset.id]).toEqual(['forge', 'incident']);
+      // Pressed again on its new label it switches back, and still starts nothing.
+      enter(named(/^EN$/));
+      expect([box().querySelector('h2')?.textContent, store.prefs().lang, document.activeElement === named(/^ES$/), start.mock.calls.length]).toEqual(['CHOOSE YOUR KNIGHT', 'en', true, 0]);
+      // Off the setup before the test ends: the apps of earlier tests still listen on the window, and one left on the setup would take the
+      // Enter of the next test.
+      app.quit();
+    });
 
     it('does nothing for the Enter that opens the setup from the title, and for a held Enter', () => {
       boot();
