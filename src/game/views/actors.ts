@@ -7,6 +7,9 @@ import { CSS } from '../../core/palette';
 import type { Run } from '../../core/run';
 import { knightY, mounted } from '../../core/state';
 
+// art
+import { knightKey, type KnightPose } from '../../art/sprites';
+
 // i18n
 import { t } from '../../i18n';
 
@@ -28,7 +31,7 @@ export class ActorsView implements View {
 
   constructor(scene: FieldScene) {
     const layer = scene.layers.actors;
-    this.knight = scene.add.image(KN_X, knightY(2, false), 'knight-foot-idle').setOrigin(0, 0);
+    this.knight = scene.add.image(KN_X, knightY(2, false), knightKey('black', 'foot-idle')).setOrigin(0, 0);
     this.you = label(scene, t('actor.you'), CSS.ink);
     this.squire = scene.add.image(SQUIRE_POS.x, SQUIRE_POS.y, 'squire-idle').setOrigin(0, 0).setVisible(false);
     // Above his head, clear of the uptime strip below and of the knight's spear on the same lane.
@@ -45,11 +48,11 @@ export class ActorsView implements View {
     const s = run?.state;
     const k = s?.knight ?? { x: KN_X, y: knightY(2, false), moving: false, throwT: 0, facing: 'left' as const };
     const horse = s ? mounted(s) : false;
-    const key = horse
-      ? k.throwT > 0 ? 'knight-horse-throw' : k.moving ? `knight-horse-${Math.floor(time / 0.11) % 2}` : 'knight-horse-0'
-      : k.throwT > 0 ? 'knight-foot-throw' : 'knight-foot-idle';
+    const pose: KnightPose = horse
+      ? k.throwT > 0 ? 'horse-throw' : k.moving ? (Math.floor(time / 0.11) % 2 ? 'horse-1' : 'horse-0') : 'horse-0'
+      : k.throwT > 0 ? 'foot-throw' : 'foot-idle';
     const bob = !k.moving && k.throwT === 0 && Math.floor(time / 0.5) % 2 ? -3 : 0;
-    this.knight.setTexture(key).setPosition(k.x, k.y + bob).setFlipX(k.moving && k.facing === 'right');
+    this.knight.setTexture(knightKey('black', pose)).setPosition(k.x, k.y + bob).setFlipX(k.moving && k.facing === 'right');
     // On the bottom lane the tag rides up over his feet instead of slipping under the uptime strip.
     this.you.setPosition(k.x + this.knight.displayWidth / 2, Math.min(k.y + this.knight.displayHeight - 4, FIELD_H - this.you.displayHeight));
     const hasSquire = !!s?.owned.includes('squire');

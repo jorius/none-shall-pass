@@ -82,7 +82,8 @@ export const outline = (g: Grid): Grid => {
 
 type FillCtx = { fillStyle: string | CanvasGradient | CanvasPattern; fillRect(x: number, y: number, w: number, h: number): void };
 
-export const paintGrid = (ctx: FillCtx, g: Grid, scale: number): void => {
+// Paints each row's runs of one letter as one rect; `pal` swaps letters for this sprite, the rest fall back to PAL.
+export const paintGrid = (ctx: FillCtx, g: Grid, scale: number, pal: Record<string, string> = PAL): void => {
   g.forEach((row, y) => {
     let x = 0;
     while (x < row.length) {
@@ -90,7 +91,7 @@ export const paintGrid = (ctx: FillCtx, g: Grid, scale: number): void => {
       if (!c) { x++; continue; }
       let e = x;
       while (e + 1 < row.length && row[e + 1] === c) e++;
-      ctx.fillStyle = PAL[c];
+      ctx.fillStyle = pal[c] ?? PAL[c];
       ctx.fillRect(x * scale, y * scale, (e - x + 1) * scale, scale);
       x = e + 1;
     }

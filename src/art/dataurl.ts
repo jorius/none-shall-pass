@@ -7,12 +7,12 @@ import { iconGrid } from './sprites';
 
 const cache = new Map<string, string>();
 
-export const gridUrl = (g: Grid, scale: number): string => {
+export const gridUrl = (g: Grid, scale: number, pal?: Record<string, string>): string => {
   const c = document.createElement('canvas');
   c.width = g[0].length * scale;
   c.height = g.length * scale;
   const ctx = c.getContext('2d');
-  if (ctx) paintGrid(ctx, g, scale);
+  if (ctx) paintGrid(ctx, g, scale, pal);
   return c.toDataURL('image/png');
 };
 

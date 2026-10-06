@@ -36,4 +36,13 @@ describe('pixel helpers', () => {
     paintGrid(ctx, g, 3);
     expect(calls).toEqual([[PAL.R, 0, 0, 6, 3], [PAL.B, 9, 0, 3, 3]]);
   });
+
+  it('paints with a palette swap, falling back to PAL for the rest', () => {
+    const colours: string[] = [];
+    const ctx = { fillStyle: '' as string, fillRect() { colours.push(this.fillStyle); } };
+    const g = grid(2, 1);
+    g[0] = ['R', 'B'];
+    paintGrid(ctx, g, 1, { R: '#123456' });
+    expect(colours).toEqual(['#123456', PAL.B]);
+  });
 });

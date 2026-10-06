@@ -1,46 +1,101 @@
 // core
 import type { IconId } from '../core/content/cards';
+import { KNIGHT_IDS, KNIGHTS, type KnightId, type KnightLook } from '../core/content/knights';
 import type { MaliciousKind } from '../core/types';
 
 // local
 import { disc, draw, ell, grid, line, outline, poly, rect, rowsToGrid, set, type Grid } from './pixels';
 
 type Rows = [number, number, string][];
+type Row = Rows[number];
 
-const SHIELD = (x: number, y: number): Rows => [
-  [y, x, 'llllll'], [y + 1, x, 'lBBBBb'], [y + 2, x, 'lBBwBb'], [y + 3, x, 'lBwwwb'], [y + 4, x, 'lBBwBb'],
-  [y + 5, x, 'lBBwBb'], [y + 6, x + 1, 'lBBb'], [y + 7, x + 1, 'lBb'], [y + 8, x + 2, 'lb'], [y + 9, x + 2, 'l'],
-];
+const shift = (rows: Rows, dx: number, dy: number): Rows => rows.map(([y, x, s]): Row => [y + dy, x + dx, s]);
 
-const HELM = (x: number, y: number): Rows => [
-  [y - 4, x + 5, 'RR'], [y - 3, x + 4, 'RRRR'], [y - 2, x + 4, 'RRrrr'], [y - 1, x + 5, 'R'], [y - 1, x + 7, 'rrr'],
-  [y, x + 1, 'llmmmd'], [y + 1, x, 'lwlmmmmd'], [y + 2, x, 'llmmmmmd'], [y + 3, x, 'RRRRmmmd'], [y + 4, x, 'kkmmmmdd'],
-  [y + 5, x, 'lmkmmmdd'], [y + 6, x + 1, 'mmmmdd'], [y + 7, x + 2, 'dddd'],
-];
+// A heater shield, 9 wide and 12 tall: a lit rim, a dark inner border and the knight's emblem centred on the field.
+const EMBLEM: Record<KnightLook['shield'], string[]> = {
+  cross: ['bBBwBBb', 'bBwwwBb', 'bBBwBBb', 'bBBwBBb'],
+  eye: ['bBwwwBb', 'bwwkwwb', 'bBwwwBb', 'bBBBBBb'],
+  blade: ['bBBwBBb', 'bBBwBBb', 'bBwwwBb', 'bBByBBb'],
+  split: ['bAAABBb', 'bAAABBb', 'bAAABBb', 'bAAABBb'],
+  // a white mask with dark eye holes (Ghost) and a `>_` prompt (Forge)
+  mask: ['bSSSSSb', 'bSkSkSb', 'bSSSSSb', 'bBSSSBb'],
+  prompt: ['bBwBBBb', 'bBBwBBb', 'bBwBBBb', 'bBBBwwb'],
+};
+const SHIELD = (x: number, y: number, emblem: KnightLook['shield']): Rows =>
+  ['lllllllll', 'lbbbbbbbd', ...EMBLEM[emblem].map((r) => `l${r}d`), 'lbBBBBBbd', '.lbBBBbd.', '.lbBBBbd.', '..lbBbd..', '...lbd...', '....d....']
+    .map((s, i): Row => [y + i, x, s]);
 
-// The Black Knight on foot, facing left, spear upright (or thrown).
-export const knightFoot = (throwing: boolean): Grid => {
+// The spear upright at column 18: a leaf-shaped head, a gold socket, a pennant, a wrapped shaft and a butt cap; (dx, dy) moves it.
+const SPEAR = (dx = 0, dy = 0): Rows => {
+  const rows: Rows = [[0, 18, 'S'], [1, 17, 'sSS'], [2, 17, 'sSS'], [3, 17, 'sSw'], [4, 17, 'ssS'], [5, 18, 's'], [6, 18, 'y'], [7, 18, 'y'],
+    [8, 14, 'RRRR'], [9, 15, 'rRR'], [10, 16, 'rR'], [11, 17, 'r']];
+  for (let y = 8; y <= 27; y++) rows.push([y, 18, y % 5 === 0 ? 't' : 'T']);
+  rows.push([28, 18, 'm']);
+  return shift(rows, dx, dy);
+};
+
+// The helmet with its top-left at (x, y): a plume or goggles, a braid down the back, a closed visor or an open face, a beard.
+const HELM = (x: number, y: number, look: KnightLook): Rows => {
   const rows: Rows = [];
-  if (!throwing) {
-    rows.push([1, 17, 'S'], [2, 16, 'sSs'], [3, 16, 'sSs'], [4, 16, 'sSs'], [5, 17, 'S'], [6, 17, 's']);
-    for (let y = 7; y <= 28; y++) rows.push([y, 17, 'T']);
+  if (look.plume) rows.push([y - 4, x + 5, 'RR'], [y - 3, x + 4, 'RRRR'], [y - 2, x + 4, 'RRrrr'], [y - 1, x + 5, 'R'], [y - 1, x + 7, 'rrr']);
+  // goggles pushed up on the helmet instead of a plume
+  if (look.goggles) rows.push([y - 2, x + 1, 'yjy.yjy'], [y - 1, x + 1, 'yjyyyjy']);
+  // the braid's main colour with its shade at the ties (a knight's palette swaps both)
+  if (look.braid) {
+    rows.push([y + 2, x + 8, 'y'], [y + 3, x + 8, 'yy'], [y + 4, x + 9, 'yy'], [y + 5, x + 8, 'yy'], [y + 6, x + 9, 'yy'], [y + 7, x + 8, 'yy'],
+      [y + 8, x + 9, 'yy'], [y + 9, x + 9, 'y'], [y + 10, x + 9, 'Y'], [y + 11, x + 9, 'y'], [y + 12, x + 10, 'Y']);
   }
-  rows.push(...HELM(5, 5));
-  rows.push(
-    [13, 4, 'llmdmmmdmmd'], [14, 3, 'lwlmdmmmdmmmd'],
-    [15, 7, 'dkkRkkmdd'], [16, 7, 'dkkRkkmd'], [17, 7, 'dkRRRkmd'], [18, 7, 'dkkRkkmd'], [19, 7, 'dkkRkkdd'], [20, 7, 'ttttyttt'],
-    [21, 7, 'mmd'], [21, 11, 'mmd'],
-    [22, 7, 'lmd'], [22, 11, 'mmd'], [23, 7, 'lmd'], [23, 11, 'mmd'], [24, 7, 'mmd'], [24, 11, 'mdd'],
-    [25, 7, 'lmd'], [25, 11, 'mmd'], [26, 7, 'lmd'], [26, 11, 'mmd'], [27, 5, 'llmmd'], [27, 11, 'mmmd'],
-  );
-  if (!throwing) rows.push([15, 16, 'mld'], [16, 16, 'dmd']);
-  else rows.push([13, 14, 'dm'], [12, 15, 'mm'], [11, 15, 'lm'], [10, 15, 'ml']);
-  rows.push(...SHIELD(1, 14));
+  rows.push([y, x + 1, 'llmmmd'], [y + 1, x, 'lwlmmmmd'], [y + 2, x, 'llmmmmmd']);
+  if (look.face === 'open') rows.push([y + 3, x, 'mpppmmmd'], [y + 4, x, 'mkppPmdd'], [y + 5, x, 'mppPmmdd']);
+  else rows.push([y + 3, x, 'RRRRmmmd'], [y + 4, x, 'kkmmmmdd'], [y + 5, x, 'lmkmmmdd']);
+  if (look.beard === 'red') rows.push([y + 6, x + 1, 'XXXXdd'], [y + 7, x + 2, 'xXXx']);
+  else if (look.beard === 'brown') rows.push([y + 6, x + 1, 'ttTtdd'], [y + 7, x + 2, 'tTtt']);
+  else rows.push([y + 6, x + 1, 'mmmmdd'], [y + 7, x + 2, 'dddd']);
+  return rows;
+};
+
+// The surcoat (rows 15–19 of the foot sprite): the cross, a plain field, a chevron, red-and-brown halves,
+// a dark cloak with a green clasp (Ghost) and a leather apron with brass rivets (Forge).
+const CHEST: Record<KnightLook['chest'], Rows> = {
+  cross: [[15, 7, 'dkkRkkmdd'], [16, 7, 'dkkRkkmd'], [17, 7, 'dkRRRkmd'], [18, 7, 'dkkRkkmd'], [19, 7, 'dkkRkkdd']],
+  plain: [[15, 7, 'dRRRRRmdd'], [16, 7, 'dRRRRRmd'], [17, 7, 'dRRwRRmd'], [18, 7, 'dRRRRRmd'], [19, 7, 'dRRRRRdd']],
+  chevron: [[15, 7, 'dRkkkRmdd'], [16, 7, 'dkRkRkmd'], [17, 7, 'dkkRkkmd'], [18, 7, 'dkkkkkmd'], [19, 7, 'dkkkkkdd']],
+  split: [[15, 7, 'dAAARRmdd'], [16, 7, 'dAAARRmd'], [17, 7, 'dAAARRmd'], [18, 7, 'dAAARRmd'], [19, 7, 'dAAARRdd']],
+  cloak: [[15, 7, 'dcccccmdd'], [16, 7, 'dcgccccmd'], [17, 7, 'dcccccmd'], [18, 7, 'dcccccmd'], [19, 7, 'dcccccdd']],
+  apron: [[15, 7, 'dtTTTtmdd'], [16, 7, 'dtTyTtmd'], [17, 7, 'dtTTTtmd'], [18, 7, 'dtTyTtmd'], [19, 7, 'dtTTTtdd']],
+};
+
+// The body on foot: the shoulders under the helmet, then (below the surcoat) the belt and the legs.
+const SHOULDERS: Rows = [[13, 4, 'llmdmmmdmmd'], [14, 3, 'lwlmdmmmdmmmd']];
+const LEGS: Rows = [[20, 7, 'ttttyttt'], [21, 7, 'mmd'], [21, 11, 'mmd'], [22, 7, 'lmd'], [22, 11, 'mmd'], [23, 7, 'lmd'], [23, 11, 'mmd'], [24, 7, 'mmd'], [24, 11, 'mdd'],
+  [25, 7, 'lmd'], [25, 11, 'mmd'], [26, 7, 'lmd'], [26, 11, 'mmd'], [27, 5, 'llmmd'], [27, 11, 'mmmd']];
+const GAUNTLET = (y: number): Rows => [[y, 15, 'mlld'], [y + 1, 15, 'dmmd']];
+const THROWN_ARM: Rows = [[13, 14, 'dm'], [12, 15, 'mm'], [11, 15, 'lm'], [10, 15, 'ml']];
+
+// A knight on foot, facing left, with the given spear rows and spear-arm rows.
+const foot = (look: KnightLook, spear: Rows, arm: Rows): Grid =>
+  outline(draw(grid(21, 30), [...spear, ...HELM(5, 5, look), ...SHOULDERS, ...CHEST[look.chest], ...LEGS, ...arm, ...SHIELD(0, 14, look.shield)]));
+
+// The knight on foot, spear upright (or thrown).
+export const knightFoot = (look: KnightLook, throwing: boolean): Grid => foot(look, throwing ? [] : SPEAR(), throwing ? THROWN_ARM : GAUNTLET(15));
+
+// The win: the spear thrust up five rows, the fist with it.
+export const knightCheer = (look: KnightLook): Grid => foot(look, SPEAR(0, -5), GAUNTLET(10));
+
+// The loss: the knight on one knee, spear planted.
+export const knightDown = (look: KnightLook): Grid => {
+  const rows: Rows = [...SPEAR(0, 2)];
+  rows.push(...HELM(5, 9, look));
+  rows.push(...shift(SHOULDERS, 0, 4));
+  rows.push(...shift(CHEST[look.chest], 0, 4));
+  rows.push([24, 7, 'ttttyttt'], [25, 5, 'mmmmmmdd'], [26, 4, 'lmmmmmmmd'], [27, 3, 'llmmd'], [27, 11, 'mmmd'], [28, 10, 'mmmd'], [28, 3, 'ldd']);
+  rows.push(...GAUNTLET(19));
+  rows.push(...SHIELD(0, 18, look.shield));
   return outline(draw(grid(21, 30), rows));
 };
 
 // The knight on his destrier; frame 0/1 are the gallop's two leg poses.
-export const knightHorse = (frame: 0 | 1, throwing: boolean): Grid => {
+export const knightHorse = (look: KnightLook, frame: 0 | 1, throwing: boolean): Grid => {
   const g = grid(37, 33);
   poly(g, [[30, 16], [33, 17], [35, 25], [33, 24], [31, 20]], 'k');
   const legs: [number, number, number, number, string][] = frame === 0
@@ -61,16 +116,58 @@ export const knightHorse = (frame: 0 | 1, throwing: boolean): Grid => {
   line(g, 13, 24, 29, 24, 'R'); line(g, 13, 25, 29, 25, 'r');
   draw(g, [[18, 20, 'BB'], [19, 19, 'BwwB'], [20, 20, 'BB']]);
   draw(g, [[15, 13, 'tTTTTTTTTt']]);
-  if (!throwing) {
-    draw(g, [[0, 25, 'S'], [1, 24, 'sSs'], [2, 24, 'sSs'], [3, 24, 'sSs'], [4, 25, 'S'], [5, 25, 's']]);
-    line(g, 25, 6, 25, 26, 'T');
-  }
-  draw(g, HELM(14, 4));
-  draw(g, [[12, 14, 'lmdmmmdmmd'], [13, 14, 'dkkRkkmdd'], [14, 14, 'dkRRRkmd'],
+  if (!throwing) draw(g, SPEAR(7, 0));
+  draw(g, HELM(14, 4, look));
+  draw(g, [[12, 14, 'lmdmmmdmmd'], ...shift(CHEST[look.chest], 7, -2),
     [16, 18, 'lmd'], [17, 18, 'lmd'], [18, 18, 'lmd'], [19, 18, 'lmd'], [20, 17, 'llmd'], [21, 17, 'yyy']]);
   if (!throwing) draw(g, [[12, 24, 'mld'], [13, 24, 'dmd']]);
   else draw(g, [[11, 22, 'dm'], [10, 23, 'mm'], [9, 24, 'lm']]);
-  draw(g, SHIELD(13, 11));
+  draw(g, SHIELD(12, 10, look.shield));
+  return outline(g);
+};
+
+// The squire, a man-at-arms in training: a kettle hat over a mail coif, a quilted gambeson with the knight's red cross,
+// a round buckler and a short spear with the same pennant. Shaded like the knight, smaller and lighter.
+export const squire = (throwing: boolean): Grid => {
+  const g = rowsToGrid([
+    '.....................',
+    '.....................',
+    '......lllll..........',
+    '.....lwlllll.........',
+    '.....llllllm.........',
+    '...ddddddddddd.......',
+    '....spkpppPPs........',
+    '....spppppPPs........',
+    '....sppPPPPPs........',
+    '.....ssppPPss........',
+    '......ssssss.........',
+    '....aaaaaaaaa........',
+    '...aaaaaaaaaaA.......',
+    '..lllaaaRaaaaAA......',
+    '.lmwmlaRRRaaaaAA.....',
+    '.lmmmlaaRaaaaAAA.....',
+    '..lllaaaaaaaaA.......',
+    '....aAaAaAaAa........',
+    '....aaaaaaaaa........',
+    '....ttttytttt........',
+    '....aaaaaaaaa........',
+    '....aAaaAaaAa........',
+    '.....nn...nn.........',
+    '.....Hn...Hn.........',
+    '.....Hn...Hn.........',
+    '.....Hn...Hn.........',
+    '.....tt...tt.........',
+    '....ttt...ttt........',
+    '...tttt...tttt.......',
+    '.....................',
+  ]);
+  if (!throwing) {
+    draw(g, [[0, 18, 'S'], [1, 17, 'sSS'], [2, 17, 'sSw'], [3, 17, 'ssS'], [4, 18, 's'], [5, 18, 'y'], [6, 14, 'RRRR'], [7, 15, 'rRR'], [8, 16, 'rR']]);
+    for (let y = 6; y <= 28; y++) if (!g[y][18]) g[y][18] = 'T';
+    draw(g, [[14, 16, 'pp'], [15, 16, 'pp']]);
+  } else {
+    draw(g, [[1, 3, 'SsTTTTTTTTTTTT'], [0, 4, 's'], [2, 4, 's'], [2, 15, 'pp'], [3, 15, 'p'], [4, 14, 'Ap'], [5, 14, 'A'], [6, 13, 'AA'], [7, 13, 'A'], [8, 13, 'A'], [9, 13, 'A'], [10, 12, 'A']]);
+  }
   return outline(g);
 };
 
@@ -217,6 +314,19 @@ const legLines = (g: Grid, attach: [number, number][], ends: [number, number][],
   attach.forEach(([ax, ay], i) => line(g, ax, ay, ends[i][0], ends[i][1], c));
 const mirror = (pts: [number, number][], w: number): [number, number][] => pts.map(([x, y]) => [w - x, y]);
 
+// The housefly: a dark body, red eyes, platinum wings; frame 1 lifts the wings, the blur frame shows both positions.
+const FLY_BODY: Rows = [[2, 1, 'RR'], [3, 0, 'RRkk'], [3, 4, 'cccc'], [4, 1, 'kkkcCcCc'], [5, 2, 'kkcccc'], [6, 2, 'k.k.k']];
+const FLY_WINGS: [Rows, Rows] = [[[1, 4, 'eeee'], [2, 5, 'ee']], [[0, 4, 'eeee'], [1, 3, 'ee']]];
+const housefly = (wings: Rows): Grid => outline(draw(draw(grid(10, 8), wings), FLY_BODY));
+export const flyBlur = (): Grid => housefly([...FLY_WINGS[0], ...FLY_WINGS[1]]);
+
+// The worm that crawls a card's edge, in segments: a head with an eye, bodies, a tail.
+export const wormPart = (part: 'head' | 'body' | 'tail'): Grid => {
+  if (part === 'head') return outline(draw(grid(8, 7), [[1, 2, 'yyyy'], [2, 1, 'yTTTTy'], [3, 0, 'yTTkTTTy'], [4, 1, 'yTTTTy'], [5, 2, 'yyyy']]));
+  if (part === 'body') return outline(draw(grid(6, 6), [[0, 2, 'yy'], [1, 1, 'yTTy'], [2, 0, 'yTTTTy'], [3, 0, 'yTTTTy'], [4, 1, 'yTTy'], [5, 2, 'yy']]));
+  return outline(draw(grid(4, 4), [[0, 1, 'yy'], [1, 0, 'yTTy'], [2, 0, 'yTTy'], [3, 1, 'yy']]));
+};
+
 export const critter = (kind: BugKind, f: 0 | 1): Grid => {
   if (kind === 'spider') {
     const g = grid(17, 13);
@@ -235,19 +345,14 @@ export const critter = (kind: BugKind, f: 0 | 1): Grid => {
     draw(g, [[2, 6, 'GGG'], [3, 5, 'ggGgg'], [4, 4, 'gwgGggg'], [5, 4, 'gwgGggg'], [6, 4, 'gggGggg'], [7, 4, 'gggGggg'], [8, 4, 'gggGggg'], [9, 4, 'gggGggg'], [10, 5, 'ggGgg'], [11, 6, 'ggg']]);
     return outline(g);
   }
-  if (kind === 'fly') {
-    const g = grid(15, 12);
-    if (f) { poly(g, [[6, 4], [1, 1], [0, 4], [5, 6]], 'j'); poly(g, [[9, 4], [14, 1], [15, 4], [10, 6]], 'j'); }
-    else { poly(g, [[6, 5], [2, 7], [1, 10], [6, 8]], 'j'); poly(g, [[9, 5], [13, 7], [14, 10], [9, 8]], 'j'); }
-    draw(g, [[2, 6, 'RmR'], [3, 6, 'mmm'], [4, 6, 'mdm'], [5, 6, 'mdm'], [6, 6, 'mdm'], [7, 6, 'mdm'], [8, 7, 'm']]);
-    return outline(g);
-  }
+  if (kind === 'fly') return housefly(FLY_WINGS[f]);
   if (kind === 'gnat') {
     const g = grid(9, 8);
     draw(g, f ? [[1, 1, 'jj'], [1, 6, 'jj'], [2, 2, 'j'], [2, 6, 'j']] : [[5, 1, 'jj'], [5, 6, 'jj'], [4, 2, 'j'], [4, 6, 'j']]);
     draw(g, [[2, 4, 'R'], [3, 3, 'mmm'], [4, 3, 'mdm'], [5, 4, 'm']]);
     return outline(g);
   }
+  // the one-piece worm the rack's crawling bugs still use
   const g = grid(19, 8);
   for (let i = 0; i < 7; i++) {
     const x = 1 + i * 2, y = 3 + Math.round(Math.sin(i * 0.9 + (f ? Math.PI : 0)) * 1.4);
@@ -258,22 +363,35 @@ export const critter = (kind: BugKind, f: 0 | 1): Grid => {
 };
 
 export const iconGrid = (icon: IconId): Grid =>
-  icon === 'horse' ? knightHorse(0, false) : icon === 'squire' ? knightFoot(false) : ICONS[icon]();
+  icon === 'horse' ? knightHorse(KNIGHTS.black.look, 0, false) : icon === 'squire' ? squire(false) : ICONS[icon]();
+
+export type KnightPose = 'foot-idle' | 'foot-throw' | 'horse-0' | 'horse-1' | 'horse-throw' | 'down' | 'cheer';
+export const knightKey = (id: KnightId, pose: KnightPose): string => `knight-${id}-${pose}`;
+
+export type SpriteDef = { key: string; grid: () => Grid; scale: number; pal?: Record<string, string> };
+
+// Every pose of one knight, drawn from his look and painted on his palette.
+const knightDefs = (id: KnightId): SpriteDef[] => {
+  const k = KNIGHTS[id], L = k.look;
+  const poses: Record<KnightPose, () => Grid> = {
+    'foot-idle': () => knightFoot(L, false), 'foot-throw': () => knightFoot(L, true), 'horse-0': () => knightHorse(L, 0, false),
+    'horse-1': () => knightHorse(L, 1, false), 'horse-throw': () => knightHorse(L, 0, true), down: () => knightDown(L), cheer: () => knightCheer(L),
+  };
+  return (Object.keys(poses) as KnightPose[]).map((pose) => ({ key: knightKey(id, pose), grid: poses[pose], scale: 3, pal: k.pal }));
+};
 
 const BUGS: BugKind[] = ['spider', 'worm', 'beetle', 'fly', 'gnat'];
 
-export const SPRITE_DEFS: { key: string; grid: () => Grid; scale: number }[] = [
-  { key: 'knight-foot-idle', grid: () => knightFoot(false), scale: 3 },
-  { key: 'knight-foot-throw', grid: () => knightFoot(true), scale: 3 },
-  { key: 'knight-horse-0', grid: () => knightHorse(0, false), scale: 3 },
-  { key: 'knight-horse-1', grid: () => knightHorse(1, false), scale: 3 },
-  { key: 'knight-horse-throw', grid: () => knightHorse(0, true), scale: 3 },
-  { key: 'squire-idle', grid: () => knightFoot(false), scale: 2 },
-  { key: 'squire-throw', grid: () => knightFoot(true), scale: 2 },
+export const SPRITE_DEFS: SpriteDef[] = [
+  ...KNIGHT_IDS.flatMap(knightDefs),
+  { key: 'squire-idle', grid: () => squire(false), scale: 2 },
+  { key: 'squire-throw', grid: () => squire(true), scale: 2 },
+  { key: 'worm-head', grid: () => wormPart('head'), scale: 2 }, { key: 'worm-body', grid: () => wormPart('body'), scale: 2 }, { key: 'worm-tail', grid: () => wormPart('tail'), scale: 2 },
   { key: 'spear', grid: spear, scale: 3 },
   { key: 'spear-small', grid: spear, scale: 2 },
   { key: 'hammer', grid: ICONS.hammer, scale: 3 },
   { key: 'lock-shut', grid: ICONS.lockShut, scale: 2 },
   { key: 'lock-open', grid: ICONS.lockOpen, scale: 2 },
   ...BUGS.flatMap((b) => ([0, 1] as const).map((f) => ({ key: `bug-${b}-${f}`, grid: () => critter(b, f), scale: 2 }))),
+  { key: 'bug-fly-wing', grid: flyBlur, scale: 2 },
 ];
