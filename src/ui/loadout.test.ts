@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // core
+import type { CardId } from '../core/content/cards';
 import { Run } from '../core/run';
 import { cfg } from '../core/testkit';
 
@@ -11,7 +12,7 @@ import { setLang } from '../i18n';
 
 // local
 import { Inspector } from './inspector';
-import { LoadoutTiles, tileFit } from './loadout';
+import { familyOf, levelOf, LoadoutTiles, tileFit } from './loadout';
 
 // jsdom has no canvas to paint the icons on.
 vi.mock('../art/dataurl', () => ({ iconUrl: (icon: string, size: string) => `data:image/png;${icon}-${size}` }));
@@ -35,7 +36,8 @@ describe('LoadoutTiles', () => {
     expect(all().map((t) => t.className)).toEqual(['ltile FIREWALL']);
     tiles.event({ type: 'owned', owned: ['lockdown', 'obs1', 'obs2', 'squire', 'csp'] });
     expect(all().map((t) => t.title)).toEqual(['Port lockdown', 'Observability II · metrics', 'Squire', 'Output encoding + CSP']);
-    expect(all().map((t) => t.className)).toEqual(['ltile FIREWALL', 'ltile KNIGHT', 'ltile KNIGHT', 'ltile SERVER']);
+    // The three tiles the loadout just gained flash; the one it had does not.
+    expect(all().map((t) => t.className)).toEqual(['ltile FIREWALL', 'ltile KNIGHT flash', 'ltile KNIGHT flash', 'ltile SERVER flash']);
     expect(all()[1].querySelector('img')?.getAttribute('src')).toBe('data:image/png;eye-tile');
   });
 
@@ -89,5 +91,80 @@ describe('LoadoutTiles', () => {
     tiles.refresh(run);
     expect(all()[0].title).toBe('Puertos cerrados');
     expect(all()[0].querySelector('img')?.alt).toBe('Puertos cerrados');
+  });
+
+  const pips = (): number[] => [...ui.querySelectorAll('.ltile .lvl')].map((l) => l.querySelectorAll('i.on').length);
+  const flashed = (): string[] => all().filter((t) => t.classList.contains('flash')).map((t) => t.title);
+  const floats = (): string[] => [...ui.querySelectorAll('.float.gold')].map((f) => f.textContent ?? '');
+
+  it('shows level pips on the Destrier and Observability tiles and flashes a level-up with a float', () => {
+    run.state.owned.push('destrier', 'obs1');
+    tiles.start(run);
+    expect(pips()).toEqual([1, 1]); // lockdown has no pips; Destrier I and Observability I show 1 of 3
+    expect(flashed()).toEqual([]);
+    run.state.owned.push('obs2');
+    tiles.event({ type: 'owned', owned: [...run.state.owned] });
+    const obs = all().find((t) => t.classList.contains('flash'))!;
+    expect(obs.querySelectorAll('.lvl i.on').length).toBe(2);
+    expect(obs.querySelectorAll('.lvl i').length).toBe(3);
+    expect(floats()).toEqual(['Observability II']);
+    // Beside the third tile (lockdown, Destrier, Observability), ending just left of the column.
+    const f = ui.querySelector<HTMLElement>('.float.gold')!;
+    expect({ top: f.style.top, right: f.style.right }).toEqual({ top: '148px', right: '210px' });
+    // The level pips go up to three, and the flash and the float leave when their animations end.
+    obs.dispatchEvent(new Event('animationend'));
+    f.dispatchEvent(new Event('animationend'));
+    expect(flashed()).toEqual([]);
+    expect(floats()).toEqual([]);
+    tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2', 'destrier3', 'obs1', 'obs2', 'obs3'] });
+    expect(pips()).toEqual([3, 3]);
+    expect(floats()).toEqual(['Destrier III', 'Observability III']);
+  });
+
+  it('flashes a tile the loadout gains, and never on a start or a refresh', () => {
+    tiles.event({ type: 'owned', owned: ['lockdown', 'squire'] });
+    expect(flashed()).toEqual(['Squire']);
+    expect(floats()).toEqual(['Squire']);
+    run.state.owned.push('squire', 'csp');
+    tiles.start(run);
+    expect(flashed()).toEqual([]);
+    tiles.refresh(run);
+    expect(flashed()).toEqual([]);
+    expect(floats()).toEqual(['Squire']);
+  });
+
+  it('holds a flash bought under the draft screen until the wave starts and the column is in view', () => {
+    tiles.screen('draft');
+    tiles.event({ type: 'owned', owned: ['lockdown', 'obs1'] });
+    expect(pips()).toEqual([1]);
+    expect(flashed()).toEqual([]);
+    expect(floats()).toEqual([]);
+    tiles.screen('playing');
+    expect(flashed()).toEqual(['Observability I · logs']);
+    expect(floats()).toEqual(['Observability I']);
+    // Once shown, a refresh or the next screen change does not flash it again.
+    run.state.owned.push('obs1');
+    tiles.refresh(run);
+    expect(pips()).toEqual([1]);
+    tiles.screen('draft');
+    tiles.screen('playing');
+    expect(flashed()).toEqual([]);
+  });
+
+  it('floats the level-up in Spanish', () => {
+    setLang('es');
+    tiles.refresh(run);
+    tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2'] });
+    expect(flashed()).toEqual(['Destrero II']);
+    expect(floats()).toEqual(['Destrero II']);
+  });
+
+  it('tells a card\'s family and its level from the loadout', () => {
+    const ids: CardId[] = ['destrier', 'destrier2', 'destrier3', 'obs1', 'obs2', 'obs3', 'squire', 'lockdown'];
+    expect(ids.map(familyOf)).toEqual(['destrier', 'destrier', 'destrier', 'obs', 'obs', 'obs', null, null]);
+    expect(levelOf([], 'destrier')).toBe(0);
+    expect(levelOf(['destrier', 'destrier2'], 'destrier')).toBe(2);
+    expect(levelOf(['obs1', 'obs2', 'obs3'], 'obs')).toBe(3);
+    expect(levelOf(['obs1'], 'destrier')).toBe(0);
   });
 });

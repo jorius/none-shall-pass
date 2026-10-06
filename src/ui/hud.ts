@@ -1,5 +1,6 @@
 // core
 import { CAMPAIGN } from '../core/content/waves';
+import { allowsHints } from '../core/difficulty';
 import type { RunEvent } from '../core/events';
 import type { Run } from '../core/run';
 import { repCap } from '../core/state';
@@ -54,7 +55,7 @@ export class Hud implements View {
     this.pauseBtn.textContent = t('hud.pause');
     this.root.textContent = t('hud.root');
     // On the title (no run) the Konami code can switch root mode under the idle field; the HUD behind it follows.
-    if (!run) this.mode(this.app.root);
+    if (!run) this.mode(this.app.root, !this.started || allowsHints(this.started.state.cfg.difficulty));
     this.last = '';
     const shown = run ?? this.started;
     if (shown) this.frame(shown);
@@ -64,15 +65,15 @@ export class Hud implements View {
   // and the last run's numbers must not stay up behind it.
   start(run: Run): void {
     this.started = run;
-    this.mode(run.state.cfg.root);
+    this.mode(run.state.cfg.root, allowsHints(run.state.cfg.difficulty));
     this.last = '';
     this.frame(run);
   }
 
-  // Root mode shows its badge and has no hints to toggle.
-  private mode(root: boolean): void {
+  // Root mode shows its badge; it and a difficulty without hints (Zero-day) have no hints to toggle.
+  private mode(root: boolean, hints: boolean): void {
     this.root.style.display = root ? '' : 'none';
-    this.hints.style.display = root ? 'none' : '';
+    this.hints.style.display = root || !hints ? 'none' : '';
   }
 
   event(ev: RunEvent, run: Run): void {
@@ -93,7 +94,10 @@ export class Hud implements View {
     this.waveEl.replaceChildren(`${t('hud.wave')} `, el('b', '', undefined, n), ' · ', el('b', '', undefined, name), ' · ', el('b', '', undefined, clock));
     this.score.textContent = fmtNum(s.score);
     this.credits.textContent = fmtNum(s.credits);
-    this.pips.innerHTML = Array.from({ length: repCap(s.cfg) }, (_, i) => `<i class="${i < s.rep ? '' : 'off'}"></i>`).join('');
+    // Green with 70% or more of the cap left, gold from 40%, red below: the same shares at every difficulty's cap.
+    const cap = repCap(s.cfg);
+    this.pips.className = `pips ${s.rep * 10 >= cap * 7 ? 'good' : s.rep * 10 >= cap * 4 ? 'mid' : 'low'}`;
+    this.pips.innerHTML = Array.from({ length: cap }, (_, i) => `<i class="${i < s.rep ? '' : 'off'}"></i>`).join('');
     this.hints.textContent = s.hints ? t('hud.hintsOn') : t('hud.hintsOff');
     this.hints.classList.toggle('on', s.hints);
   }

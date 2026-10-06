@@ -1,6 +1,6 @@
 :root {
   --paper: #292929; --sub: #333333; --ink: #f2efe7; --dim: #a4a197; --mute: #3a3a3a;
-  --soft: #1c1c1c; --rule: #e6e2d6; --r: #ff2f2f; --b: #2fb6ff; --gold: #d9b44a;
+  --soft: #1c1c1c; --rule: #e6e2d6; --r: #ff2f2f; --b: #2fb6ff; --gold: #d9b44a; --green: #5fd38d;
   --mono: 'Space Mono', ui-monospace, Menlo, monospace;
   --code: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   --body: 'Atkinson Hyperlegible Next', system-ui, sans-serif;
@@ -30,8 +30,12 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .hud .wave b, .hud .stat b { color: var(--ink); }
 .hud .stat { font-size: 13px; color: var(--dim); }
 .hud .stat b { font-size: 16px; margin-left: 6px; }
+.hud .stat[data-key="hud.score"] b { color: var(--gold); }
+.hud .stat[data-key="hud.credits"] b { color: var(--green); }
 .pips { display: inline-flex; gap: 3px; margin-left: 8px; vertical-align: middle; }
 .pips i { width: 7px; height: 13px; background: var(--ink); display: block; }
+/* Green while most of the reputation is left, gold under 70%, red under 40% (Hud.frame); the spent pips stay grey. */
+.pips.good i { background: var(--green); } .pips.mid i { background: var(--gold); } .pips.low i { background: var(--r); }
 .pips i.off { background: var(--mute); }
 .toggle { font-family: var(--mono); font-size: 13px; color: var(--dim); background: transparent; border: 1px solid var(--mute); padding: 3px 8px; cursor: pointer; }
 .toggle.on { color: var(--paper); background: var(--b); border-color: var(--b); }
@@ -152,10 +156,17 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .loadout { position: absolute; left: 1076px; top: 62px; width: 44px; display: flex; flex-direction: column; gap: 5px; z-index: 16; }
 /* LoadoutTiles sets each tile's height (38px, less in a long run). The bottom padding keeps the category underline clear of the
    icon, and a crowded column scales the icon down whole, nearest-neighbour, instead of cropping it. */
-.ltile { width: 44px; height: 38px; padding-bottom: 3px; display: flex; align-items: center; justify-content: center; background: var(--soft); border: 1px solid var(--mute); cursor: help; pointer-events: auto; overflow: hidden; }
+.ltile { position: relative; width: 44px; height: 38px; padding-bottom: 3px; display: flex; align-items: center; justify-content: center; background: var(--soft); border: 1px solid var(--mute); cursor: help; pointer-events: auto; overflow: hidden; }
 .ltile img { display: block; max-width: 100%; max-height: 100%; }
 .ltile:hover { border-color: var(--ink); }
 .ltile.KNIGHT { box-shadow: inset 0 -3px 0 var(--gold); } .ltile.FIREWALL { box-shadow: inset 0 -3px 0 var(--b); } .ltile.SERVER { box-shadow: inset 0 -3px 0 var(--ink); }
+/* The tiered upgrades (Destrier, Observability) carry their level, three pips just above the category underline. */
+.ltile .lvl { position: absolute; bottom: 4px; display: flex; gap: 2px; }
+.ltile .lvl i { width: 6px; height: 3px; background: var(--mute); }
+.ltile .lvl i.on { background: var(--gold); }
+/* A tile the loadout just gained, or a level just bought, lights up once; its name floats beside it (LoadoutTiles.flash). */
+.ltile.flash { animation: tileflash .6s steps(4); }
+@keyframes tileflash { 0% { background: var(--ink); } 100% { background: var(--soft); } }
 
 /* ---------- overlays ---------- */
 /* Over the loadout (16) and the bottom panels (20): an open screen takes every click, so none reaches the field. */
@@ -234,7 +245,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 /* ---------- root mode: amber phosphor ---------- */
 body.root, #ui.root {
   --paper: #1a1408; --sub: #241b0a; --soft: #120d05; --mute: #3a2c10; --rule: #ffb000;
-  --ink: #ffb000; --dim: #b07a00; --r: #ff5a1f; --b: #ffcc4d; --gold: #ffd27a;
+  --ink: #ffb000; --dim: #b07a00; --r: #ff5a1f; --b: #ffcc4d; --gold: #ffd27a; --green: #ffd27a;
 }
 #ui.root .scanlines { background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(30,15,0,.28) 2px 3px); }
 /* The backdrops and the dark text on light chips are fixed colours, not variables: they go amber here too. */

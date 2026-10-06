@@ -57,4 +57,48 @@ describe('Hud', () => {
     expect(ui.querySelectorAll('.pips i').length).toBe(5);
     expect(ui.querySelectorAll('.pips i.off').length).toBe(0);
   });
+
+  const pips = (): string => ui.querySelector('.pips')!.className;
+
+  it('colours the reputation pips by how many are left', () => {
+    const at = (rep: number): string => { run.state.rep = rep; hud.event({ type: 'reputation', value: rep }, run); return pips(); };
+    expect(pips()).toBe('pips good');
+    expect(at(8)).toBe('pips good');
+    expect(at(7)).toBe('pips good');
+    expect(at(6)).toBe('pips mid');
+    expect(at(5)).toBe('pips mid');
+    expect(at(4)).toBe('pips mid');
+    expect(at(3)).toBe('pips low');
+    expect(at(2)).toBe('pips low');
+    expect(ui.querySelectorAll('.pips i.off').length).toBe(8);
+  });
+
+  it('scales the pip colours with the difficulty\'s reputation: green from 70%, gold from 40%, red below', () => {
+    const at = (difficulty: 'intern' | 'zeroday', rep: number): string => {
+      const r = new Run(cfg({ difficulty }));
+      r.state.rep = rep;
+      hud.start(r);
+      return pips();
+    };
+    expect([5, 4, 3, 2, 1].map((rep) => at('zeroday', rep))).toEqual(['pips good', 'pips good', 'pips mid', 'pips mid', 'pips low']);
+    expect([14, 10, 9, 6, 5].map((rep) => at('intern', rep))).toEqual(['pips good', 'pips good', 'pips mid', 'pips mid', 'pips low']);
+  });
+
+  it('hides the hints toggle on Zero-day, which allows none, as it does in root mode', () => {
+    const hints = (): string => ui.querySelector<HTMLElement>('.toggle')!.style.display;
+    expect(hints()).toBe('');
+    hud.start(new Run(cfg({ difficulty: 'zeroday' })));
+    expect(hints()).toBe('none');
+    hud.start(new Run(cfg({ root: true })));
+    expect(hints()).toBe('none');
+    hud.start(run);
+    expect(hints()).toBe('');
+    // Behind the title the HUD keeps showing the run it was last started with, hints toggle included.
+    hud.start(new Run(cfg({ difficulty: 'zeroday' })));
+    hud.refresh(null);
+    expect(hints()).toBe('none');
+    hud.start(run);
+    hud.refresh(null);
+    expect(hints()).toBe('');
+  });
 });
