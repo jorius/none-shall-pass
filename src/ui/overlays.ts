@@ -18,9 +18,10 @@ import { renderDebrief, type PrevBest } from './debrief';
 import { el } from './dom';
 import { renderDraft } from './draftPanel';
 import { renderPause } from './pausePanel';
+import { renderRecap } from './recap';
 import { renderHowto, renderTitle } from './title';
 
-type Kind = 'none' | 'title' | 'howto' | 'draft' | 'pause' | 'debrief';
+type Kind = 'none' | 'title' | 'howto' | 'recap' | 'draft' | 'pause' | 'debrief';
 
 // The screens between and around the runs, in one box over the field; it follows the App's screen.
 export class Overlays implements View {
@@ -49,6 +50,7 @@ export class Overlays implements View {
 
   private onScreen(s: Screen): void {
     if (s === 'title') this.show('title');
+    else if (s === 'recap') this.show('recap');
     else if (s === 'draft') this.show('draft');
     else if (s === 'paused') this.show('pause');
     else if (s === 'debrief') this.show('debrief');
@@ -85,7 +87,8 @@ export class Overlays implements View {
     this.box.className = `ov show ov-${kind}`;
     this.inert(true);
     this.render();
-    if (keyboard) this.focusFrom(0);
+    // The recap puts the focus on its own CONTINUE, for every player.
+    if (keyboard && kind !== 'recap') this.focusFrom(0);
   }
 
   private hide(): void {
@@ -125,6 +128,9 @@ export class Overlays implements View {
         break;
       case 'howto':
         renderHowto(this.box, () => this.show('title'));
+        break;
+      case 'recap':
+        if (a.run) renderRecap(this.box, a.run, () => a.act('continue'));
         break;
       case 'draft':
         if (a.run) renderDraft(this.box, a.run, { pick: (i) => a.pick(i), reroll: () => a.reroll(), next: () => a.nextWave() });

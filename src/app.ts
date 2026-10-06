@@ -61,7 +61,8 @@ export class App {
     if (!run) return;
     for (const ev of evs) {
       for (const v of this.views) v.event?.(ev, run);
-      if (ev.type === 'draftOpened') this.setScreen('draft');
+      // A wave with mistakes shows them first; a clean one goes straight to its draft.
+      if (ev.type === 'draftOpened') this.setScreen(run.state.waveMistakes.length ? 'recap' : 'draft');
       if (ev.type === 'waveStarted' && this.screen === 'draft') this.setScreen('playing');
       if (ev.type === 'runEnded') { this.onEnd?.(run); this.endLater(run); }
     }
@@ -166,6 +167,10 @@ export class App {
         break;
       case 'console': this.setScreen('console'); break;
       case 'closeConsole': this.setScreen(this.beforeConsole); break;
+      // Only from the recap: its CONTINUE lets the focus go first, so the draft opens with no card button under Space.
+      case 'continue':
+        if (this.screen === 'recap') { (document.activeElement as HTMLElement | null)?.blur?.(); this.setScreen('draft'); }
+        break;
     }
   }
 }

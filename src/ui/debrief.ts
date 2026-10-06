@@ -5,11 +5,12 @@ import { breachTotal, type RunState } from '../core/state';
 import type { MaliciousKind } from '../core/types';
 
 // i18n
-import { fmtNum, lang, loc, t } from '../i18n';
+import { fmtNum, lang, t } from '../i18n';
 
 // local
 import { track } from '../analytics';
 import { button, el } from './dom';
+import { renderMistakes } from './recap';
 
 // The best this slot held before the run's own result was saved: what the run had to beat.
 export type PrevBest = { score: number; grade: Grade } | { wave: number; score: number } | null;
@@ -60,14 +61,8 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, best:
   line('debrief.uptime', `${r.uptime}%`);
   const right = el('div', '', wrap);
   el('div', 'draft-h', right, t('debrief.mistakes'));
-  const mistakes = s.log.filter((e) => e.outcome === 'breach' || e.outcome === 'fp');
-  const ml = el('div', 'mistakes', right);
-  if (!mistakes.length) el('p', '', ml, t('debrief.noMistakes'));
-  for (const e of mistakes.slice(0, 30)) {
-    const m = el('div', 'mistake', ml);
-    el('code', '', m, `W${e.wave} · ${t(`log.${e.outcome}`)} · ${e.packet.t.card}`);
-    el('p', '', m, loc(e.packet.t.why));
-  }
+  // The whole run's, newest first, as the recap lists a wave's.
+  renderMistakes(right, s.mistakes, 30, t('debrief.noMistakes'));
   const text = shareText(r, lang());
   const ta = el('textarea', 'share', right);
   ta.readOnly = true;

@@ -173,7 +173,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ov { position: absolute; left: 0; top: 56px; width: 1280px; height: 664px; z-index: 40; background: rgba(22,22,22,.95); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; pointer-events: auto; }
 .ov.show { display: flex; }
 .ov.ov-title { top: 0; height: 720px; background: rgba(22,22,22,.82); }
-.ov.ov-howto, .ov.ov-debrief { top: 0; height: 720px; background: rgba(22,22,22,.97); }
+.ov.ov-howto, .ov.ov-recap, .ov.ov-debrief { top: 0; height: 720px; background: rgba(22,22,22,.97); }
 .ov h1 { font-size: 64px; letter-spacing: .12em; margin: 0; text-shadow: -4px 0 var(--r), 4px 0 var(--b); animation: jitter 4s infinite steps(1); }
 .ov h2 { font-size: 30px; letter-spacing: .12em; margin: 0; text-shadow: -3px 0 var(--r), 3px 0 var(--b); }
 .ov p { font-family: var(--body); font-size: 16px; color: var(--dim); margin: 0; max-width: 700px; line-height: 1.45; }
@@ -219,10 +219,19 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .statlist b { color: var(--ink); flex: none; }
 .statlist > .fams { justify-content: flex-end; flex-wrap: wrap; gap: 0; }
 .fams span + span::before { content: '·'; margin: 0 5px; color: var(--dim); }
-.mistakes { max-height: 330px; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 8px; padding-right: 6px; }
-.mistake { border-left: 3px solid var(--r); padding: 4px 10px; background: var(--sub); }
-.mistake code { font-family: var(--code); font-size: 13px; color: var(--ink); word-break: break-all; }
-.mistake p { font-size: 14px; color: var(--dim); max-width: none; margin: 2px 0 0; }
+/* The mistake list (recap.ts): a wave's on the recap, 760px wide; the run's in the debrief's right column. A breach is red-edged, a false alarm ink. */
+.mistakes { max-height: 330px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--dim) var(--soft); text-align: left; padding-right: 6px; }
+.ov-recap .mistakes { width: 760px; max-height: 420px; }
+.mistakes p { max-width: none; }
+.mistake { border-left: 3px solid var(--r); padding: 6px 10px; margin-bottom: 8px; background: var(--sub); }
+.mistake.fp { border-left-color: var(--ink); }
+.mhead { font-size: 13px; color: var(--dim); display: flex; gap: 10px; }
+.mhead .tag { color: var(--paper); background: var(--r); padding: 0 6px; }
+.mistake.fp .tag { background: var(--ink); }
+.mistake pre { font-family: var(--code); font-size: 14px; margin: 4px 0; white-space: pre-wrap; word-break: break-all; }
+.mistake mark { background: none; color: inherit; text-decoration: underline wavy var(--r); text-underline-offset: 3px; }
+.mistake .why { font-family: var(--body); font-size: 15px; color: var(--ink); margin: 0; }
+.mistakes .more { font-size: 13px; color: var(--dim); }
 .newbest { color: var(--paper); background: var(--gold); padding: 0 6px; font-size: 13px; font-weight: 700; }
 /* The share line stays selectable (the copy fallback selects it) inside the otherwise unselectable layer. */
 .share { display: block; margin-top: 10px; font-family: var(--code); font-size: 13px; width: 100%; height: 54px; background: var(--soft); color: var(--ink); border: 1px solid var(--mute); resize: none; -webkit-user-select: text; user-select: text; }
@@ -251,7 +260,7 @@ body.root, #ui.root {
 /* The backdrops and the dark text on light chips are fixed colours, not variables: they go amber here too. */
 #ui.root .ov { background: rgba(18,13,5,.95); }
 #ui.root .ov.ov-title { background: rgba(18,13,5,.82); }
-#ui.root .ov.ov-howto, #ui.root .ov.ov-debrief { background: rgba(18,13,5,.97); }
+#ui.root .ov.ov-howto, #ui.root .ov.ov-recap, #ui.root .ov.ov-debrief { background: rgba(18,13,5,.97); }
 #ui.root .glabel.cur .name, #ui.root .bubble small { color: #5c3d00; }
 #ui.root .segs i.lost { background: repeating-linear-gradient(135deg, #7a5200 0 2px, transparent 2px 4px); }
 /* The pixel-art icons (loadout, draft) carry their own colours, like the canvas they go through an amber tint. */

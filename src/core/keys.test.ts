@@ -45,6 +45,15 @@ describe('routeKey', () => {
     for (const screen of ['paused', 'draft', 'title', 'howto', 'debrief'] as const) expect(routeKey(k('c'), screen), screen).toBeNull();
   });
 
+  it('goes on from the recap with Space or Enter, once per press, and nowhere else', () => {
+    expect(routeKey(k(' '), 'recap')).toBe('continue');
+    expect(routeKey(k('Enter'), 'recap')).toBe('continue');
+    for (const key of ['Tab', 'Escape', 'p', 'c', 'h', '`', 'ArrowUp']) expect(routeKey(k(key), 'recap'), key).toBeNull();
+    expect(routeKey(k(' ', { repeat: true }), 'recap')).toBeNull();
+    expect(routeKey(k('Enter', { inField: true }), 'recap')).toBeNull();
+    for (const screen of ['playing', 'paused', 'draft', 'title', 'howto', 'debrief', 'console'] as const) expect(routeKey(k('Enter'), screen), screen).not.toBe('continue');
+  });
+
   it('finds the backtick by its physical key on layouts where it is a dead key', () => {
     const dead = (over: KeyOver = {}) => k('Dead', { code: 'Backquote', ...over });
     expect(routeKey(dead(), 'playing')).toBe('console');

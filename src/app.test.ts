@@ -3,9 +3,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // core
-import type { RunEvent } from './core/events';
+import type { LogEntry, RunEvent } from './core/events';
 import { KONAMI, type Screen } from './core/keys';
 import type { Run } from './core/run';
+import { freshState, place } from './core/testkit';
 
 // game
 import type { FieldScene } from './game/FieldScene';
@@ -13,6 +14,9 @@ import type { FieldScene } from './game/FieldScene';
 // local
 import { App } from './app';
 import { createStore } from './storage';
+
+// A breach or a false positive as the log records it, on a real template.
+const fakeEntry = (outcome: 'breach' | 'fp'): LogEntry => ({ seq: 1, wave: 1, outcome, packet: place(freshState(), outcome === 'fp' ? 'legit-socks' : 'scan-telnet', 300), points: 0 });
 
 describe('App', () => {
   let app: App, ended: Run[], screens: Screen[], started: Run[];
@@ -134,6 +138,22 @@ describe('App', () => {
     app.nextWave();
     expect(app.screen).toBe('playing');
     expect(run.state.wave).toBe(2);
+  });
+
+  it('opens the recap before the draft when the wave had mistakes, and the draft straight away when it was clean', () => {
+    app.startRun('campaign');
+    const run = app.run!;
+    run.state.waveMistakes = [fakeEntry('fp')];
+    app.dispatch([{ type: 'draftOpened', draft: { picks: [], free: true, taken: [] } }]);
+    expect(app.screen).toBe('recap');
+    app.act('continue');
+    expect(app.screen).toBe('draft');
+    run.state.waveMistakes = [];
+    app.dispatch([{ type: 'draftOpened', draft: { picks: [], free: true, taken: [] } }]);
+    expect(app.screen).toBe('draft');
+    // CONTINUE is the recap's key alone: anywhere else it does nothing.
+    app.act('continue');
+    expect(app.screen).toBe('draft');
   });
 
   it('charges down the lane on C once Destrier III is owned, and does nothing before', () => {

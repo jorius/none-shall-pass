@@ -24,8 +24,9 @@
     "waveClear": "WAVE {n} CLEAR", "stats": "Uptime {u}% · reputation {r}/10 · {c} credits", "choose": "CHOOSE AN UPGRADE", "freeNote": "the first pick is free",
     "buyNote": "buy more with credits, or move on", "take": "TAKE · FREE", "buy": "BUY · {n} cr", "taken": "TAKEN ✓", "reroll": "REROLL · {n} cr", "next": "NEXT WAVE ▸",
     "cat": { "KNIGHT": "KNIGHT", "FIREWALL": "FIREWALL", "SERVER": "SERVER" },
-    "rarity": { "COMMON": "COMMON", "RARE": "RARE", "LEGENDARY": "LEGENDARY" }
+    "rarity": { "COMMON": "COMMON", "RARE": "RARE", "LEGENDARY": "LEGENDARY" }, "clean": "Clean wave"
   },
+  "recap": { "title": "WAVE {n} CLEARED", "breaches": "{n} breaches", "fps": "{n} false alarms", "what": "WHAT GOT THROUGH", "clean": "Clean wave. Nothing got past you.", "more": "+{n} more", "continue": "CONTINUE ▸" },
   "pause": { "title": "PAUSED", "hint": "P to resume", "resume": "RESUME", "quit": "QUIT TO TITLE", "reducedOn": "REDUCED EFFECTS · ON", "reducedOff": "REDUCED EFFECTS · OFF" },
   "title": {
     "tagline": "Guard the server. Read the packets. Let the real users through.", "play": "PLAY CAMPAIGN", "overtime": "OVERTIME",

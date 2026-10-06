@@ -29,6 +29,19 @@ const play = async (page, mode = 'campaign') => {
   await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
 };
 
+// After a skip: a clean wave opens its draft at once, a wave with mistakes shows their recap first and Space goes on.
+// Returns whether the wave was clean.
+const toDraft = async (page) => {
+  await page.waitForFunction(() => window.__nsp.app.screen === 'recap' || window.__nsp.app.screen === 'draft');
+  const at = await page.evaluate(() => ({ screen: window.__nsp.app.screen, mistakes: window.__nsp.app.run.state.waveMistakes.length }));
+  if ((at.screen === 'recap') !== at.mistakes > 0) throw new Error(`after the wave: ${JSON.stringify(at)}`);
+  if (at.screen === 'recap') {
+    await page.keyboard.press('Space');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'draft');
+  }
+  return at.mistakes === 0;
+};
+
 // The pause key's freeze (the run, the tweens, the CSS) without its menu over the field and the panels,
 // so a shot still shows them and a hover still reaches them.
 const freeze = (page, on = true) => page.evaluate((p) => {
@@ -581,10 +594,62 @@ const CHECKS = {
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
     if (await page.evaluate(() => document.activeElement !== document.body)) throw new Error('a title button kept the focus into the run');
   },
+  async recap(page) {
+    // A wave with mistakes ends on their recap, before its draft: the counts, every breach and false alarm with the payload's
+    // tells underlined and the reason, CONTINUE focused. A real user speared is the false alarm; without the lockdown,
+    // the first scan to reach the rack is the breach.
+    const mistakes = async () => {
+      await stepUntil(page, (s) => s.packets.some((p) => p.t.kind === 'legit' && !p.entering && !p.doomed));
+      await page.evaluate(() => {
+        const app = window.__nsp.app, p = app.run.state.packets.find((q) => q.t.kind === 'legit' && !q.entering && !q.doomed);
+        app.dispatch(app.run.target(p.id));
+        app.dispatch(app.run.throwSpear());
+      });
+      await stepUntil(page, (s) => s.waveMistakes.some((e) => e.outcome === 'fp'));
+      await page.evaluate(() => { window.__nsp.app.run.state.owned = []; });
+      await stepUntil(page, (s) => s.waveMistakes.some((e) => e.outcome === 'breach'));
+      await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+      await page.waitForSelector('#ui .ov-recap .btn');
+    };
+    const shown = () => page.evaluate(() => ({
+      screen: window.__nsp.app.screen, title: document.querySelector('#ui .ov-recap h2')?.textContent, note: document.querySelector('#ui .ov-recap p.note')?.textContent,
+      focused: document.activeElement?.textContent, rows: [...document.querySelectorAll('#ui .ov-recap .mistake')].map((m) => m.className),
+      marks: [...document.querySelectorAll('#ui .ov-recap .mistake.breach mark')].map((m) => m.textContent), imgs: document.querySelectorAll('#ui .ov-recap img').length,
+    }));
+    await play(page);
+    await mistakes();
+    const en = await shown();
+    if (en.screen !== 'recap' || en.title !== 'WAVE 1 CLEARED' || !/^\d+ breaches · 1 false alarms$/.test(en.note) || en.focused !== 'CONTINUE ▸') throw new Error(`recap: ${JSON.stringify(en)}`);
+    if (!en.rows.includes('mistake breach') || !en.rows.includes('mistake fp') || !en.marks.length || en.imgs) throw new Error(`recap rows: ${JSON.stringify(en)}`);
+    await fits(page, 'recap');
+    await page.screenshot({ path: `${OUT}/recap.png` });
+    // Space goes on to the draft: no card taken, nothing focused, so the next Space is not a card button's click.
+    await page.keyboard.press('Space');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'draft');
+    const draft = await page.evaluate(() => ({
+      taken: window.__nsp.app.run.state.draft.taken, body: document.activeElement === document.body, note: document.querySelector('#ui .ov-draft p.note')?.textContent ?? null,
+    }));
+    if (draft.taken.length || !draft.body || draft.note !== null) throw new Error(`after CONTINUE: ${JSON.stringify(draft)}`);
+    await page.keyboard.press('Space');
+    if ((await page.evaluate(() => window.__nsp.app.run.state.draft.taken)).length) throw new Error('Space on the draft took a card');
+    // In Spanish, the same wave.
+    await spanish(page);
+    await page.reload({ waitUntil: 'networkidle' });
+    await play(page);
+    await mistakes();
+    const es = await shown();
+    if (es.title !== 'OLEADA 1 SUPERADA' || !/^\d+ brechas · 1 falsas alarmas$/.test(es.note) || es.focused !== 'CONTINUAR ▸' || !es.marks.length) throw new Error(`Spanish recap: ${JSON.stringify(es)}`);
+    await fits(page, 'Spanish recap');
+    await page.screenshot({ path: `${OUT}/recap-es.png` });
+  },
   async draft(page) {
     await play(page);
     await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+    const clean = await toDraft(page);
     await page.waitForSelector('#ui .ov-draft .ucard');
+    // A clean wave says so under the stats line; one with mistakes had its recap instead.
+    const note = await page.evaluate(() => document.querySelector('#ui .ov-draft p.note')?.textContent ?? null);
+    if (note !== (clean ? 'Clean wave' : null)) throw new Error(`the clean-wave note: ${JSON.stringify({ clean, note })}`);
     await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));
     await page.screenshot({ path: `${OUT}/draft.png` });
     const free = await page.$$eval('#ui .ucard .btn', (b) => b.map((x) => x.textContent));
@@ -627,7 +692,10 @@ const CHECKS = {
     await page.reload({ waitUntil: 'networkidle' });
     await play(page);
     await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+    const cleanEs = await toDraft(page);
     await page.waitForSelector('#ui .ov-draft .ucard');
+    const noteEs = await page.evaluate(() => document.querySelector('#ui .ov-draft p.note')?.textContent ?? null);
+    if (noteEs !== (cleanEs ? 'Oleada limpia' : null)) throw new Error(`the Spanish clean-wave note: ${JSON.stringify({ cleanEs, noteEs })}`);
     await everyCardFits(page, 'Spanish draft');
     await page.evaluate(() => { const a = window.__nsp.app; a.pick(0); });
     await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));

@@ -1,9 +1,9 @@
-export type Screen = 'title' | 'howto' | 'playing' | 'paused' | 'draft' | 'console' | 'debrief';
-export type Action = 'laneUp' | 'laneDown' | 'next' | 'prev' | 'throw' | 'release' | 'charge' | 'hints' | 'pause' | 'console' | 'closeConsole' | null;
+export type Screen = 'title' | 'howto' | 'playing' | 'paused' | 'recap' | 'draft' | 'console' | 'debrief';
+export type Action = 'laneUp' | 'laneDown' | 'next' | 'prev' | 'throw' | 'release' | 'charge' | 'hints' | 'pause' | 'console' | 'closeConsole' | 'continue' | null;
 export type KeyInput = { key: string; code?: string; shiftKey: boolean; ctrlKey?: boolean; metaKey?: boolean; repeat?: boolean; inField: boolean };
 
-// A held key may keep moving lanes or cycling targets, but must not toggle a screen, throw or charge again.
-const NO_REPEAT: ReadonlySet<Action> = new Set<Action>(['console', 'closeConsole', 'pause', 'hints', 'throw', 'charge']);
+// A held key may keep moving lanes or cycling targets, but must not toggle a screen, throw, charge or go on again.
+const NO_REPEAT: ReadonlySet<Action> = new Set<Action>(['console', 'closeConsole', 'pause', 'hints', 'throw', 'charge', 'continue']);
 
 // Spanish and Latin American layouts report the backtick as a 'Dead' key, so the physical key counts then,
 // but not for the other characters on it (~, |, °, º), which must stay typeable in the console.
@@ -13,6 +13,8 @@ const route = (k: KeyInput, screen: Screen): Action => {
   if (screen === 'console') return k.key === 'Escape' || isBacktick(k) ? 'closeConsole' : null;
   if (k.inField) return null;
   if (isBacktick(k)) return screen === 'playing' || screen === 'paused' ? 'console' : null;
+  // The recap has one key: Space or Enter goes on to the draft.
+  if (screen === 'recap') return k.key === ' ' || k.key === 'Enter' ? 'continue' : null;
   if (screen === 'paused') return k.key === 'p' || k.key === 'P' || k.key === 'Escape' ? 'pause' : null;
   if (screen !== 'playing') return null;
   switch (k.key) {

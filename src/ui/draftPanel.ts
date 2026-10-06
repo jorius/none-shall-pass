@@ -21,6 +21,8 @@ export const renderDraft = (box: HTMLElement, run: Run, act: { pick(i: number): 
   if (!d) return;
   el('h2', '', box, t('draft.waveClear', { n: s.wave }));
   el('p', '', box, t('draft.stats', { u: s.uptime, r: s.rep, c: fmtNum(s.credits) }));
+  // A wave with mistakes had its recap just before; a clean one says so here instead.
+  if (!s.waveMistakes.length) el('p', 'note', box, t('draft.clean'));
   const head = el('div', 'draft-h', box, `${t('draft.choose')} · `);
   el('span', '', head, d.free ? t('draft.freeNote') : t('draft.buyNote'));
   const cards = el('div', 'cards', box);
