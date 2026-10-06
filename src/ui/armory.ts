@@ -100,9 +100,10 @@ export const renderArmory = (box: HTMLElement, d: ArmoryDeps): void => {
   for (const [cat, intro] of COLUMNS) {
     const col = el('div', `ar-col ${cat}`, body);
     el('h5', '', col).append(el('b', '', undefined, t(`draft.cat.${cat}`)), ` · ${t(intro)}`);
+    const cards = el('div', 'ar-cards', col);
     for (const e of entries.filter((x) => cardById(x.id).cat === cat)) {
       const c = shown(e);
-      const card = button(col, `cx ${c.rarity} ${e.state}`, '', () => fill(e, card));
+      const card = button(cards, `cx ${c.rarity} ${e.state}`, '', () => fill(e, card));
       card.dataset.id = e.id;
       const img = el('img', 'px', el('span', 'ic', card));
       img.src = iconUrl(c.icon, 'tile');

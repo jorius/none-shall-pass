@@ -124,6 +124,10 @@ describe('renderArmory', () => {
       { cls: 'ar-col FIREWALL', head: 'FIREWALL · rules at the door', ids: ['lockdown', 'quote', 'f2b', 'tarpit', 'cdn'] },
       { cls: 'ar-col SERVER', head: 'SERVER · fix the code', ids: ['prepared', 'sortlist', 'mfa', 'csp', 'backup'] },
     ]);
+    // A column is its head and its cards: the stylesheet lays the three heads and the three card stacks on shared rows,
+    // so the first cards share a top line however many lines a head takes.
+    expect([...box.querySelectorAll('.ar-col')].map((c) => [...c.children].map((x) => x.tagName.toLowerCase() + (x.className ? `.${x.className}` : '')))).toEqual(Array(3).fill(['h5', 'div.ar-cards']));
+    expect(box.querySelectorAll('.ar-body > .ar-col, .ar-body > .ar-detail')).toHaveLength(4);
   });
 
   it('heads the screen with the count, the credits and a CLOSE that has the focus, ahead of every card', () => {

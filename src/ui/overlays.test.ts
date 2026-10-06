@@ -31,6 +31,7 @@ describe('Overlays', () => {
   const box = (): HTMLElement => ui.querySelector('.ov')!;
   const buttons = (): HTMLButtonElement[] => [...box().querySelectorAll('button')];
   const named = (text: RegExp): HTMLButtonElement => buttons().find((b) => text.test(b.textContent ?? ''))!;
+  const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
   const boot = (): void => {
     app = new App({ onFrame: null } as unknown as FieldScene, store);
     app.add(new Overlays(ui, app, { effects: effects as EffectsView }));
@@ -243,7 +244,6 @@ describe('Overlays', () => {
     expect(hud.hasAttribute('inert')).toBe(true);
     named(/^CLOSE/).click();
     expect([app.screen, box().className]).toEqual(['title', 'ov show ov-title']);
-    const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
     press('t');
     expect(box().className).toBe('ov show ov-armory');
     press('t');
@@ -274,7 +274,6 @@ describe('Overlays', () => {
     boot();
     app.startRun('campaign');
     app.run!.state.credits = 820;
-    const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
     press('t');
     expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
     expect(box().querySelector('.ar-head .cr')?.textContent).toBe('CREDITS 820');
@@ -293,7 +292,6 @@ describe('Overlays', () => {
     app.dispatch(app.run!.cheat('skip'));
     expect(box().className).toBe('ov show ov-draft');
     expect([...box().querySelectorAll('p.note')].map((p) => p.textContent)).toEqual(['Clean wave', 'T · see every upgrade in the Armory']);
-    const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
     press('t');
     expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
     // The Armory shows and does not sell: nothing on the draft moved.
@@ -305,15 +303,85 @@ describe('Overlays', () => {
     expect(app.run!.state.draft!.free).toBe(true);
   });
 
-  it('puts a keyboard player back on a button when the Armory closes', () => {
+  it('puts a keyboard player back on the button they left when the Armory closes, not on the first one', () => {
     boot();
-    // Tabbed onto ARMORY, then Enter: CLOSE takes the focus, and closing hands it to a button of the title again.
+    // Tabbed onto ARMORY, then Enter: CLOSE takes the focus, and closing hands it back to ARMORY.
     named(/^ARMORY$/).focus();
     named(/^ARMORY$/).click();
     expect(document.activeElement).toBe(named(/^CLOSE/));
     named(/^CLOSE/).click();
     expect(box().className).toBe('ov show ov-title');
-    expect(document.activeElement).toBe(named(/PLAY CAMPAIGN/));
+    expect(document.activeElement).toBe(named(/^ARMORY$/));
+  });
+
+  it('lands the pause\'s keyboard player on the button they were on, so REDUCED EFFECTS does not turn into RESUME', () => {
+    boot();
+    app.startRun('campaign');
+    app.act('pause');
+    named(/REDUCED EFFECTS/).focus();
+    press('t');
+    expect(app.screen).toBe('armory');
+    press('t');
+    expect([app.screen, box().className]).toEqual(['paused', 'ov show ov-pause']);
+    expect(document.activeElement).toBe(named(/REDUCED EFFECTS/));
+    // Esc closes it onto the same button.
+    named(/^ES$/).focus();
+    press('t');
+    press('Escape');
+    expect([app.screen, document.activeElement]).toEqual(['paused', named(/^ES$/)]);
+  });
+
+  it('lands the draft\'s keyboard player on the card they were on, so the next Space does not spend the free pick on another', () => {
+    boot();
+    app.startRun('campaign');
+    app.dispatch(app.run!.cheat('skip'));
+    const cards = (): HTMLButtonElement[] => [...box().querySelectorAll<HTMLButtonElement>('.ucard .btn')];
+    cards()[2].focus();
+    press('t');
+    expect(app.screen).toBe('armory');
+    press('t');
+    expect([app.screen, box().className]).toEqual(['draft', 'ov show ov-draft']);
+    expect(document.activeElement).toBe(cards()[2]);
+    expect(app.run!.state.draft!.taken).toEqual([]);
+    // What Space or Enter does next is the card the player chose.
+    const [, , third] = app.run!.state.draft!.picks;
+    (document.activeElement as HTMLButtonElement).click();
+    expect(app.run!.state.draft!.taken).toEqual([third.id]);
+  });
+
+  it('puts the how-to back when the Armory opened over it closes, on T, Esc or CLOSE, and the how-to goes on to the title as before', () => {
+    boot();
+    named(/HOW TO PLAY/).click();
+    // The how-to is a view of the title: the App's screen stays 'title', so T opens the Armory there.
+    expect([app.screen, box().className]).toEqual(['title', 'ov show ov-howto']);
+    press('t');
+    expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
+    press('t');
+    expect([app.screen, box().className]).toEqual(['title', 'ov show ov-howto']);
+    // One Esc closes the Armory and no more: it must not also be read as the how-to's own Esc once the how-to is back.
+    press('T');
+    press('Escape');
+    expect([app.screen, box().className]).toEqual(['title', 'ov show ov-howto']);
+    press('t');
+    named(/^CLOSE/).click();
+    expect([app.screen, box().className]).toEqual(['title', 'ov show ov-howto']);
+    // A keyboard player keeps BACK.
+    named(/BACK/).focus();
+    press('t');
+    press('t');
+    expect(document.activeElement).toBe(named(/BACK/));
+    // The how-to is itself again: its Esc and BACK go back to the title.
+    press('Escape');
+    expect(box().className).toBe('ov show ov-title');
+    named(/HOW TO PLAY/).click();
+    press('t');
+    press('t');
+    named(/BACK/).click();
+    expect(box().className).toBe('ov show ov-title');
+    // And an Armory opened from the title itself closes onto the title, not onto a how-to seen earlier.
+    press('t');
+    press('t');
+    expect(box().className).toBe('ov show ov-title');
   });
 
   it('leaves a player who never focused a button with none when the Armory closes: CLOSE is not a keyboard tell', () => {

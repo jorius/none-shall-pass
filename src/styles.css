@@ -232,16 +232,19 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
    that follows the hovered or focused card. Every card is a button, its text set left, so Tab walks them. Text is 13px and up. */
 .ov-armory { --own-b: #2f5a3d; --own-bg: #22352a; }
 .ov-armory .ar { width: 1060px; text-align: left; font-family: var(--mono); }
-.ov-armory .ar-head { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+.ov-armory .ar-head { display: flex; align-items: center; gap: 16px; margin-bottom: 8px; }
 .ov-armory .ar-head h4 { margin: 0; font-size: 22px; letter-spacing: .14em; text-shadow: -2px 0 var(--r), 2px 0 var(--b); }
 .ov-armory .ar-head .n { font-size: 13px; color: var(--dim); }
 .ov-armory .ar-head .cr { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--green); }
-.ov-armory .ar-body { display: flex; gap: 14px; align-items: flex-start; }
-.ov-armory .ar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.ov-armory .ar-col h5 { margin: 0 0 2px; font-size: 13px; text-wrap: balance; color: var(--dim); padding-bottom: 5px; border-bottom: 3px solid var(--gold); }
+/* The three columns share two rows, the heads and the cards (a subgrid each), so a head that wraps (the Spanish firewall's) lowers the
+   first card of all three alike, and a shorter head sits on its rule. The detail panel is the fourth column. */
+.ov-armory .ar-body { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 260px; grid-template-rows: auto auto; gap: 8px 14px; align-items: start; }
+.ov-armory .ar-col { grid-row: 1 / span 2; display: grid; grid-template-rows: subgrid; }
+.ov-armory .ar-cards { display: flex; flex-direction: column; gap: 5px; }
+.ov-armory .ar-col h5 { align-self: end; margin: 0; font-size: 13px; line-height: 1.25; text-wrap: balance; color: var(--dim); padding-bottom: 5px; border-bottom: 3px solid var(--gold); }
 .ov-armory .ar-col.FIREWALL h5 { border-bottom-color: var(--b); } .ov-armory .ar-col.SERVER h5 { border-bottom-color: var(--ink); }
 .ov-armory .ar-col h5 b { color: var(--ink); letter-spacing: .16em; }
-.ov-armory .cx { display: grid; grid-template-columns: 40px 1fr; gap: 2px 9px; align-content: start; padding: 6px 9px; background: var(--paper); border: 1px solid var(--mute); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ov-armory .cx { display: grid; grid-template-columns: 40px 1fr; gap: 2px 9px; align-content: start; padding: 5px 9px; background: var(--paper); border: 1px solid var(--mute); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
 .ov-armory .cx:hover, .ov-armory .cx.sel { border-color: var(--ink); background: #333; }
 .ov-armory .cx:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
 .ov-armory .cx .ic { grid-row: span 3; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--soft); border: 1px solid var(--mute); }
@@ -271,7 +274,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ov-armory .tiers .pr { flex: none; font-size: 13px; font-weight: 700; color: var(--dim); }
 .ov-armory .tiers .on b, .ov-armory .tiers .on .tx { color: var(--green); }
 .ov-armory .tiers .next b, .ov-armory .tiers .next .tx, .ov-armory .tiers .next .pr { color: var(--ink); }
-.ov-armory .ar-detail { width: 260px; flex: none; position: sticky; top: 0; padding: 12px 14px; background: var(--paper); border-left: 3px solid var(--gold); font-family: var(--body); }
+.ov-armory .ar-detail { grid-column: 4; grid-row: 1 / span 2; position: sticky; top: 0; padding: 12px 14px; background: var(--paper); border-left: 3px solid var(--gold); font-family: var(--body); }
 .ov-armory .ar-detail .k { font-family: var(--mono); font-size: 13px; text-wrap: balance; color: var(--dim); }
 /* The dots stay with the word before them, so a wrapped line never starts on one. */
 .ov-armory .ar-detail .k span { white-space: nowrap; }

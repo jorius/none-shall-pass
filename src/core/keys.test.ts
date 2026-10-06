@@ -70,8 +70,9 @@ describe('routeKey', () => {
     for (const key of ['t', 'T', 'Escape']) expect(routeKey(k(key), 'armory'), key).toBe('armory');
     // The rest of the keyboard stays with the focus: Tab walks the cards, Space and Enter click the button that has it.
     for (const key of [' ', 'Enter', 'Tab', 'p', 'c', 'h', '`', 'ArrowUp', 'ArrowDown']) expect(routeKey(k(key), 'armory'), key).toBeNull();
-    // Anywhere else T is just a letter: the how-to, the setup, the recap, the debrief and the console.
-    for (const screen of ['howto', 'setup', 'recap', 'debrief', 'console'] as const) expect(routeKey(k('t'), screen), screen).toBeNull();
+    // Anywhere else T is just a letter: the setup, the recap, the debrief and the console. (The how-to is no screen of the App's:
+    // it is a view of the title, where T opens the Armory over it.)
+    for (const screen of ['setup', 'recap', 'debrief', 'console'] as const) expect(routeKey(k('t'), screen), screen).toBeNull();
     // Esc keeps its other meanings: it releases the target in play and resumes the pause.
     expect(routeKey(k('Escape'), 'playing')).toBe('release');
     expect(routeKey(k('Escape'), 'paused')).toBe('pause');

@@ -819,6 +819,13 @@ const CHECKS = {
         .map((e) => [`${e.tagName.toLowerCase()}.${e.className} "${e.textContent.slice(0, 24)}"`, parseFloat(getComputedStyle(e).fontSize)]).filter(([, px]) => px < 13).map(([name, px]) => `${name} ${px}px`));
       if (small.length) throw new Error(`${what} sets text under 13px:\n${small.join('\n')}`);
     };
+    // The three columns' first cards share a top line, whether a head wraps (the Spanish firewall's) or not.
+    const aligned = async (what) => {
+      const tops = await page.evaluate(() => [...document.querySelectorAll('#ui .ov-armory .ar-col')].map((c) => c.querySelector('.cx').getBoundingClientRect().top));
+      if (tops.length !== 3 || Math.max(...tops) - Math.min(...tops) > 1) throw new Error(`${what}: the first cards sit at ${tops.map((y) => Math.round(y)).join(', ')}`);
+    };
+    // The focused card of the draft (an index), or -1.
+    const onCard = () => page.evaluate(() => [...document.querySelectorAll('#ui .ov-draft .ucard')].indexOf(document.activeElement?.closest('.ucard')));
     await page.waitForSelector('#ui .ov-title .btn');
     await page.keyboard.press('t');
     await page.waitForSelector('#ui .ov-armory .cx');
@@ -827,6 +834,7 @@ const CHECKS = {
     if (first.screen !== 'armory' || first.cols !== 3 || first.cards !== 14 || first.focused !== 'CLOSE · T' || first.name !== 'Destrier I' || first.count !== '1 of 14 owned' || first.credits !== 'CREDITS 0') throw new Error(`the title's Armory: ${JSON.stringify(first)}`);
     await fits(page, 'armory');
     await floor(page, 'armory');
+    await aligned('armory');
     await page.screenshot({ path: `${OUT}/armory.png` });
     await page.keyboard.press('Escape');
     await page.waitForSelector('#ui .ov-title .btn');
@@ -837,6 +845,22 @@ const CHECKS = {
     await page.click('#ui .ov-armory .ar-head .btn');
     await page.waitForSelector('#ui .ov-title .btn');
     if (await page.evaluate(() => window.__nsp.app.screen !== 'title' || document.activeElement !== document.body)) throw new Error('CLOSE did not leave the Armory for the title');
+    // The how-to is a view of the title, and T opens the Armory over it: T, Esc and CLOSE all close it back onto the how-to, and
+    // that one Esc closes the Armory only, not the how-to as well; the how-to's own Esc then goes on to the title.
+    const onHowto = () => page.evaluate(() => [window.__nsp.app.screen, document.querySelector('#ui .ov.show')?.classList.contains('ov-howto')]);
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(3)');
+    await page.waitForSelector('#ui .ov-howto kbd');
+    for (const close of ['t', 'Escape', 'CLOSE']) {
+      await page.keyboard.press('t');
+      await page.waitForFunction(() => window.__nsp.app.screen === 'armory');
+      if (close === 'CLOSE') await page.click('#ui .ov-armory .ar-head .btn'); else await page.keyboard.press(close);
+      await page.waitForSelector('#ui .ov-howto kbd');
+      const back = await onHowto();
+      if (back[0] !== 'title' || back[1] !== true) throw new Error(`the Armory closed with ${close} onto ${JSON.stringify(back)}, not the how-to`);
+    }
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#ui .ov-title .btn');
+    if (await page.evaluate(() => window.__nsp.app.screen) !== 'title') throw new Error('Esc on the how-to did not go on to the title');
     // In play, T stops the field: the Armory over a run in its wave, what it owns lit, the clock holding still.
     await play(page);
     await page.evaluate(() => {
@@ -871,6 +895,14 @@ const CHECKS = {
     await page.keyboard.press('Escape');
     await page.waitForSelector('#ui .ov-pause .btn');
     if (await page.evaluate(() => window.__nsp.app.screen) !== 'paused') throw new Error('the Armory did not return to the pause');
+    // By keyboard: Tab to the last button (REDUCED EFFECTS), T and T, and it is still the focused one, not RESUME.
+    for (let i = 0; i < 5; i++) await page.keyboard.press('Tab');
+    await page.keyboard.press('t');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'armory');
+    await page.keyboard.press('t');
+    await page.waitForSelector('#ui .ov-pause .btn');
+    const kept = await page.evaluate(() => ({ screen: window.__nsp.app.screen, focused: document.activeElement?.textContent }));
+    if (kept.screen !== 'paused' || !/^REDUCED EFFECTS/.test(kept.focused)) throw new Error(`back on the pause: ${JSON.stringify(kept)}`);
     await page.keyboard.press('p');
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
     // Over a draft it shows and does not sell: back on the draft, no card is taken and none is under Space.
@@ -882,6 +914,16 @@ const CHECKS = {
     await page.waitForSelector('#ui .ov-draft .ucard');
     const draft = await page.evaluate(() => ({ screen: window.__nsp.app.screen, taken: window.__nsp.app.run.state.draft.taken, body: document.activeElement === document.body }));
     if (draft.screen !== 'draft' || draft.taken.length || !draft.body) throw new Error(`back on the draft: ${JSON.stringify(draft)}`);
+    // By keyboard: Tab to the third card, T and T, and the third card still has the focus, so the next Space is not the first card's
+    // free pick; nothing was taken meanwhile.
+    for (let i = 0; i < 3; i++) await page.keyboard.press('Tab');
+    const left = await onCard();
+    await page.keyboard.press('t');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'armory');
+    await page.keyboard.press('t');
+    await page.waitForSelector('#ui .ov-draft .ucard');
+    const comeback = { card: await onCard(), taken: await page.evaluate(() => window.__nsp.app.run.state.draft.taken) };
+    if (left !== 2 || comeback.card !== 2 || comeback.taken.length) throw new Error(`back on the draft's third card: ${JSON.stringify({ left, ...comeback })}`);
     // In Spanish, over a run: the longest names, the state lines and the levels fit.
     await spanish(page);
     await page.reload({ waitUntil: 'networkidle' });
@@ -892,6 +934,7 @@ const CHECKS = {
     if (es.count !== '1 de 14 en tu poder' || es.credits !== 'CRÉDITOS 0' || es.focused !== 'CERRAR · T') throw new Error(`the Spanish Armory: ${JSON.stringify(es)}`);
     await fits(page, 'Spanish armory');
     await floor(page, 'Spanish armory');
+    await aligned('Spanish armory');
     await page.screenshot({ path: `${OUT}/armory-es.png` });
     await page.keyboard.press('t');
     await play(page);
@@ -903,6 +946,7 @@ const CHECKS = {
     await page.keyboard.press('t');
     await page.waitForSelector('#ui .ov-armory .cx');
     await fits(page, 'Spanish armory over a run');
+    await aligned('Spanish armory over a run');
     await page.screenshot({ path: `${OUT}/armory-run-es.png` });
   },
   async webgl(page) {

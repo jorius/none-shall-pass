@@ -33,8 +33,10 @@ const chosen = (p: Prefs): Choice => ({ knight: p.knight ?? 'black', difficulty:
 export class Overlays implements View {
   private readonly box: HTMLElement;
   private kind: Kind = 'none';
-  // Whether a button had the focus when the Armory opened (see show).
-  private armoryKeyboard = false;
+  // The Armory remembers how it was opened (see show): which button had the focus (an index among the box's buttons, -1 for none:
+  // a mouse player, or the field) and which view it opened over.
+  private armoryAt = -1;
+  private armoryFrom: Kind = 'none';
   private ended: { run: Run; newBest: boolean; prev: PrevBest } | null = null;
 
   constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView }) {
@@ -48,16 +50,18 @@ export class Overlays implements View {
       const { newBest } = app.store.recordResult(r);
       this.ended = { run, newBest, prev };
     };
-    // The how-to is one screen deep: Esc goes back, as BACK does.
+    // The how-to is one screen deep: Esc goes back, as BACK does. It listens first (capture, ahead of the App's key handling), so the
+    // Esc that closes the Armory over the how-to is not also taken as the how-to's own once the App has put the how-to back.
     window.addEventListener('keydown', (e) => {
       if (this.kind !== 'howto' || e.key !== 'Escape' || e.repeat) return;
       e.preventDefault();
       this.show('title');
-    });
+    }, true);
   }
 
   private onScreen(s: Screen): void {
-    if (s === 'title') this.show('title');
+    // The how-to is only a view of the title (the App's screen stays 'title' under it), so an Armory opened over it closes back onto it.
+    if (s === 'title') this.show(this.kind === 'armory' && this.armoryFrom === 'howto' ? 'howto' : 'title');
     else if (s === 'setup') this.show('setup');
     else if (s === 'recap') this.show('recap');
     else if (s === 'draft') this.show('draft');
@@ -92,16 +96,19 @@ export class Overlays implements View {
   }
 
   private show(kind: Kind): void {
-    // The Armory gives CLOSE the focus to everyone, so a screen it hands back to asks what the player did on the way in:
-    // a draft that opened on T with no button focused must not come back with a card under Space.
-    const keyboard = this.kind === 'armory' ? this.armoryKeyboard : this.focused() >= 0;
-    if (kind === 'armory') this.armoryKeyboard = keyboard;
+    // The Armory gives CLOSE the focus to everyone, so on the way out the focus tells nothing about the player: the way in does.
+    // A keyboard player gets back the button they left (a draft opened on T from card 3 comes back on card 3, never on card 1,
+    // where the next Space would spend the free pick), and a player with none gets none (never a card under Space).
+    const leaving = this.kind === 'armory';
+    const at = leaving ? this.armoryAt : this.focused();
+    if (kind === 'armory' && !leaving) { this.armoryAt = at; this.armoryFrom = this.kind; }
+    const back = leaving && kind === this.armoryFrom;
     this.kind = kind;
     this.box.className = `ov show ov-${kind}`;
     this.inert(true);
     this.render();
     // The recap puts the focus on its own CONTINUE, the setup on its START and the Armory on its CLOSE, for every player.
-    if (keyboard && kind !== 'recap' && kind !== 'setup' && kind !== 'armory') this.focusFrom(0);
+    if (at >= 0 && kind !== 'recap' && kind !== 'setup' && kind !== 'armory') this.focusFrom(back ? at : 0);
   }
 
   private hide(): void {
