@@ -1,7 +1,8 @@
 // core
 import { STEP } from './core/constants';
+import type { KnightId } from './core/content/knights';
 import type { Mode } from './core/content/waves';
-import { allowsHints } from './core/difficulty';
+import { allowsHints, type Difficulty } from './core/difficulty';
 import type { RunEvent } from './core/events';
 import { konamiMatcher, routeKey, type Action, type Screen } from './core/keys';
 import { frameSteps } from './core/loop';
@@ -14,10 +15,15 @@ import type { View } from './game/view';
 // local
 import type { Store } from './storage';
 
+// What the setup screen hands in: the knight to play and the difficulty to play at.
+export interface Choice { knight: KnightId; difficulty: Difficulty }
+
 export class App {
   run: Run | null = null;
   screen: Screen = 'title';
   root = false;
+  // The mode PLAY or OVERTIME asked for, held while the setup screen takes the choice.
+  pendingMode: Mode = 'campaign';
   onScreen: ((s: Screen) => void) | null = null;
   onEnd: ((run: Run) => void) | null = null;
   private readonly views: View[] = [];
@@ -45,11 +51,20 @@ export class App {
     this.views.push(...views);
   }
 
-  startRun(mode: Mode): void {
+  openSetup(mode: Mode): void {
+    this.pendingMode = mode;
+    this.setScreen('setup');
+  }
+
+  // On the setup's choice, or without one (PLAY AGAIN) on the pair last played; either way the pair is remembered,
+  // for the next run, the title's bests and the idle knight behind it. A first run is an Analyst on the Black Knight.
+  startRun(mode: Mode, choice?: Choice): void {
     this.cancelEnd();
-    const hints = !this.root && !!this.store.prefs().hints;
-    // Every run is an Analyst on the Black Knight until the setup screen hands in the player's choice.
-    this.run = new Run({ mode, seed: (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, root: this.root, hints, difficulty: 'analyst', knight: 'black' });
+    const prefs = this.store.prefs();
+    const knight = choice?.knight ?? prefs.knight ?? 'black', difficulty = choice?.difficulty ?? prefs.difficulty ?? 'analyst';
+    this.store.setPrefs({ knight, difficulty });
+    const hints = !this.root && !!prefs.hints;
+    this.run = new Run({ mode, seed: (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0, root: this.root, hints, difficulty, knight });
     this.acc = 0;
     for (const v of this.views) v.start?.(this.run);
     this.setScreen('playing');
@@ -91,11 +106,11 @@ export class App {
   reroll(): void { if (this.run) this.dispatch(this.run.reroll()); }
   nextWave(): void { if (this.run) this.dispatch(this.run.nextWave()); }
 
-  // Back to the title: an idle run resets every view (no packets, cold rack, knight at his post)
+  // Back to the title: an idle run resets every view (no packets, cold rack, the chosen knight at his post)
   // so the field reads as a calm backdrop behind the semi-transparent title.
   quit(): void {
     this.cancelEnd();
-    const idle = new Run({ mode: 'campaign', seed: 1, root: this.root, hints: false, difficulty: 'analyst', knight: 'black' });
+    const idle = new Run({ mode: 'campaign', seed: 1, root: this.root, hints: false, difficulty: 'analyst', knight: this.store.prefs().knight ?? 'black' });
     for (const v of this.views) v.start?.(idle);
     this.run = null;
     this.setScreen('title');
@@ -145,6 +160,8 @@ export class App {
   }
 
   act(a: Action): void {
+    // The one action without a run: BACK (Esc) on the setup goes to the title, and nowhere else does anything.
+    if (a === 'back') { if (this.screen === 'setup') this.quit(); return; }
     const run = this.run;
     if (!run || !a) return;
     switch (a) {

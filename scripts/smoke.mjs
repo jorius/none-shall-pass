@@ -22,10 +22,12 @@ const stepUntil = async (page, cond, arg) => {
   if (!ok) throw new Error(`the run never reached ${cond}`);
 };
 
-// From the title into a run, as a player gets there.
+// From the title into a run, as a player gets there: PLAY or OVERTIME, then START on the setup screen as it stands.
 const play = async (page, mode = 'campaign') => {
   await page.waitForSelector('#ui .ov-title .btn');
   await page.click(mode === 'campaign' ? '#ui .ov-title .row-btns .btn:nth-child(1)' : '#ui .ov-title .row-btns .btn:nth-child(2)');
+  await page.waitForSelector('#ui .ov-setup .foot .btn');
+  await page.click('#ui .ov-setup .foot .btn:first-child');
   await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
 };
 
@@ -585,14 +587,69 @@ const CHECKS = {
     await fits(page, 'Spanish how-to');
     await page.screenshot({ path: `${OUT}/howto-es.png` });
     await page.keyboard.press('Escape');
-    // By keyboard: Tab stays on the title's buttons (the layer behind is inert) and Enter plays.
+    // By keyboard: Tab stays on the title's buttons (the layer behind is inert), Enter opens the setup with START
+    // under the focus, and Space starts the run.
     await page.waitForSelector('#ui .ov-title .btn');
     await page.keyboard.press('Tab');
     const focused = await page.evaluate(() => document.activeElement?.textContent);
     if (focused !== 'JUGAR CAMPAÑA') throw new Error(`Tab went to ${focused}`);
     await page.keyboard.press('Enter');
+    await page.waitForSelector('#ui .ov-setup .foot .btn');
+    const start = await page.evaluate(() => ({ screen: window.__nsp.app.screen, focused: document.activeElement?.textContent }));
+    if (start.screen !== 'setup' || start.focused !== 'EMPEZAR · ESPACIO') throw new Error(`after Enter on the title: ${JSON.stringify(start)}`);
+    await page.keyboard.press('Space');
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
-    if (await page.evaluate(() => document.activeElement !== document.body)) throw new Error('a title button kept the focus into the run');
+    if (await page.evaluate(() => document.activeElement !== document.body)) throw new Error('a setup button kept the focus into the run');
+  },
+  async setup(page) {
+    // PLAY opens the setup: six knights with their portraits, four difficulties, the Analyst on the Black Knight marked
+    // on a first visit, START focused. A pick marks its card at once; START plays the pair and the HUD shows its reputation.
+    await page.waitForSelector('#ui .ov-title .btn');
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(1)');
+    await page.waitForSelector('#ui .ov-setup .foot .btn');
+    await page.waitForFunction(() => [...document.querySelectorAll('#ui .ov-setup .kn img')].every((i) => i.complete && i.naturalWidth > 0));
+    const shown = () => page.evaluate(() => ({
+      screen: window.__nsp.app.screen, knights: document.querySelectorAll('#ui .ov-setup .kn').length, portraits: document.querySelectorAll('#ui .ov-setup .kn img').length,
+      levels: document.querySelectorAll('#ui .ov-setup .dl').length, knight: document.querySelector('#ui .ov-setup .kn.sel')?.dataset.id, level: document.querySelector('#ui .ov-setup .dl.sel')?.dataset.id,
+      focused: document.activeElement?.textContent, note: document.querySelector('#ui .ov-setup .foot .note')?.textContent,
+    }));
+    const first = await shown();
+    if (first.screen !== 'setup' || first.knights !== 6 || first.portraits !== 6 || first.levels !== 4 || first.knight !== 'black' || first.level !== 'analyst' || first.focused !== 'START · SPACE') throw new Error(`a first setup: ${JSON.stringify(first)}`);
+    await page.click('#ui .ov-setup .kn[data-id="warden"]');
+    await page.click('#ui .ov-setup .dl[data-id="incident"]');
+    const picked = await shown();
+    if (picked.knight !== 'warden' || picked.level !== 'incident' || picked.focused !== 'START · SPACE' || picked.note !== 'Warden · Incident · ×1.5') throw new Error(`after the picks: ${JSON.stringify(picked)}`);
+    await fits(page, 'setup');
+    await page.screenshot({ path: `${OUT}/setup.png` });
+    await page.click('#ui .ov-setup .foot .btn:first-child');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    const run = await page.evaluate(() => ({ cfg: window.__nsp.app.run.state.cfg, pips: document.querySelectorAll('#ui .hud .pips i').length }));
+    if (run.cfg.knight !== 'warden' || run.cfg.difficulty !== 'incident' || run.cfg.mode !== 'campaign' || run.pips !== 8) throw new Error(`the run: ${JSON.stringify(run)}`);
+    // Remembered across a reload: the title says so, and the setup opens on the pair; Esc goes back to the title.
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#ui .ov-title .btn');
+    const title = await page.evaluate(() => [...document.querySelectorAll('#ui .ov-title .note')].map((e) => e.textContent));
+    if (!title.includes('Playing as Warden · Incident')) throw new Error(`the title after a reload: ${JSON.stringify(title)}`);
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(1)');
+    await page.waitForSelector('#ui .ov-setup .foot .btn');
+    const again = await shown();
+    if (again.knight !== 'warden' || again.level !== 'incident') throw new Error(`the setup after a reload: ${JSON.stringify(again)}`);
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#ui .ov-title .btn');
+    if (await page.evaluate(() => window.__nsp.app.screen !== 'title' || window.__nsp.app.run !== null)) throw new Error('Esc did not go back to the title');
+    // In Spanish, at its longest: Forge on Zero-day, every card and the foot on one screen.
+    await spanish(page);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#ui .ov-title .btn');
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(1)');
+    await page.waitForSelector('#ui .ov-setup .foot .btn');
+    await page.click('#ui .ov-setup .kn[data-id="forge"]');
+    await page.click('#ui .ov-setup .dl[data-id="zeroday"]');
+    await page.waitForFunction(() => [...document.querySelectorAll('#ui .ov-setup .kn img')].every((i) => i.complete && i.naturalWidth > 0));
+    const es = await shown();
+    if (es.focused !== 'EMPEZAR · ESPACIO' || es.note !== 'Forja · Día cero · ×2') throw new Error(`the Spanish setup: ${JSON.stringify(es)}`);
+    await fits(page, 'Spanish setup');
+    await page.screenshot({ path: `${OUT}/setup-es.png` });
   },
   async recap(page) {
     // A wave with mistakes ends on their recap, before its draft: the counts, every breach and false alarm with the payload's
@@ -835,16 +892,18 @@ const CHECKS = {
       best: JSON.parse(localStorage.getItem('nsp.v1')).bests.campaign['analyst-normal'], grade: document.querySelector('#ui .grade').textContent,
     }));
     if (!shown.share.includes('jorius.github.io/none-shall-pass')) throw new Error('share text missing link');
+    if (!shown.share.includes(' · The Black Knight · Analyst')) throw new Error(`the share line does not name the pair: ${shown.share}`);
     if (!shown.mistakes || shown.grade !== 'F' || !shown.best) throw new Error(`debrief: ${JSON.stringify(shown)}`);
     await fits(page, 'debrief');
     await widest(page);
     await page.evaluate(() => window.__nsp.app.refresh());
     await fits(page, 'debrief at its widest');
-    // PLAY AGAIN: a fresh run, nothing carried over.
+    // PLAY AGAIN: a fresh run on the same pair, straight in (no setup), nothing else carried over.
     await page.click('#ui .ov-debrief .row-btns .btn:nth-child(2)');
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
     const fresh = await page.evaluate(() => ({ s: window.__nsp.app.run.state, rows: document.querySelectorAll('#ui .rows .row').length }));
     if (fresh.s.wave !== 1 || fresh.s.uptime !== 100 || fresh.s.log.length || fresh.rows || fresh.s.phase !== 'playing') throw new Error('PLAY AGAIN kept the last run');
+    if (fresh.s.cfg.knight !== 'black' || fresh.s.cfg.difficulty !== 'analyst') throw new Error(`PLAY AGAIN changed the pair: ${JSON.stringify(fresh.s.cfg)}`);
     // A quit in the moment before the debrief opens: the next run keeps its screen (the ended run's result is already saved).
     await lose(page);
     await page.evaluate(() => {
@@ -866,12 +925,14 @@ const CHECKS = {
     await stepUntil(page, (s) => s.phase === 'ended');
     await page.waitForSelector('#ui .ov-debrief .grade');
     await fits(page, 'Spanish debrief');
-    // How far the campaign got, the breaches by family and the best it had to beat.
+    // How far the campaign got, the breaches by family, the best it had to beat, and who held the gate in the head and the share line.
     const es = await page.evaluate(() => ({
       reached: document.querySelector('#ui .statlist > div').textContent, fams: [...document.querySelectorAll('#ui .fams span')].map((e) => e.textContent),
       prev: [...document.querySelectorAll('#ui .ov-debrief .note')].map((e) => e.textContent).find((x) => /^Récord anterior/.test(x)),
+      who: document.querySelector('#ui .ov-debrief p.note')?.textContent, share: document.querySelector('#ui .share').value,
     }));
     if (es.reached !== 'Oleada alcanzada6 / 6' || es.fams.length !== 5 || !es.fams[2].startsWith('fuerza bruta ') || !es.prev) throw new Error(`Spanish debrief: ${JSON.stringify(es)}`);
+    if (es.who !== 'El Caballero Negro · "Nadie pasará." · Analista' || !es.share.includes(' · El Caballero Negro · Analista')) throw new Error(`the Spanish debrief's pair: ${JSON.stringify(es)}`);
     await page.screenshot({ path: `${OUT}/debrief-es.png` });
     await page.click('#ui .ov-debrief .row-btns .btn:nth-child(3)');
     await page.waitForSelector('#ui .ov-title');

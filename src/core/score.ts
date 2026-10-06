@@ -1,7 +1,7 @@
 // core
-import type { KnightId } from './content/knights';
+import { KNIGHTS, type KnightId } from './content/knights';
 import type { Mode } from './content/waves';
-import type { Difficulty } from './difficulty';
+import { DIFFICULTIES, type Difficulty } from './difficulty';
 import { breachTotal, type EndReason, type RunState, type Stats } from './state';
 import type { Lang } from './types';
 
@@ -55,16 +55,17 @@ export const grade = (r: RunResult): Grade | null => {
 const fmt = (n: number, lang: Lang): string => n.toLocaleString(lang === 'es' ? 'es-CO' : 'en-US');
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
+// The line to paste: the result, then who held the gate and at what, then the ROOT and TAMPERED tags.
 export const shareText = (r: RunResult, lang: Lang): string => {
-  const tags = `${r.root ? ' · ROOT' : ''}${r.tampered ? ' · TAMPERED' : ''}`;
+  const tail = ` · ${KNIGHTS[r.knight].name[lang]} · ${DIFFICULTIES[r.difficulty].name[lang]}${r.root ? ' · ROOT' : ''}${r.tampered ? ' · TAMPERED' : ''}`;
   if (r.mode === 'overtime') {
     const head = lang === 'es' ? `⚔ NONE SHALL PASS · TIEMPO EXTRA — oleada ${r.wave}` : `⚔ NONE SHALL PASS · OVERTIME — wave ${r.wave}`;
-    return `${head} · ${fmt(r.score, lang)} pts${tags}\n${SHARE_URL}`;
+    return `${head} · ${fmt(r.score, lang)} pts${tail}\n${SHARE_URL}`;
   }
   const g = grade(r);
   const br = breachTotal(r.stats), fp = r.stats.falsePositives;
   const body = lang === 'es'
     ? `Nota ${g} · ${fmt(r.score, lang)} pts · ${plural(br, 'brecha', 'brechas')} · ${plural(fp, 'usuario molesto', 'usuarios molestos')}`
     : `Grade ${g} · ${fmt(r.score, lang)} pts · ${plural(br, 'breach', 'breaches')} · ${plural(fp, 'angry user', 'angry users')}`;
-  return `⚔ NONE SHALL PASS — ${body}${tags}\n${SHARE_URL}`;
+  return `⚔ NONE SHALL PASS — ${body}${tail}\n${SHARE_URL}`;
 };

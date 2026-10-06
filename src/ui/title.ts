@@ -1,8 +1,9 @@
 // core
-import type { Difficulty } from '../core/difficulty';
+import { KNIGHTS, type KnightId } from '../core/content/knights';
+import { DIFFICULTIES, type Difficulty } from '../core/difficulty';
 
 // i18n
-import { fmtNum, t } from '../i18n';
+import { fmtNum, loc, t } from '../i18n';
 
 // local
 import { slotOf, type Bests } from '../storage';
@@ -11,6 +12,7 @@ import { button, el } from './dom';
 export interface TitleDeps {
   bests: Bests;
   root: boolean;
+  knight: KnightId;
   difficulty: Difficulty;
   play(): void;
   overtime(): void;
@@ -29,6 +31,8 @@ export const renderTitle = (box: HTMLElement, d: TitleDeps): void => {
   button(btns, 'btn ghost', t('title.howto'), d.howto);
   button(btns, 'btn ghost', t('lang.toggle'), d.toggleLang);
   if (!d.bests.won) el('div', 'note', box, `${t('title.overtime')}: ${t('title.overtimeLocked')}`);
+  // The pair last played (the setup opens on it), and the bests of that difficulty in this mode.
+  el('div', 'note', box, t('title.asKnight', { k: loc(KNIGHTS[d.knight].name), d: loc(DIFFICULTIES[d.difficulty].name) }));
   const slot = slotOf({ difficulty: d.difficulty, root: d.root });
   const c = d.bests.campaign[slot], o = d.bests.overtime[slot];
   if (c || o) {

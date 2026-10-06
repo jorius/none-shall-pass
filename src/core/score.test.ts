@@ -43,15 +43,19 @@ describe('grade', () => {
 });
 
 describe('shareText', () => {
-  it('formats the campaign line in English and Spanish', () => {
+  it('formats the campaign line in English and Spanish, naming the knight and the difficulty', () => {
     const r = base({ uptime: 80 });
     r.stats = { ...r.stats, falsePositives: 1, breaches: { ...r.stats.breaches, xss: 2 } };
-    expect(shareText(r, 'en')).toBe('⚔ NONE SHALL PASS — Grade A · 18,420 pts · 2 breaches · 1 angry user\njorius.github.io/none-shall-pass');
-    expect(shareText(r, 'es')).toBe('⚔ NONE SHALL PASS — Nota A · 18.420 pts · 2 brechas · 1 usuario molesto\njorius.github.io/none-shall-pass');
+    expect(shareText(r, 'en')).toBe('⚔ NONE SHALL PASS — Grade A · 18,420 pts · 2 breaches · 1 angry user · The Black Knight · Analyst\njorius.github.io/none-shall-pass');
+    expect(shareText(r, 'es')).toBe('⚔ NONE SHALL PASS — Nota A · 18.420 pts · 2 brechas · 1 usuario molesto · El Caballero Negro · Analista\njorius.github.io/none-shall-pass');
+    const hard = base({ uptime: 95, knight: 'raider', difficulty: 'zeroday' });
+    expect(shareText(hard, 'en')).toBe('⚔ NONE SHALL PASS — Grade S · 18,420 pts · 0 breaches · 0 angry users · Raider · Zero-day\njorius.github.io/none-shall-pass');
+    expect(shareText(hard, 'es')).toBe('⚔ NONE SHALL PASS — Nota S · 18.420 pts · 0 brechas · 0 usuarios molestos · Asaltante · Día cero\njorius.github.io/none-shall-pass');
   });
-  it('marks root and tampered runs and formats overtime', () => {
+  it('marks root and tampered runs after the pair, and formats overtime', () => {
     const r = base({ mode: 'overtime', wave: 7, wavesCleared: 6, root: true, tampered: true, score: 31200 });
-    expect(shareText(r, 'en')).toBe('⚔ NONE SHALL PASS · OVERTIME — wave 7 · 31,200 pts · ROOT · TAMPERED\njorius.github.io/none-shall-pass');
+    expect(shareText(r, 'en')).toBe('⚔ NONE SHALL PASS · OVERTIME — wave 7 · 31,200 pts · The Black Knight · Analyst · ROOT · TAMPERED\njorius.github.io/none-shall-pass');
+    expect(shareText({ ...r, knight: 'warden', difficulty: 'intern' }, 'es')).toBe('⚔ NONE SHALL PASS · TIEMPO EXTRA — oleada 7 · 31.200 pts · Guardiana · Practicante · ROOT · TAMPERED\njorius.github.io/none-shall-pass');
   });
 });
 

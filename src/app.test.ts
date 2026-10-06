@@ -13,16 +13,17 @@ import type { FieldScene } from './game/FieldScene';
 
 // local
 import { App } from './app';
-import { createStore } from './storage';
+import { createStore, type Store } from './storage';
 
 // A breach or a false positive as the log records it, on a real template.
 const fakeEntry = (outcome: 'breach' | 'fp'): LogEntry => ({ seq: 1, wave: 1, outcome, packet: place(freshState(), outcome === 'fp' ? 'legit-socks' : 'scan-telnet', 300), points: 0 });
 
 describe('App', () => {
-  let app: App, ended: Run[], screens: Screen[], started: Run[];
+  let app: App, store: Store, ended: Run[], screens: Screen[], started: Run[];
   beforeEach(() => {
     vi.useFakeTimers();
-    app = new App({ onFrame: null } as unknown as FieldScene, createStore(null));
+    store = createStore(null);
+    app = new App({ onFrame: null } as unknown as FieldScene, store);
     ended = [];
     screens = [];
     started = [];
@@ -177,6 +178,39 @@ describe('App', () => {
   it('ignores draft actions without a run', () => {
     expect(() => { app.pick(0); app.reroll(); app.nextWave(); }).not.toThrow();
     expect(app.screen).toBe('title');
+  });
+
+  it('goes title → setup → run with the chosen knight and difficulty, and remembers them', () => {
+    app.quit();
+    app.openSetup('campaign');
+    expect([app.screen, app.run, app.pendingMode]).toEqual(['setup', null, 'campaign']);
+    app.startRun('campaign', { knight: 'raider', difficulty: 'intern' });
+    expect(app.run!.state.cfg).toMatchObject({ knight: 'raider', difficulty: 'intern', mode: 'campaign' });
+    expect(store.prefs()).toMatchObject({ knight: 'raider', difficulty: 'intern' });
+    app.act('back');
+    expect(app.screen).toBe('playing'); // back only works on the setup screen
+  });
+
+  it('starts a run without a choice on the pair remembered, and the title\'s idle field shows that knight', () => {
+    store.setPrefs({ knight: 'ghost', difficulty: 'zeroday' });
+    app.startRun('overtime');
+    expect(app.run!.state.cfg).toMatchObject({ knight: 'ghost', difficulty: 'zeroday', mode: 'overtime', hints: false });
+    app.quit();
+    // The backdrop is always an Analyst's run, the chosen knight at his post.
+    expect(started.at(-1)!.state.cfg).toMatchObject({ knight: 'ghost', difficulty: 'analyst' });
+    expect(app.run).toBeNull();
+  });
+
+  it('leaves the setup for the title on Esc, the mode it was opened for kept', () => {
+    app.quit();
+    app.openSetup('overtime');
+    expect(screens.at(-1)).toBe('setup');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect([app.screen, app.run, app.pendingMode]).toEqual(['title', null, 'overtime']);
+    // Nothing else moves the setup: the play keys belong to the field.
+    app.openSetup('campaign');
+    for (const key of [' ', 'Enter', 'p', 'c', 'ArrowUp']) window.dispatchEvent(new KeyboardEvent('keydown', { key }));
+    expect(app.screen).toBe('setup');
   });
 
   it('pauses only from play, so the pause button cannot leave a draft behind', () => {

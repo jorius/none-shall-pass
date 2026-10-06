@@ -173,7 +173,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ov { position: absolute; left: 0; top: 56px; width: 1280px; height: 664px; z-index: 40; background: rgba(22,22,22,.95); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; pointer-events: auto; }
 .ov.show { display: flex; }
 .ov.ov-title { top: 0; height: 720px; background: rgba(22,22,22,.82); }
-.ov.ov-howto, .ov.ov-recap, .ov.ov-debrief { top: 0; height: 720px; background: rgba(22,22,22,.97); }
+.ov.ov-howto, .ov.ov-setup, .ov.ov-recap, .ov.ov-debrief { top: 0; height: 720px; background: rgba(22,22,22,.97); }
 .ov h1 { font-size: 64px; letter-spacing: .12em; margin: 0; text-shadow: -4px 0 var(--r), 4px 0 var(--b); animation: jitter 4s infinite steps(1); }
 .ov h2 { font-size: 30px; letter-spacing: .12em; margin: 0; text-shadow: -3px 0 var(--r), 3px 0 var(--b); }
 .ov p { font-family: var(--body); font-size: 16px; color: var(--dim); margin: 0; max-width: 700px; line-height: 1.45; }
@@ -192,6 +192,40 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .sitelink { font-size: 13px; color: var(--dim); text-decoration: none; border-bottom: 1px solid var(--mute); }
 .howto-grid { display: grid; grid-template-columns: auto auto; gap: 8px 18px; text-align: left; font-family: var(--body); font-size: 15px; }
 .howto-grid kbd { font-family: var(--mono); font-size: 13px; color: var(--ink); border: 1px solid var(--mute); padding: 1px 6px; justify-self: end; }
+
+/* ---------- the setup: knight and difficulty ---------- */
+/* Six 300px knight cards in a 3×2 grid beside a 300px column of difficulties (1238px in all); every card is a button,
+   its text set left. The chosen pair carries the ink border, the knight's card the red/blue glitch shadow too. */
+.ov-setup .wrap { display: flex; gap: 18px; align-items: flex-start; text-align: left; margin-top: 4px; }
+.ov-setup .sh { font-size: 13px; letter-spacing: .16em; color: var(--dim); margin-bottom: 6px; }
+.ov-setup .knights { display: grid; grid-template-columns: repeat(3, 300px); gap: 10px; }
+.ov-setup .kn { display: grid; grid-template-columns: 96px 1fr; gap: 3px 10px; align-content: start; padding: 10px; background: var(--paper); border: 1px solid var(--mute); font-family: var(--mono); color: var(--ink); text-align: left; cursor: pointer; }
+.ov-setup .kn:hover { border-color: var(--dim); }
+.ov-setup .kn.sel { border-color: var(--ink); background: #313131; box-shadow: -3px 0 0 var(--r), 3px 0 0 var(--b); }
+/* The portrait (the foot sprite at 3×, 63×90) stands on the floor of a dark box down the card's left side. */
+.ov-setup .kn .pic { grid-row: span 4; align-self: stretch; min-height: 112px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px; background: var(--soft); border: 1px solid var(--mute); }
+.ov-setup .kn .pic img { display: block; }
+.ov-setup .kn .nm { font-size: 15px; font-weight: 700; }
+.ov-setup .kn .team { font-size: 13px; font-weight: 700; line-height: 17px; padding: 0 6px; width: fit-content; color: var(--paper); }
+.ov-setup .kn .motto { font-family: var(--body); font-style: italic; font-size: 14px; }
+.ov-setup .kn .who { font-family: var(--body); font-size: 13px; line-height: 1.3; color: var(--dim); }
+.ov-setup .diff { width: 300px; flex: none; display: flex; flex-direction: column; gap: 8px; }
+.ov-setup .diff .sh { margin-bottom: -2px; }
+.ov-setup .dl { display: grid; grid-template-columns: 22px 1fr auto; gap: 2px 8px; align-items: baseline; padding: 8px 10px; background: var(--paper); border: 1px solid var(--mute); font-family: var(--mono); color: var(--ink); text-align: left; cursor: pointer; }
+.ov-setup .dl:hover { border-color: var(--dim); }
+.ov-setup .dl.sel { border-color: var(--ink); background: #313131; }
+.ov-setup .dl .rad { display: block; width: 14px; height: 14px; align-self: center; border: 2px solid var(--dim); }
+.ov-setup .dl.sel .rad { background: var(--ink); border-color: var(--ink); box-shadow: inset 0 0 0 2px #313131; }
+.ov-setup .dl .nm { font-size: 15px; font-weight: 700; }
+.ov-setup .dl .x { font-size: 13px; font-weight: 700; }
+.ov-setup .dl .ds { grid-column: 2 / 4; font-family: var(--body); font-size: 13px; line-height: 1.32; color: var(--dim); }
+/* Four bars, the first n lit in the level's colour: green, gold, orange, red. */
+.ov-setup .dl .bar { grid-column: 2 / 4; display: flex; gap: 3px; margin-top: 3px; }
+.ov-setup .dl .bar i { display: block; width: 18px; height: 6px; background: var(--mute); }
+.ov-setup .bar.l1 i.on { background: var(--green); } .ov-setup .bar.l2 i.on { background: var(--gold); }
+.ov-setup .bar.l3 i.on { background: #ff8a2f; } .ov-setup .bar.l4 i.on { background: var(--r); }
+.ov-setup .kn:focus-visible, .ov-setup .dl:focus-visible { outline: 2px solid var(--b); outline-offset: 3px; }
+.ov-setup .foot { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
 
 .draft-h { font-size: 14px; letter-spacing: .14em; }
 .draft-h span { color: var(--gold); }
@@ -262,7 +296,9 @@ body.root, #ui.root {
 /* The backdrops and the dark text on light chips are fixed colours, not variables: they go amber here too. */
 #ui.root .ov { background: rgba(18,13,5,.95); }
 #ui.root .ov.ov-title { background: rgba(18,13,5,.82); }
-#ui.root .ov.ov-howto, #ui.root .ov.ov-recap, #ui.root .ov.ov-debrief { background: rgba(18,13,5,.97); }
+#ui.root .ov.ov-howto, #ui.root .ov.ov-setup, #ui.root .ov.ov-recap, #ui.root .ov.ov-debrief { background: rgba(18,13,5,.97); }
+#ui.root .ov-setup .kn.sel, #ui.root .ov-setup .dl.sel { background: #2a2010; }
+#ui.root .ov-setup .dl.sel .rad { box-shadow: inset 0 0 0 2px #2a2010; }
 #ui.root .glabel.cur .name, #ui.root .bubble small { color: #5c3d00; }
 #ui.root .segs i.lost { background: repeating-linear-gradient(135deg, #7a5200 0 2px, transparent 2px 4px); }
 /* The pixel-art icons (loadout, draft) carry their own colours, like the canvas they go through an amber tint. */

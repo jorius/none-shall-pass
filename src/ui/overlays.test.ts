@@ -20,8 +20,8 @@ import { App } from '../app';
 import { createStore, type Store } from '../storage';
 import { Overlays } from './overlays';
 
-// jsdom has no canvas to paint the card icons on.
-vi.mock('../art/dataurl', () => ({ iconUrl: (icon: string) => `data:image/png;${icon}` }));
+// jsdom has no canvas to paint the card icons or the knights' portraits on.
+vi.mock('../art/dataurl', () => ({ iconUrl: (icon: string) => `data:image/png;${icon}`, gridUrl: (g: unknown[][], scale: number) => `data:image/png;${g.length}x${scale}` }));
 
 // A breach or a false positive as the log records it, on a real template.
 const fakeEntry = (outcome: 'breach' | 'fp'): LogEntry => ({ seq: 1, wave: 1, outcome, packet: place(freshState(), outcome === 'fp' ? 'legit-socks' : 'scan-telnet', 300), points: 0 });
@@ -51,15 +51,21 @@ describe('Overlays', () => {
   });
   afterEach(() => { unLang(); vi.restoreAllMocks(); vi.useRealTimers(); setLang('en'); });
 
-  it('opens on the title, Overtime locked until a campaign is won', () => {
+  it('opens on the title, Overtime locked until a campaign is won, and PLAY goes to the setup before the run', () => {
     boot();
     expect(box().className).toBe('ov show ov-title');
     expect(named(/^OVERTIME$/).disabled).toBe(true);
     expect(box().textContent).toContain('win the campaign to unlock');
+    expect(box().textContent).toContain('Playing as The Black Knight · Analyst');
     named(/PLAY CAMPAIGN/).click();
+    expect([app.screen, app.run, box().className]).toEqual(['setup', null, 'ov show ov-setup']);
+    expect(box().querySelectorAll('.kn img.px')).toHaveLength(6);
+    expect(document.activeElement).toBe(named(/^START/));
+    named(/^START/).click();
     expect(app.screen).toBe('playing');
-    expect(app.run?.state.cfg.mode).toBe('campaign');
+    expect(app.run?.state.cfg).toMatchObject({ mode: 'campaign', knight: 'black', difficulty: 'analyst' });
     expect(box().className).toBe('ov');
+    expect(document.activeElement).toBe(document.body);
   });
 
   it('unlocks Overtime and shows the bests after a win', () => {
@@ -69,7 +75,60 @@ describe('Overlays', () => {
     expect(named(/^OVERTIME$/).disabled).toBe(false);
     expect(box().querySelector('.best')?.textContent).toContain('Campaign · grade A · 18,420 pts');
     named(/^OVERTIME$/).click();
+    expect([app.screen, app.pendingMode]).toEqual(['setup', 'overtime']);
+    named(/^START/).click();
     expect(app.run?.state.cfg.mode).toBe('overtime');
+  });
+
+  it('starts the run on the pair picked on the setup, remembers it, and the title follows it', () => {
+    const stats = { hits: { 1: 0, 2: 0, 3: 0 }, squireHits: 0, chargeHits: 0, ruleBlocks: 0, served: 0, decoysKept: 0, neutralized: 0, falsePositives: 0, breaches: { sqli: 0, xss: 0, brute: 0, scan: 0, flood: 0 }, wavesCleared: 6 };
+    store.recordResult({ mode: 'campaign', difficulty: 'intern', knight: 'warden', root: false, tampered: false, won: true, reason: 'won', score: 7000, wave: 6, wavesCleared: 6, uptime: 95, rep: 14, stats });
+    boot();
+    // The Analyst's bests are shown until a difficulty is chosen: the Intern's win stays out of sight.
+    expect(box().querySelector('.best')).toBeNull();
+    named(/PLAY CAMPAIGN/).click();
+    box().querySelector<HTMLButtonElement>('.kn[data-id="warden"]')!.click();
+    box().querySelector<HTMLButtonElement>('.dl[data-id="intern"]')!.click();
+    expect([box().querySelector('.kn.sel')?.getAttribute('data-id'), box().querySelector('.dl.sel')?.getAttribute('data-id')]).toEqual(['warden', 'intern']);
+    expect(box().querySelector('.foot .note')?.textContent).toBe('Warden · Intern · ×0.5');
+    expect(store.prefs()).toMatchObject({ knight: 'warden', difficulty: 'intern' });
+    named(/^START/).click();
+    expect(app.run?.state.cfg).toMatchObject({ mode: 'campaign', knight: 'warden', difficulty: 'intern' });
+    app.quit();
+    expect(box().textContent).toContain('Playing as Warden · Intern');
+    expect(box().querySelector('.best')?.textContent).toBe('BEST Campaign · grade S · 7,000 pts');
+    expect(app.run).toBeNull();
+    named(/PLAY CAMPAIGN/).click();
+    expect(box().querySelector('.kn.sel')?.getAttribute('data-id')).toBe('warden');
+  });
+
+  it('goes back from the setup to the title with BACK or Esc, keeping a pick made before leaving', () => {
+    boot();
+    named(/PLAY CAMPAIGN/).click();
+    box().querySelector<HTMLButtonElement>('.kn[data-id="raider"]')!.click();
+    named(/^BACK/).click();
+    expect([app.screen, app.run, box().className]).toEqual(['title', null, 'ov show ov-title']);
+    expect(box().textContent).toContain('Playing as Raider · Analyst');
+    named(/PLAY CAMPAIGN/).click();
+    expect(box().querySelector('.kn.sel')?.getAttribute('data-id')).toBe('raider');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect([app.screen, box().className]).toEqual(['title', 'ov show ov-title']);
+  });
+
+  it('keeps a keyboard player on the card they picked, and START under Space for everyone else', () => {
+    boot();
+    named(/PLAY CAMPAIGN/).click();
+    // A mouse pick: the focus never left START, so Space still starts.
+    box().querySelector<HTMLButtonElement>('.dl[data-id="zeroday"]')!.click();
+    expect(document.activeElement).toBe(named(/^START/));
+    // A keyboard pick: the same card, now selected, keeps the focus.
+    const forge = box().querySelector<HTMLButtonElement>('.kn[data-id="forge"]')!;
+    forge.focus();
+    forge.click();
+    const now = document.activeElement as HTMLButtonElement;
+    expect([now.className, now.dataset.id]).toEqual(['kn sel', 'forge']);
+    named(/^START/).click();
+    expect(app.run?.state.cfg).toMatchObject({ knight: 'forge', difficulty: 'zeroday', hints: false });
   });
 
   it('shows the won best on the title, even after a higher-scoring loss', () => {
@@ -86,6 +145,8 @@ describe('Overlays', () => {
     expect(hud.hasAttribute('inert')).toBe(true);
     expect(box().hasAttribute('inert')).toBe(false);
     named(/PLAY CAMPAIGN/).click();
+    expect(hud.hasAttribute('inert')).toBe(true);
+    named(/^START/).click();
     expect(hud.hasAttribute('inert')).toBe(false);
   });
 
@@ -197,7 +258,7 @@ describe('Overlays', () => {
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
     vi.advanceTimersByTime(1200);
     const notes = [...box().querySelectorAll('.note')].map((e) => e.textContent);
-    expect(notes).toEqual(['GRADE', 'Previous best 4,210 pts · grade F']);
+    expect(notes).toEqual(['The Black Knight · "None shall pass." · Analyst', 'GRADE', 'Previous best 4,210 pts · grade F']);
     expect(box().querySelector('.newbest')?.textContent).toBe('NEW BEST');
     const rows = [...box().querySelectorAll('.statlist > div:not(.fams)')].map((e) => [e.firstChild?.textContent, e.querySelector('b')?.textContent]);
     expect(rows[0]).toEqual(['Wave reached', '3 / 6']);
@@ -389,9 +450,9 @@ describe('Overlays', () => {
     expect(box().querySelector('.badge-root')).toBeNull();
   });
 
-  it('debriefs with the mistakes as text, then plays again in the same mode or goes to the title', () => {
+  it('debriefs with the mistakes as text, then plays again on the same pair, skipping the setup, or goes to the title', () => {
     boot();
-    app.startRun('overtime');
+    app.startRun('overtime', { knight: 'raider', difficulty: 'zeroday' });
     const s = app.run!.state;
     const p = place(s, 'legit-socks', 300);
     p.t = { ...p.t, raw: '<img src=x onerror="window.__pwned=1">' };
@@ -401,18 +462,28 @@ describe('Overlays', () => {
     vi.advanceTimersByTime(1200);
     expect(box().className).toBe('ov show ov-debrief');
     expect(box().querySelector('h2')?.textContent).toBe('OVERTIME OVER');
-    expect([box().querySelector('.note')?.textContent, box().querySelector('.grade')?.textContent]).toEqual(['WAVE REACHED', '1']);
+    // The knight and the difficulty under the head, in the share line too.
+    expect(box().querySelector('p.note')?.textContent).toBe('Raider · "Think like the attacker." · Zero-day');
+    expect([box().querySelector('.debrief .note')?.textContent, box().querySelector('.grade')?.textContent]).toEqual(['WAVE REACHED', '1']);
     expect([...box().querySelectorAll('.fams span')].map((e) => e.textContent)).toEqual(['SQLi 0', 'XSS 0', 'brute force 0', 'scan 0', 'flood 0']);
     expect([...box().querySelectorAll('.mistake .mhead span')].map((e) => e.textContent)).toEqual(['FALSE POSITIVE', 'REAL USER', 'W1']);
     expect(box().querySelector('.mistake pre')?.textContent).toBe('<img src=x onerror="window.__pwned=1">');
     expect(box().querySelector('img')).toBeNull();
-    expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('OVERTIME');
-    expect(store.bests().overtime['analyst-normal']).toEqual({ wave: 1, score: 0 });
+    expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('OVERTIME — wave 1 · 0 pts · Raider · Zero-day');
+    expect(store.bests().overtime['zeroday-normal']).toEqual({ wave: 1, score: 0 });
+    setLang('es');
+    app.refresh();
+    expect(box().querySelector('p.note')?.textContent).toBe('Asaltante · "Piensa como el atacante." · Día cero');
+    expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('oleada 1 · 0 pts · Asaltante · Día cero');
+    setLang('en');
+    app.refresh();
     named(/PLAY AGAIN/).click();
-    expect([app.screen, app.run?.state.cfg.mode, app.run?.state.log.length]).toEqual(['playing', 'overtime', 0]);
+    expect([app.screen, app.run?.state.log.length]).toEqual(['playing', 0]);
+    expect(app.run?.state.cfg).toMatchObject({ mode: 'overtime', knight: 'raider', difficulty: 'zeroday' });
     app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
     vi.advanceTimersByTime(1200);
     named(/^TITLE$/).click();
     expect([app.screen, app.run]).toEqual(['title', null]);
+    expect(box().textContent).toContain('Playing as Raider · Zero-day');
   });
 });

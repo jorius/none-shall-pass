@@ -1,11 +1,13 @@
 // core
+import { KNIGHTS } from '../core/content/knights';
 import { CAMPAIGN } from '../core/content/waves';
+import { DIFFICULTIES } from '../core/difficulty';
 import { grade, shareText, type Grade, type RunResult } from '../core/score';
 import { breachTotal, type RunState } from '../core/state';
 import type { MaliciousKind } from '../core/types';
 
 // i18n
-import { fmtNum, lang, t } from '../i18n';
+import { fmtNum, lang, loc, t } from '../i18n';
 
 // local
 import { track } from '../analytics';
@@ -28,6 +30,8 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, best:
   box.innerHTML = '';
   const head = r.won ? t('debrief.won') : r.mode === 'overtime' ? t('debrief.overtimeOver') : r.reason === 'usersGone' ? t('debrief.usersGone') : t('debrief.serverDown');
   el('h2', '', box, head);
+  // Who held the gate, and at what: the knight, their motto and the difficulty.
+  el('p', 'note', box, `${loc(KNIGHTS[r.knight].name)} · ${loc(KNIGHTS[r.knight].motto)} · ${loc(DIFFICULTIES[r.difficulty].name)}`);
   const wrap = el('div', 'debrief', box);
   const left = el('div', '', wrap);
   const g = grade(r);

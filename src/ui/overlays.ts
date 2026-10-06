@@ -12,16 +12,20 @@ import type { EffectsView } from '../game/views/effects';
 import { lang, setLang } from '../i18n';
 
 // local
-import type { App } from '../app';
-import { slotOf } from '../storage';
+import type { App, Choice } from '../app';
+import { slotOf, type Prefs } from '../storage';
 import { renderDebrief, type PrevBest } from './debrief';
 import { el } from './dom';
 import { renderDraft } from './draftPanel';
 import { renderPause } from './pausePanel';
 import { renderRecap } from './recap';
+import { renderSetup } from './setup';
 import { renderHowto, renderTitle } from './title';
 
-type Kind = 'none' | 'title' | 'howto' | 'recap' | 'draft' | 'pause' | 'debrief';
+type Kind = 'none' | 'title' | 'howto' | 'setup' | 'recap' | 'draft' | 'pause' | 'debrief';
+
+// The pair last played, or the Analyst on the Black Knight before any was: what the title and the setup show.
+const chosen = (p: Prefs): Choice => ({ knight: p.knight ?? 'black', difficulty: p.difficulty ?? 'analyst' });
 
 // The screens between and around the runs, in one box over the field; it follows the App's screen.
 export class Overlays implements View {
@@ -50,6 +54,7 @@ export class Overlays implements View {
 
   private onScreen(s: Screen): void {
     if (s === 'title') this.show('title');
+    else if (s === 'setup') this.show('setup');
     else if (s === 'recap') this.show('recap');
     else if (s === 'draft') this.show('draft');
     else if (s === 'paused') this.show('pause');
@@ -87,8 +92,8 @@ export class Overlays implements View {
     this.box.className = `ov show ov-${kind}`;
     this.inert(true);
     this.render();
-    // The recap puts the focus on its own CONTINUE, for every player.
-    if (keyboard && kind !== 'recap') this.focusFrom(0);
+    // The recap puts the focus on its own CONTINUE, and the setup on its START, for every player.
+    if (keyboard && kind !== 'recap' && kind !== 'setup') this.focusFrom(0);
   }
 
   private hide(): void {
@@ -123,11 +128,22 @@ export class Overlays implements View {
     const a = this.app;
     switch (this.kind) {
       case 'title':
-        // The title shows the bests of the difficulty last chosen (the Analyst's until one is), as the setup screen will set it.
-        renderTitle(this.box, { bests: a.store.bests(), root: a.root, difficulty: a.store.prefs().difficulty ?? 'analyst', play: () => a.startRun('campaign'), overtime: () => a.startRun('overtime'), howto: () => this.show('howto'), toggleLang: this.toggleLang });
+        // The title shows the pair last played and the bests of its difficulty; PLAY and OVERTIME go through the setup.
+        renderTitle(this.box, { bests: a.store.bests(), root: a.root, ...chosen(a.store.prefs()), play: () => a.openSetup('campaign'), overtime: () => a.openSetup('overtime'), howto: () => this.show('howto'), toggleLang: this.toggleLang });
         break;
       case 'howto':
         renderHowto(this.box, () => this.show('title'));
+        break;
+      case 'setup':
+        // Each pick is saved and redrawn in place; START plays the mode PLAY or OVERTIME asked for on the pair saved.
+        renderSetup(this.box, {
+          ...chosen(a.store.prefs()),
+          root: a.root,
+          pick: (k) => { a.store.setPrefs({ knight: k }); this.redraw(); },
+          level: (d) => { a.store.setPrefs({ difficulty: d }); this.redraw(); },
+          start: () => a.startRun(a.pendingMode, chosen(a.store.prefs())),
+          back: () => a.quit(),
+        });
         break;
       case 'recap':
         if (a.run) renderRecap(this.box, a.run, () => a.act('continue'));
@@ -152,7 +168,8 @@ export class Overlays implements View {
       case 'debrief':
         if (this.ended) {
           const s = this.ended.run.state;
-          renderDebrief(this.box, s, resultOf(s), this.ended, { again: () => a.startRun(s.cfg.mode), title: () => a.quit() });
+          // PLAY AGAIN skips the setup: the same mode on the same pair.
+          renderDebrief(this.box, s, resultOf(s), this.ended, { again: () => a.startRun(s.cfg.mode, { knight: s.cfg.knight, difficulty: s.cfg.difficulty }), title: () => a.quit() });
         }
         break;
       default:

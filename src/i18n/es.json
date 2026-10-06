@@ -31,7 +31,12 @@
   "title": {
     "tagline": "Protege el servidor. Lee los paquetes. Deja pasar a los usuarios reales.", "play": "JUGAR CAMPAÑA", "overtime": "TIEMPO EXTRA",
     "overtimeLocked": "gana la campaña para desbloquearlo", "howto": "CÓMO JUGAR", "best": "MEJOR", "bestCampaign": "Campaña · nota {g} · {s} pts",
-    "bestOvertime": "Tiempo extra · oleada {w} · {s} pts", "rootOn": "MODO ROOT · paquetes más rápidos, sin pistas, puntaje ×1,5", "site": "jorius.github.io ↗"
+    "bestOvertime": "Tiempo extra · oleada {w} · {s} pts", "rootOn": "MODO ROOT · paquetes más rápidos, sin pistas, puntaje ×1,5", "site": "jorius.github.io ↗",
+    "asKnight": "Jugando como {k} · {d}"
+  },
+  "setup": {
+    "title": "ELIGE A TU CABALLERO", "sub": "Todos sostienen la misma puerta. Solo que cada uno a su manera.", "knights": "CABALLEROS", "difficulty": "DIFICULTAD",
+    "start": "EMPEZAR · ESPACIO", "back": "VOLVER · ESC"
   },
   "howto": {
     "title": "CÓMO JUGAR", "back": "VOLVER", "space": "Espacio", "click": "clic",
