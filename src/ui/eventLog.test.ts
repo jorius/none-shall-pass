@@ -59,6 +59,14 @@ describe('EventLog', () => {
     expect(count()).toBe('7 events · 3 mistakes');
   });
 
+  it('files a charge kill with the hits', () => {
+    add('sqli-orderby', { outcome: 'charge', points: 20 });
+    expect(rows()[0].className).toBe('row ok');
+    expect(cells(rows()[0]).slice(1, 3)).toEqual(['✓', 'CHARGE']);
+    expect(cells(rows()[0]).at(-1)).toBe('+20 · sneaky');
+    expect(count()).toBe('1 event · 0 mistakes');
+  });
+
   it('filters down to mistakes, and keeps the filter as new rows arrive', () => {
     add('sqli-union', { outcome: 'breach', points: 0, damage: 12 });
     expect(count()).toBe('1 event · 1 mistake');

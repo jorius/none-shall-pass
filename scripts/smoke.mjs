@@ -357,7 +357,7 @@ const CHECKS = {
     if (!filtered.on || !filtered.shown || !filtered.ok) throw new Error(`the mistakes filter did not survive a new row: ${JSON.stringify(filtered)}`);
     const scrollable = await page.$eval('#ui .rows', (e) => getComputedStyle(e).overflowY);
     if (scrollable !== 'auto') throw new Error('log not scrollable');
-    // Spanish, at its longest: a held, bugged attack with the lens on keeps the inspector at 760px and its title inside it.
+    // Spanish, at its longest: a targeted, bugged attack with the lens on keeps the inspector at 760px and its title inside it.
     await spanish(page);
     await page.reload({ waitUntil: 'networkidle' });
     await play(page);
@@ -371,7 +371,6 @@ const CHECKS = {
       s.owned.push('obs3', 'lens');
       s.hints = true;
       s.locked = p.id;
-      p.held = true;
     });
     await page.waitForTimeout(100);
     const fit = await page.evaluate(() => {
@@ -381,7 +380,7 @@ const CHECKS = {
       const box = document.querySelector('#ui .rows');
       const tall = [...box.children].filter((row) => row.getBoundingClientRect().height / k > 26).length;
       const head = document.querySelector('#ui .log .ptitle').getBoundingClientRect().height / k;
-      return { width: Math.round(r.width / k), over: Math.round(over), tall, wide: box.scrollWidth - box.clientWidth, head: Math.round(head), tags: ins.querySelectorAll('.ptitle .hd, .ptitle .fl').length };
+      return { width: Math.round(r.width / k), over: Math.round(over), tall, wide: box.scrollWidth - box.clientWidth, head: Math.round(head), tags: ins.querySelectorAll('.ptitle .lk, .ptitle .fl').length };
     });
     if (fit.width !== 760 || fit.over > 0 || fit.tall || fit.wide > 0 || fit.head > 22 || fit.tags !== 2) throw new Error(`Spanish panels do not fit: ${JSON.stringify(fit)}`);
     await page.screenshot({ path: `${OUT}/log-es.png` });

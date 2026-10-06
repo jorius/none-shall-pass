@@ -1,13 +1,13 @@
 // core
 import { CSS } from '../core/palette';
 
-export type CardState = 'idle' | 'hover' | 'locked' | 'held' | 'slowed';
+export type CardState = 'idle' | 'hover' | 'locked' | 'slowed';
 export const CARD_TEX_W = 580;
 export const CARD_TEX_H = 104;
 const S = 2;
 
-const BG: Record<CardState, string> = { idle: CSS.sub, hover: '#3b3b3b', locked: '#3a2e2e', held: '#33302a', slowed: '#2c2a26' };
-const BORDER: Record<CardState, string> = { idle: CSS.dim, hover: CSS.ink, locked: CSS.red, held: CSS.gold, slowed: CSS.dim };
+const BG: Record<CardState, string> = { idle: CSS.sub, hover: '#3b3b3b', locked: '#3a2e2e', slowed: '#2c2a26' };
+const BORDER: Record<CardState, string> = { idle: CSS.dim, hover: CSS.ink, locked: CSS.red, slowed: CSS.dim };
 
 // Root mode's amber matrix keeps only luminance, under which the red target would be the darkest outline on the field.
 // White comes out as its brightest amber, above the ink of a hovered card.

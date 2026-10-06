@@ -9,7 +9,7 @@
   "tier": { "1": "obvious", "2": "tricky", "3": "sneaky" },
   "bug": { "spider": "spider", "worm": "worm", "beetle": "beetle", "fly": "fly", "gnat": "gnats" },
   "inspector": {
-    "title": "INSPECTOR", "target": "TARGET", "held": "HELD", "bugged": "BUGGED · {bug}", "src": "SRC {ip}", "lane": "LANE {lane}",
+    "title": "INSPECTOR", "target": "TARGET", "bugged": "BUGGED · {bug}", "src": "SRC {ip}", "lane": "LANE {lane}",
     "decoded": "DECODED", "ask": "Malicious or legit? Tab or click to target it.", "askLocked": "Space to throw. Esc to let it go. Do nothing and it passes.",
     "empty1": "↑ ↓ pick a lane, Tab cycles the packets coming down it, Space throws a spear.",
     "empty2": "Hover a packet to read it, the event log for verdicts, or a loadout tile to see what it does.",
@@ -17,7 +17,7 @@
   },
   "log": {
     "title": "EVENT LOG", "hint": "hover a line for the verdict", "events": "{n} events", "event": "1 event", "nMistakes": "{n} mistakes", "nMistake": "1 mistake", "noMistakes": "No mistakes yet.", "all": "ALL", "mistakes": "MISTAKES",
-    "hit": "HIT", "squire": "SQUIRE HIT", "rule": "RULE BLOCKED", "served": "SERVED", "neutralized": "NEUTRALIZED", "breach": "BREACH", "fp": "FALSE POSITIVE",
+    "hit": "HIT", "squire": "SQUIRE HIT", "charge": "CHARGE", "rule": "RULE BLOCKED", "served": "SERVED", "neutralized": "NEUTRALIZED", "breach": "BREACH", "fp": "FALSE POSITIVE",
     "youHit": "you hit a real user", "squireHit": "the squire hit a real user", "by": "by {rule}", "notFooled": "not fooled", "uptimeLoss": "−{n}% uptime"
   },
   "draft": {

@@ -47,10 +47,25 @@ describe('kill', () => {
     expect(ev).toContainEqual({ type: 'banned', ip: '203.0.113.66', count: 1 });
   });
 
+  it('pays a charge kill like a rule and counts it apart; a real user under the hooves is still a false positive', () => {
+    const s = freshState(), ev: RunEvent[] = [];
+    kill(s, place(s, 'sqli-orderby', 300), 'charge', ev);
+    expect(s.score).toBe(20);
+    expect(s.stats.chargeHits).toBe(1);
+    expect(s.stats.ruleBlocks).toBe(0);
+    expect(ev[0]).toMatchObject({ type: 'shattered', by: 'charge' });
+    expect(ev.find((e) => e.type === 'float')).toMatchObject({ kind: 'points', value: 20 });
+    expect(s.log[0]).toMatchObject({ outcome: 'charge', points: 20 });
+    kill(s, place(s, 'legit-socks', 300), 'charge', ev);
+    expect(s.rep).toBe(9);
+    expect(s.stats.falsePositives).toBe(1);
+    expect(s.log[0]).toMatchObject({ outcome: 'fp', fpBy: 'charge' });
+  });
+
   it('untargets the packet it kills', () => {
     const s = freshState(), ev: RunEvent[] = [];
     const p = place(s, 'sqli-tautology', 300);
-    s.locked = p.id; p.held = true;
+    s.locked = p.id;
     kill(s, p, 'knight', ev);
     expect(s.locked).toBeNull();
     expect(ev[0]).toEqual({ type: 'targeted', packetId: null });

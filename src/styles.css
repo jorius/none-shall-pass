@@ -102,7 +102,6 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ptitle { font-size: 13px; color: var(--dim); letter-spacing: .1em; margin-bottom: 7px; display: flex; gap: 14px; align-items: center; white-space: nowrap; }
 .ptitle span { color: var(--ink); letter-spacing: 0; }
 .ptitle .lk { color: var(--paper); background: var(--r); padding: 0 6px; font-weight: 700; }
-.ptitle .hd { color: var(--paper); background: var(--gold); padding: 0 6px; font-weight: 700; }
 .ptitle .fl { color: var(--ink); background: var(--r); padding: 0 6px; font-weight: 700; }
 /* When the tags crowd the title, the lane goes first (the field shows it), then the network; the tags and the IP stay whole. */
 .ins .ptitle > span { flex-shrink: 0; }

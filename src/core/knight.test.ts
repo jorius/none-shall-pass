@@ -2,10 +2,13 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { HOLD_SECS, KN_X, LANE_H, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, THROW_COOLDOWN } from './constants';
+import { CHARGE_SECS, KN_X, LANE_H, LANE_X0, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, THROW_COOLDOWN } from './constants';
 import type { RunEvent } from './events';
-import { cycleTarget, handPos, setLane, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
-import { freshState, place } from './testkit';
+import { stepPackets } from './field';
+import { cycleTarget, handPos, setLane, startCharge, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
+import { Run } from './run';
+import { laneSlow } from './state';
+import { cfg, freshState, place } from './testkit';
 
 describe('lanes', () => {
   it('clamps lanes and announces changes', () => {
@@ -52,24 +55,12 @@ describe('targeting', () => {
     const p = place(s, 'brute-ssh-root', 300);
     target(s, p.id, ev);
     expect(s.knight.lane).toBe(0);
-    expect(p.held).toBe(false);
     const q = place(s, 'brute-admin', 300); q.doomed = true;
     target(s, q.id, ev);
     expect(s.locked).toBe(p.id);
     const r = place(s, 'brute-admin', 400); r.entering = true;
     target(s, r.id, ev);
     expect(s.locked).toBe(p.id);
-  });
-
-  it('holds the packet when mounted', () => {
-    const s = freshState(), ev: RunEvent[] = [];
-    s.owned.push('destrier');
-    const p = place(s, 'sqli-union', 300);
-    target(s, p.id, ev);
-    expect(p.held).toBe(true);
-    expect(s.knight.hold).toBe(HOLD_SECS);
-    target(s, null, ev);
-    expect(p.held).toBe(false);
   });
 });
 
@@ -117,7 +108,7 @@ describe('spears', () => {
 });
 
 describe('stepKnight', () => {
-  it('walks to the lane on foot and rides out to a held packet', () => {
+  it('walks to the lane on foot and keeps his post once mounted', () => {
     const s = freshState(), ev: RunEvent[] = [];
     setLane(s, 0, ev);
     for (let i = 0; i < 120; i++) stepKnight(s, 1 / 60, ev);
@@ -127,79 +118,108 @@ describe('stepKnight', () => {
     const p = place(s, 'sqli-union', 200);
     target(s, p.id, ev);
     for (let i = 0; i < 120; i++) stepKnight(s, 1 / 60, ev);
-    expect(s.knight.x).toBeCloseTo(200 + PKT_W + 6);
+    expect(s.knight.x).toBe(KN_X);
     expect(s.knight.y).toBe(2 * LANE_H - 6);
-  });
-
-  it('lets go when the hold runs out', () => {
-    const s = freshState(), ev: RunEvent[] = [];
-    s.owned.push('destrier');
-    const p = place(s, 'sqli-union', 200);
-    target(s, p.id, ev);
-    stepKnight(s, HOLD_SECS + 0.1, ev);
-    expect(s.locked).toBeNull();
-    expect(p.held).toBe(false);
-  });
-
-  it('does not refresh the hold when the same packet is targeted again', () => {
-    const s = freshState(), ev: RunEvent[] = [];
-    s.owned.push('destrier');
-    const p = place(s, 'sqli-union', 200);
-    target(s, p.id, ev);
-    stepKnight(s, HOLD_SECS * 0.6, ev);
-    target(s, p.id, ev);
-    stepKnight(s, HOLD_SECS * 0.4 + 0.1, ev);
-    expect(s.locked).toBeNull();
-    expect(p.held).toBe(false);
-  });
-
-  it('holds a packet only once: Tab after the hold runs out re-targets without holding', () => {
-    const s = freshState(), ev: RunEvent[] = [];
-    s.owned.push('destrier');
-    const p = place(s, 'sqli-union', 200);
-    target(s, p.id, ev);
-    stepKnight(s, HOLD_SECS + 0.1, ev);
-    cycleTarget(s, 1, ev);
     expect(s.locked).toBe(p.id);
-    expect(p.held).toBe(false);
-    expect(s.knight.hold).toBe(0);
+  });
+});
+
+describe('destrier levels', () => {
+  it('slows the whole lane the knight is in, by level, and no other lane', () => {
+    const s = freshState();
+    s.knight.lane = 2;
+    expect(laneSlow(s, 2)).toBe(1);
+    s.owned.push('destrier');
+    expect(laneSlow(s, 2)).toBe(0.7);
+    expect(laneSlow(s, 1)).toBe(1);
+    s.owned.push('destrier2');
+    expect(laneSlow(s, 2)).toBe(0.5);
+    s.owned.push('destrier3');
+    expect(laneSlow(s, 2)).toBe(0.5);
   });
 
-  it('cannot renew a hold by cycling away and back', () => {
-    const s = freshState(), ev: RunEvent[] = [];
+  it('moves packets in the slowed lane at the lane factor', () => {
+    const s = freshState();
     s.owned.push('destrier');
-    const p = place(s, 'sqli-union', 300), o = place(s, 'sqli-sleep', 100);
-    target(s, p.id, ev);
-    stepKnight(s, HOLD_SECS * 0.5, ev);
-    cycleTarget(s, 1, ev);
-    expect(s.locked).toBe(o.id);
-    cycleTarget(s, -1, ev);
-    expect(s.locked).toBe(p.id);
-    expect(p.held).toBe(false);
-    expect(s.knight.hold).toBe(0);
+    s.knight.lane = 2;
+    const slow = place(s, 'sqli-tautology', 300), fast = place(s, 'legit-login', 300);
+    stepPackets(s, 1, []);
+    expect(fast.x - 300).toBeCloseTo((slow.x - 300) / 0.7, 5);
+  });
+});
+
+describe('charge', () => {
+  const ready = () => { const s = freshState(); s.owned.push('destrier', 'destrier2', 'destrier3'); s.knight.lane = 2; return s; };
+
+  it('needs Destrier III, a fresh wave, and no charge in flight; otherwise it is a silent no-op', () => {
+    const s = freshState(); s.owned.push('destrier');
+    const ev: RunEvent[] = [];
+    startCharge(s, ev);
+    expect(ev).toEqual([]);
+    const r = ready();
+    startCharge(r, ev);
+    expect(ev).toContainEqual({ type: 'chargeStarted', lane: 2 });
+    const again: RunEvent[] = [];
+    startCharge(r, again);
+    expect(again).toEqual([]);
+    r.knight.charge = { t: 0, used: true };
+    startCharge(r, again);
+    expect(again).toEqual([]);
   });
 
-  it('keeps the lock on a packet he already held and throws from his post', () => {
-    const s = freshState(), ev: RunEvent[] = [];
-    s.owned.push('destrier');
-    const p = place(s, 'sqli-union', 200);
-    target(s, p.id, ev);
-    stepKnight(s, HOLD_SECS + 0.1, ev);
-    cycleTarget(s, 1, ev);
-    for (let i = 0; i < 120; i++) stepKnight(s, 1 / 60, ev);
-    expect(s.locked).toBe(p.id);
+  it('gallops to the lane head and back in CHARGE_SECS, spearing every attack it passes and no real user', () => {
+    const s = ready();
+    const a = place(s, 'sqli-tautology', 400), u = place(s, 'legit-socks', 600), b = place(s, 'sqli-union', 250);
+    place(s, 'brute-admin', 500); // lane 1: untouched
+    const ev: RunEvent[] = [];
+    startCharge(s, ev);
+    for (let i = 0; i < 80; i++) { stepKnight(s, 1 / 60, ev); stepPackets(s, 1 / 60, ev); }
+    expect(s.knight.charge.t).toBe(0);
     expect(s.knight.x).toBe(KN_X);
+    expect(ev).toContainEqual({ type: 'chargeEnded' });
+    const killed = ev.filter((e): e is Extract<RunEvent, { type: 'shattered' }> => e.type === 'shattered').map((e) => [e.packet.id, e.by]);
+    expect(killed).toEqual(expect.arrayContaining([[a.id, 'charge'], [b.id, 'charge']]));
+    expect(killed.some(([id]) => id === u.id)).toBe(false);
+    expect(s.packets.filter((p) => p.lane === 1).every((p) => !p.dead)).toBe(true);
+    expect(s.stats.chargeHits).toBe(2);
+    expect(s.score).toBe(40);
+  });
+
+  it('reaches at least the lane head and blocks throws and lane changes while galloping', () => {
+    const s = ready();
+    const ev: RunEvent[] = [];
+    startCharge(s, ev);
+    let minX = KN_X;
+    for (let i = 0; i < Math.round((CHARGE_SECS / 2) * 60) + 1; i++) { stepKnight(s, 1 / 60, ev); minX = Math.min(minX, s.knight.x); }
+    expect(minX).toBeLessThanOrEqual(LANE_X0 + 40 + 2);
+    place(s, 'sqli-tautology', 700);
+    s.locked = s.packets[0].id;
+    const before = ev.length;
     throwSpear(s, ev);
-    expect(p.doomed).toBe(true);
+    setLane(s, 1, ev);
+    expect(ev.length).toBe(before);
+    expect(s.knight.lane).toBe(2);
   });
 
-  it('never rides past his post', () => {
-    const s = freshState(), ev: RunEvent[] = [];
-    s.owned.push('destrier');
-    const p = place(s, 'sqli-union', KN_X - PKT_W);
-    target(s, p.id, ev);
-    for (let i = 0; i < 60; i++) stepKnight(s, 1 / 60, ev);
-    expect(s.knight.x).toBe(KN_X);
+  it('refuses a target in another lane while galloping, since that would move the charge', () => {
+    const s = ready(), ev: RunEvent[] = [];
+    const other = place(s, 'brute-admin', 500), own = place(s, 'legit-socks', 700);
+    startCharge(s, ev);
+    target(s, other.id, ev);
+    expect(s.locked).toBeNull();
+    expect(s.knight.lane).toBe(2);
+    target(s, own.id, ev);
+    expect(s.locked).toBe(own.id);
+  });
+
+  it('resets with the next wave', () => {
+    const run = new Run(cfg());
+    run.state.owned.push('destrier', 'destrier2', 'destrier3');
+    run.charge();
+    expect(run.state.knight.charge.used).toBe(true);
+    run.state.phase = 'draft'; run.state.draft = { picks: [], free: true, taken: [] };
+    run.nextWave();
+    expect(run.state.knight.charge).toEqual({ t: 0, used: false });
   });
 });
 

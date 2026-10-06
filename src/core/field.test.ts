@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { BASE_SPEED, ENTER_MULT, FW_X, HOLD_MULT, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY } from './constants';
+import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY } from './constants';
 import { CAMPAIGN } from './content/waves';
 import type { Difficulty } from './difficulty';
 import type { RunEvent } from './events';
@@ -55,13 +55,13 @@ describe('spawn', () => {
 });
 
 describe('stepPackets', () => {
-  it('moves packets at wave speed, slower while held', () => {
+  it('moves packets at wave speed, slower in the mounted knight\'s lane', () => {
     const s = freshState(), ev: RunEvent[] = [];
+    s.owned.push('destrier');
     const a = place(s, 'legit-socks', 100), b = place(s, 'legit-login', 100);
-    b.held = true;
     stepPackets(s, 1, ev);
-    expect(a.x).toBeCloseTo(100 + BASE_SPEED);
-    expect(b.x).toBeCloseTo(100 + BASE_SPEED * HOLD_MULT);
+    expect(a.x).toBeCloseTo(100 + BASE_SPEED * DESTRIER_SLOW[1]);
+    expect(b.x).toBeCloseTo(100 + BASE_SPEED);
   });
 
   it('stops scans at the port panel', () => {

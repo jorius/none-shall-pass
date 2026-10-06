@@ -43,7 +43,7 @@ describe('Inspector and EventLog escaping', () => {
     log = new EventLog(bottom, ins);
     run = new Run(cfg());
     run.state.owned.push('lens', 'obs2');
-    p = { id: 1, t, src: SRC, lane: 3, x: 300, checked: false, entering: false, doomed: false, held: false, heldOnce: false, slowed: false, dead: false };
+    p = { id: 1, t, src: SRC, lane: 3, x: 300, checked: false, entering: false, doomed: false, slowed: false, dead: false };
     run.state.packets.push(p);
     ins.start(run);
     log.start(run);
@@ -117,9 +117,6 @@ describe('Inspector', () => {
     expect(text(box(), '.req')).toBe(b.t.request.join('\n'));
     expect(text(box(), '.ptitle .lk')).toBe('TARGET');
     expect(text(box(), '.ask')).toContain('Space to throw');
-    b.held = true;
-    ins.frame(run);
-    expect(text(box(), '.ptitle .hd')).toBe('HELD');
     run.state.locked = null;
     ins.frame(run);
     expect(box().querySelector('.empty')).not.toBeNull();

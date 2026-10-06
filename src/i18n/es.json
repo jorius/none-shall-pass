@@ -9,7 +9,7 @@
   "tier": { "1": "obvio", "2": "engañoso", "3": "sigiloso" },
   "bug": { "spider": "araña", "worm": "gusano", "beetle": "escarabajo", "fly": "mosca", "gnat": "mosquitos" },
   "inspector": {
-    "title": "INSPECTOR", "target": "OBJETIVO", "held": "RETENIDO", "bugged": "CON BICHOS · {bug}", "src": "ORIGEN {ip}", "lane": "CARRIL {lane}",
+    "title": "INSPECTOR", "target": "OBJETIVO", "bugged": "CON BICHOS · {bug}", "src": "ORIGEN {ip}", "lane": "CARRIL {lane}",
     "decoded": "DECODIFICADO", "ask": "¿Malicioso o legítimo? Tab o clic para apuntarle.", "askLocked": "Espacio para lanzar. Esc para soltarlo. Si no haces nada, pasa.",
     "empty1": "↑ ↓ elige un carril, Tab recorre los paquetes que bajan por él, Espacio arroja una lanza.",
     "empty2": "Pasa el cursor por un paquete para leerlo, por el registro para ver veredictos, o por una mejora para ver qué hace.",
@@ -17,7 +17,7 @@
   },
   "log": {
     "title": "REGISTRO", "hint": "pasa el cursor por una línea para ver el veredicto", "events": "{n} eventos", "event": "1 evento", "nMistakes": "{n} errores", "nMistake": "1 error", "noMistakes": "Aún no hay errores.", "all": "TODO", "mistakes": "ERRORES",
-    "hit": "IMPACTO", "squire": "ESCUDERO", "rule": "BLOQUEADO", "served": "ATENDIDO", "neutralized": "NEUTRALIZADO", "breach": "BRECHA", "fp": "FALSO POSITIVO",
+    "hit": "IMPACTO", "squire": "ESCUDERO", "charge": "CARGA", "rule": "BLOQUEADO", "served": "ATENDIDO", "neutralized": "NEUTRALIZADO", "breach": "BRECHA", "fp": "FALSO POSITIVO",
     "youHit": "le diste a un usuario real", "squireHit": "el escudero le dio a un usuario real", "by": "por {rule}", "notFooled": "no te engañaron", "uptimeLoss": "−{n}% disponibilidad"
   },
   "draft": {

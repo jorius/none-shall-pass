@@ -80,7 +80,7 @@ export class Inspector implements View {
 
   private render(): void {
     const f = this.focus(), s = this.run?.state;
-    const key = f.kind === 'packet' ? `p${f.p.id}|${s?.locked}|${f.p.held}|${s?.hints}|${s?.owned.length}`
+    const key = f.kind === 'packet' ? `p${f.p.id}|${s?.locked}|${s?.hints}|${s?.owned.length}`
       : f.kind === 'verdict' ? `v${f.e.seq}` : f.kind === 'card' ? `c${f.c.id}` : 'empty';
     if (key === this.shownKey) return;
     this.shownKey = key;
@@ -101,8 +101,7 @@ export class Inspector implements View {
     const lens = !!s?.owned.includes('lens') && !!p.t.decoded;
     let tags = '';
     if (f.kind === 'packet') {
-      if (p.held) tags += `<span class="hd">${t('inspector.held')}</span>`;
-      else if (s?.locked === p.id) tags += `<span class="lk">${t('inspector.target')}</span>`;
+      if (s?.locked === p.id) tags += `<span class="lk">${t('inspector.target')}</span>`;
       if (s && isBugged(p.t, s.owned)) tags += `<span class="fl">${esc(t('inspector.bugged', { bug: t(`bug.${BUG_OF[p.t.kind as MaliciousKind]}`) }))}</span>`;
     }
     const title = `<div class="ptitle">${t('inspector.title')}${tags}<span class="ip">${esc(t('inspector.src', { ip: p.src }))}</span><span class="as">${esc(loc(NETWORKS[p.t.net]))}</span><span class="ln">${esc(t('inspector.lane', { lane: PORT[p.lane] }))}</span></div>`;

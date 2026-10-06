@@ -4,7 +4,7 @@ import type { LineId } from './content/lines';
 import type { DraftState, EndReason, Packet, Thrower } from './state';
 import type { LaneIndex, Point } from './types';
 
-export type Outcome = 'hit' | 'squire' | 'rule' | 'served' | 'neutralized' | 'breach' | 'fp';
+export type Outcome = 'hit' | 'squire' | 'charge' | 'rule' | 'served' | 'neutralized' | 'breach' | 'fp';
 
 export interface LogEntry {
   seq: number;
@@ -14,7 +14,7 @@ export interface LogEntry {
   points: number;
   ruleId?: CardId;
   damage?: number;
-  fpBy?: Thrower | 'rule';
+  fpBy?: Thrower | 'rule' | 'charge';
 }
 
 export type FloatKind = 'points' | 'tricky' | 'sneaky' | 'squire' | 'notFooled' | 'neutralized' | 'falsePositive' | 'damage';
@@ -25,7 +25,9 @@ export type RunEvent =
   | { type: 'laneChanged'; lane: LaneIndex }
   | { type: 'targeted'; packetId: number | null }
   | { type: 'thrown'; packetId: number; by: Thrower; from: Point; to: Point; duration: number }
-  | { type: 'shattered'; packet: Packet; by: Thrower | 'rule'; ruleId?: CardId }
+  | { type: 'shattered'; packet: Packet; by: Thrower | 'rule' | 'charge'; ruleId?: CardId }
+  | { type: 'chargeStarted'; lane: LaneIndex }
+  | { type: 'chargeEnded' }
   | { type: 'missed'; packetId: number }
   | { type: 'entered'; packetId: number }
   | { type: 'consumed'; packetId: number }

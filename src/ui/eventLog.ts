@@ -13,8 +13,8 @@ import { loc, t } from '../i18n';
 import { button, el } from './dom';
 import type { Inspector } from './inspector';
 
-const GLYPH: Record<LogEntry['outcome'], string> = { hit: '✓', squire: '✓', rule: '✓', served: '●', neutralized: '◆', breach: '✗', fp: '☹' };
-const CLS: Record<LogEntry['outcome'], string> = { hit: 'ok', squire: 'ok', rule: 'ok', served: 'ok', neutralized: 'ok', breach: 'bad', fp: 'fp' };
+const GLYPH: Record<LogEntry['outcome'], string> = { hit: '✓', squire: '✓', charge: '✓', rule: '✓', served: '●', neutralized: '◆', breach: '✗', fp: '☹' };
+const CLS: Record<LogEntry['outcome'], string> = { hit: 'ok', squire: 'ok', charge: 'ok', rule: 'ok', served: 'ok', neutralized: 'ok', breach: 'bad', fp: 'fp' };
 
 // Every outcome, newest first, scrollable, with a MISTAKES filter: where you went wrong stays findable.
 // Rows are text nodes only, so a payload in the log can never turn into markup.
@@ -58,7 +58,7 @@ export class EventLog implements View {
 
   private pts(e: LogEntry): string {
     switch (e.outcome) {
-      case 'hit': return e.packet.t.tier && e.packet.t.tier > 1 ? `+${e.points} · ${t(`tier.${e.packet.t.tier}`)}` : `+${e.points}`;
+      case 'hit': case 'charge': return e.packet.t.tier && e.packet.t.tier > 1 ? `+${e.points} · ${t(`tier.${e.packet.t.tier}`)}` : `+${e.points}`;
       case 'rule': return `+${e.points} · ${loc(cardById(e.ruleId!).name)}`;
       case 'neutralized': return `+${e.points} · ${loc(cardById(e.ruleId!).name)}`;
       case 'served': return e.packet.t.decoy ? `+${e.points} · ${t('log.notFooled')}` : `+${e.points}`;

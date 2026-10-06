@@ -4,7 +4,7 @@ import { CAMPAIGN, waveFor, type WaveDef } from './content/waves';
 import { deal, PRICE, REROLL_COST } from './draft';
 import type { RunEvent } from './events';
 import { spawn, stepPackets, stepPending } from './field';
-import { cycleTarget, setLane, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
+import { cycleTarget, setLane, startCharge, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
 import { endRun, untarget } from './outcomes';
 import { mulberry32, type Rng } from './rng';
 import { createState, multiplier, type RunConfig, type RunState } from './state';
@@ -53,6 +53,7 @@ export class Run {
   cycleTarget(dir: 1 | -1): RunEvent[] { return this.act((ev) => cycleTarget(this.state, dir, ev)); }
   target(id: number | null): RunEvent[] { return this.act((ev) => target(this.state, id, ev)); }
   throwSpear(): RunEvent[] { return this.act((ev) => throwSpear(this.state, ev)); }
+  charge(): RunEvent[] { return this.act((ev) => startCharge(this.state, ev)); }
 
   setHints(on: boolean): void {
     this.state.hints = on;
@@ -110,6 +111,7 @@ export class Run {
     s.timeLeft = this.waveDef.secs;
     s.spawnT = 0.4;
     s.draft = null;
+    s.knight.charge = { t: 0, used: false };
     s.phase = 'playing';
     return this.start();
   }
@@ -122,6 +124,7 @@ export class Run {
     if (kind === 'skip' && s.phase === 'playing') {
       untarget(s, ev);
       s.packets = []; s.pending = []; s.spears = [];
+      s.knight.charge = { t: 0, used: false };
       s.timeLeft = 0;
       this.clearWave(ev);
     }

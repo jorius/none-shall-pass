@@ -31,10 +31,7 @@ const floatAtRack = (ev: RunEvent[], kind: FloatKind, value: number): void => {
 
 export const untarget = (s: RunState, ev: RunEvent[]): void => {
   if (s.locked === null) return;
-  const p = s.packets.find((q) => q.id === s.locked);
-  if (p) p.held = false;
   s.locked = null;
-  s.knight.hold = 0;
   ev.push({ type: 'targeted', packetId: null });
 };
 
@@ -52,7 +49,7 @@ export const checkEnd = (s: RunState, ev: RunEvent[]): void => {
   else if (s.rep <= 0) endRun(s, 'usersGone', ev);
 };
 
-export const kill = (s: RunState, p: Packet, by: Thrower | 'rule', ev: RunEvent[], ruleId?: CardId): void => {
+export const kill = (s: RunState, p: Packet, by: Thrower | 'rule' | 'charge', ev: RunEvent[], ruleId?: CardId): void => {
   p.dead = true;
   if (s.locked === p.id) untarget(s, ev);
   ev.push({ type: 'shattered', packet: p, by, ruleId });
@@ -77,6 +74,11 @@ export const kill = (s: RunState, p: Packet, by: Thrower | 'rule', ev: RunEvent[
     s.stats.squireHits++;
     floatAtPacket(ev, p, 'squire', POINTS.squire, 110);
     log(s, ev, { outcome: 'squire', packet: p, points: POINTS.squire });
+  } else if (by === 'charge') {
+    earn(s, POINTS.rule);
+    s.stats.chargeHits++;
+    floatAtPacket(ev, p, 'points', POINTS.rule);
+    log(s, ev, { outcome: 'charge', packet: p, points: POINTS.rule });
   } else {
     earn(s, POINTS.rule);
     s.stats.ruleBlocks++;

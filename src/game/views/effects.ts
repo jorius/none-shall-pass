@@ -87,7 +87,8 @@ export class EffectsView implements View {
     if (ev.type === 'shattered') {
       const p = ev.packet, y = packetY(p);
       const pal = ev.by === 'rule' ? (ev.ruleId === 'lockdown' ? 'lockdown' : 'rule') : ev.by;
-      this.shatter[pal].explode(this.reduced ? 18 : 56, p.x, y);
+      // The charge has no palette of its own yet, so its kills burst in the knight's colours.
+      (this.shatter[pal] ?? this.shatter.knight).explode(this.reduced ? 18 : 56, p.x, y);
       const box = this.scene.add.rectangle(p.x, y, PKT_W, PKT_H, HEX.ink, 0.75).setOrigin(0, 0);
       this.scene.layers.fx.add(box);
       this.scene.tweens.add({ targets: box, alpha: 0, duration: 140, onComplete: () => box.destroy() });

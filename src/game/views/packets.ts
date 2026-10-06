@@ -2,9 +2,9 @@
 import Phaser from 'phaser';
 
 // core
-import { FIELD_TOP, FW_X, HOLD_SECS, PKT_H, PKT_W } from '../../core/constants';
+import { FIELD_TOP, FW_X, PKT_H, PKT_W } from '../../core/constants';
 import type { RunEvent } from '../../core/events';
-import { CSS, HEX } from '../../core/palette';
+import { CSS } from '../../core/palette';
 import { isBugged } from '../../core/rules';
 import type { Run } from '../../core/run';
 import { packetY, type Packet } from '../../core/state';
@@ -155,7 +155,7 @@ export class PacketsView implements View {
 
   private paint(p: Packet, v: Visual, run: Run): void {
     const s = run.state;
-    const state: CardState = s.locked === p.id ? (p.held ? 'held' : 'locked') : p.doomed ? 'locked' : this.hovered === p.id ? 'hover' : p.slowed ? 'slowed' : 'idle';
+    const state: CardState = s.locked === p.id ? 'locked' : p.doomed ? 'locked' : this.hovered === p.id ? 'hover' : p.slowed ? 'slowed' : 'idle';
     const lens = s.owned.includes('lens') && !!p.t.decoded;
     const key = `${state}|${s.hints}|${lens}|${t('inspector.decoded')}`;
     if (key === v.key) return;
@@ -205,10 +205,6 @@ export class PacketsView implements View {
     this.overlay.lineStyle(3, parseInt(targetColor(run.state.cfg.root).slice(1), 16), 1);
     this.corner(x - 9, y - 9 + r, x - 9, y - 9, x - 9 + r, y - 9);
     this.corner(x + PKT_W + 9 - r, y + PKT_H + 9, x + PKT_W + 9, y + PKT_H + 9, x + PKT_W + 9, y + PKT_H + 9 - r);
-    if (locked.held) {
-      this.overlay.fillStyle(HEX.gold, 1);
-      this.overlay.fillRect(x, y + PKT_H + 3, PKT_W * Math.max(0, run.state.knight.hold / HOLD_SECS), 4);
-    }
     this.tag.setPosition(x, y - 19).setVisible(true);
   }
 }

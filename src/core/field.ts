@@ -1,5 +1,5 @@
 // core
-import { BRUTE_IPS, ENTER_MULT, FW_X, HOLD_MULT, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, TAR_MULT } from './constants';
+import { BRUTE_IPS, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, TAR_MULT } from './constants';
 import { TEMPLATES } from './content/packets';
 import { waveFor, type WaveDef } from './content/waves';
 import { tierWeight } from './difficulty';
@@ -7,7 +7,7 @@ import type { RunEvent } from './events';
 import { kill, resolve, untarget } from './outcomes';
 import { docIp, pick, type Rng } from './rng';
 import { firewallRule, lockdownBlocks, tarpitSlows } from './rules';
-import { packetSpeed, type Packet, type RunState } from './state';
+import { laneSlow, packetSpeed, type Packet, type RunState } from './state';
 import type { Template, Tier } from './types';
 
 // The difficulty's say on the deal: a weight multiplier per tier, 0 keeping that tier out of the wave.
@@ -39,7 +39,7 @@ export const spawn = (s: RunState, rng: Rng, ev: RunEvent[]): Packet | null => {
     if (s.packets.some((p) => !p.dead && p.lane === t.lane && p.x < startX + PKT_W + SPAWN_GAP)) continue;
     const src = t.fixedSrc ?? (t.kind === 'brute' && rng() < 0.6 ? pick(rng, BRUTE_IPS) : docIp(rng));
     if (t.lane <= 1) s.seen[src] = (s.seen[src] ?? 0) + 1;
-    const p: Packet = { id: s.nextId++, t, src, lane: t.lane, x: startX, checked: false, entering: false, doomed: false, held: false, heldOnce: false, slowed: false, dead: false };
+    const p: Packet = { id: s.nextId++, t, src, lane: t.lane, x: startX, checked: false, entering: false, doomed: false, slowed: false, dead: false };
     s.packets.push(p);
     ev.push({ type: 'spawned', packet: p });
     return p;
@@ -55,7 +55,7 @@ export const stepPackets = (s: RunState, dt: number, ev: RunEvent[]): void => {
     let v = base;
     if (p.entering) v *= ENTER_MULT;
     else {
-      if (p.held) v *= HOLD_MULT;
+      v *= laneSlow(s, p.lane);
       p.slowed = tarpitSlows(p, s.owned, s.seen);
       if (p.slowed) v *= TAR_MULT;
     }

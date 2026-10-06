@@ -1,14 +1,16 @@
 // core
-import { FW_X, HOLD_MULT, HOLD_SECS, KN_X, KNIGHT_FOOT_SPEED, KNIGHT_HORSE_SPEED, LANE_COUNT, LANE_X0, PKT_H, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, SQUIRE_HAND, TAR_MULT, THROW_COOLDOWN } from './constants';
+import { CHARGE_SECS, CHARGE_X, FW_X, KN_X, KNIGHT_FOOT_SPEED, KNIGHT_HORSE_SPEED, LANE_COUNT, LANE_X0, PKT_H, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, SQUIRE_HAND, TAR_MULT, THROW_COOLDOWN } from './constants';
 import type { RunEvent } from './events';
 import { kill, say, untarget } from './outcomes';
-import { findPacket, knightY, mounted, packetSpeed, packetY, type Packet, type RunState, type Thrower } from './state';
+import { destrierLevel } from './rules';
+import { findPacket, knightY, laneSlow, mounted, packetSpeed, packetY, type Packet, type RunState, type Thrower } from './state';
 import type { LaneIndex, Point } from './types';
 
 export const handPos = (s: RunState): Point =>
   mounted(s) ? { x: s.knight.x + 64, y: s.knight.y + 24 } : { x: s.knight.x + 36, y: s.knight.y + 30 };
 
 export const setLane = (s: RunState, lane: number, ev: RunEvent[]): void => {
+  if (s.knight.charge.t > 0) return;
   const l = Math.max(0, Math.min(LANE_COUNT - 1, Math.round(lane))) as LaneIndex;
   if (l === s.knight.lane) return;
   const p = s.locked !== null ? findPacket(s, s.locked) : undefined;
@@ -22,10 +24,11 @@ export const target = (s: RunState, id: number | null, ev: RunEvent[]): void => 
   if (s.locked === id) return;
   const p = findPacket(s, id);
   if (!p || p.doomed || p.entering) return;
+  // A target in another lane takes the knight there, which a charge in flight must not do.
+  if (s.knight.charge.t > 0 && p.lane !== s.knight.lane) return;
   if (s.locked !== null) untarget(s, ev);
   s.locked = id;
   if (s.knight.lane !== p.lane) { s.knight.lane = p.lane; ev.push({ type: 'laneChanged', lane: p.lane }); }
-  if (mounted(s) && !p.heldOnce) { p.held = true; p.heldOnce = true; s.knight.hold = HOLD_SECS; }
   ev.push({ type: 'targeted', packetId: id });
 };
 
@@ -42,13 +45,13 @@ export const cycleTarget = (s: RunState, dir: 1 | -1, ev: RunEvent[]): void => {
 const launch = (s: RunState, p: Packet, from: Point, by: Thrower, ev: RunEvent[]): void => {
   const to = { x: p.x + PKT_W * 0.55, y: packetY(p) + PKT_H / 2 };
   const duration = Math.max(0.12, Math.hypot(to.x - from.x, to.y - from.y) / SPEAR_SPEED);
-  const v = packetSpeed(s) * (p.held ? HOLD_MULT : 1) * (p.slowed ? TAR_MULT : 1);
+  const v = packetSpeed(s) * laneSlow(s, p.lane) * (p.slowed ? TAR_MULT : 1);
   s.spears.push({ packet: p, by, t: duration });
   ev.push({ type: 'thrown', packetId: p.id, by, from, to: { x: to.x + v * duration, y: to.y }, duration });
 };
 
 export const throwSpear = (s: RunState, ev: RunEvent[]): void => {
-  if (s.knight.cooldown > 0) return;
+  if (s.knight.cooldown > 0 || s.knight.charge.t > 0) return;
   const p = s.locked !== null ? findPacket(s, s.locked) : undefined;
   if (!p) { say(ev, 'noTarget'); return; }
   const from = handPos(s);
@@ -59,19 +62,40 @@ export const throwSpear = (s: RunState, ev: RunEvent[]): void => {
   launch(s, p, from, 'knight', ev);
 };
 
+export const startCharge = (s: RunState, ev: RunEvent[]): void => {
+  const k = s.knight;
+  if (destrierLevel(s.owned) < 3 || k.charge.used || k.charge.t > 0) return;
+  untarget(s, ev);
+  k.charge = { t: CHARGE_SECS, used: true };
+  k.moving = true;
+  ev.push({ type: 'chargeStarted', lane: k.lane });
+};
+
+// Out to the lane head and back; every attack the knight's x crosses on the way is speared.
+const stepCharge = (s: RunState, dt: number, ev: RunEvent[]): void => {
+  const k = s.knight;
+  const u0 = 1 - k.charge.t / CHARGE_SECS;
+  k.charge.t = Math.max(0, k.charge.t - dt);
+  const u = 1 - k.charge.t / CHARGE_SECS;
+  const at = (v: number): number => (v < 0.5 ? KN_X - (KN_X - CHARGE_X) * (v / 0.5) : CHARGE_X + (KN_X - CHARGE_X) * ((v - 0.5) / 0.5));
+  const x0 = at(u0), x1 = at(u);
+  k.x = x1; k.y = knightY(k.lane, true); k.moving = k.charge.t > 0; k.facing = u < 0.5 ? 'left' : 'right';
+  const lo = Math.min(x0, x1), hi = Math.max(x0, x1);
+  for (const p of s.packets) {
+    if (p.dead || p.entering || p.lane !== k.lane || p.t.kind === 'legit') continue;
+    if (p.x + PKT_W >= lo && p.x <= hi) kill(s, p, 'charge', ev);
+    if (s.phase !== 'playing') return;
+  }
+  if (k.charge.t === 0) { k.x = KN_X; k.moving = false; k.facing = 'left'; ev.push({ type: 'chargeEnded' }); }
+};
+
 export const stepKnight = (s: RunState, dt: number, ev: RunEvent[]): void => {
   const k = s.knight;
   k.cooldown = Math.max(0, k.cooldown - dt);
   k.throwT = Math.max(0, k.throwT - dt);
+  if (k.charge.t > 0) { stepCharge(s, dt, ev); return; }
   const isMounted = mounted(s);
-  const lockedP = isMounted && s.locked !== null ? findPacket(s, s.locked) : undefined;
-  let ride = lockedP?.held ? lockedP : undefined;
-  if (ride) {
-    k.hold -= dt;
-    if (k.hold <= 0) { untarget(s, ev); ride = undefined; }
-  }
-  const tx = ride ? Math.min(KN_X, ride.x + PKT_W + 6) : KN_X;
-  const ty = knightY(ride ? ride.lane : k.lane, isMounted);
+  const tx = KN_X, ty = knightY(k.lane, isMounted);
   const dx = tx - k.x, dy = ty - k.y, d = Math.hypot(dx, dy);
   const stepLen = (isMounted ? KNIGHT_HORSE_SPEED : KNIGHT_FOOT_SPEED) * dt;
   if (d <= Math.max(stepLen, 0.01)) {
@@ -101,7 +125,7 @@ export const stepSquire = (s: RunState, dt: number, ev: RunEvent[]): void => {
   s.squire.cd -= dt;
   if (s.squire.cd > 0) return;
   const c = s.packets
-    .filter((p) => !p.dead && !p.doomed && !p.held && !p.entering && p.t.kind !== 'legit' && p.t.tier === 1 && p.x > 130 && p.x + PKT_W < FW_X)
+    .filter((p) => !p.dead && !p.doomed && !p.entering && p.t.kind !== 'legit' && p.t.tier === 1 && p.x > 130 && p.x + PKT_W < FW_X)
     .sort((a, b) => b.x - a.x)[0];
   if (!c) { s.squire.cd = 0.5; return; }
   c.doomed = true;

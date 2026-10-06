@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 // core
 import type { CardId } from './content/cards';
 import { templateById as T } from './content/packets';
-import { firewallRule, isBugged, lockdownBlocks, obsLevel, serverFix, tarpitSlows } from './rules';
+import { destrierLevel, firewallRule, isBugged, lockdownBlocks, obsLevel, serverFix, tarpitSlows } from './rules';
 
 const p = (id: string, src = '192.0.2.10', x = 0) => ({ t: T(id), src, x });
 
@@ -62,6 +62,15 @@ describe('observability bugs', () => {
     expect(isBugged(T('sqli-orderby'), ['obs1', 'obs2'])).toBe(false);
     expect(isBugged(T('sqli-orderby'), ['obs1', 'obs2', 'obs3'])).toBe(true);
     expect(isBugged(T('decoy-union'), ['obs1', 'obs2', 'obs3'])).toBe(false);
+  });
+});
+
+describe('destrier', () => {
+  it('levels with the highest tier owned', () => {
+    expect(destrierLevel([])).toBe(0);
+    expect(destrierLevel(['destrier'])).toBe(1);
+    expect(destrierLevel(['destrier', 'destrier2'])).toBe(2);
+    expect(destrierLevel(['destrier', 'destrier2', 'destrier3'])).toBe(3);
   });
 });
 
