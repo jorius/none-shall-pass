@@ -3,6 +3,7 @@
 // packages
 import { spawn, execSync } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
+import { createServer } from 'node:net';
 import { chromium } from 'playwright';
 
 const PORT = 4318;
@@ -200,23 +201,38 @@ const CHECKS = {
   },
 };
 
-const waitForServer = async () => {
-  for (let i = 0; i < 60; i++) {
+// Whatever already listens on the port is not this build: smoke would test a stale server and report on it.
+const portFree = () => new Promise((resolve) => {
+  const probe = createServer();
+  probe.once('error', () => resolve(false));
+  probe.once('listening', () => probe.close(() => resolve(true)));
+  probe.listen(PORT);
+});
+
+// The MEDIA drive can stall vite for a long while, so allow a minute; a server that dies meanwhile fails at once.
+const waitForServer = async (server, stderr) => {
+  for (let i = 0; i < 240; i++) {
+    if (server.exitCode !== null || server.signalCode !== null) {
+      throw new Error(`preview server exited (${server.exitCode ?? server.signalCode}) before it was ready\n${stderr()}`);
+    }
     try { if ((await fetch(URL)).ok) return; } catch { /* not up yet */ }
     await new Promise((r) => setTimeout(r, 250));
   }
-  throw new Error('preview server did not start');
+  throw new Error('preview server did not start within 60 s');
 };
 
 const main = async () => {
   const names = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(CHECKS);
+  if (!(await portFree())) throw new Error(`port ${PORT} is already in use: stop the server on it and run smoke again`);
   mkdirSync(OUT, { recursive: true });
   execSync('npm run build', { stdio: 'inherit' });
   // Run vite's bin through node directly: killing an `npx` wrapper would leave the server orphaned on the port.
-  const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
+  const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--port', String(PORT), '--strictPort'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  let stderr = '';
+  server.stderr.on('data', (d) => { stderr += d; });
   let failed = 0;
   try {
-    await waitForServer();
+    await waitForServer(server, () => stderr);
     const browser = await chromium.launch({ headless: true });
     for (const name of names) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
@@ -241,4 +257,7 @@ const main = async () => {
   process.exit(failed ? 1 : 0);
 };
 
-void main();
+main().catch((e) => {
+  console.error(`SMOKE ABORTED: ${e.message}`);
+  process.exit(1);
+});
