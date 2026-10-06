@@ -23,7 +23,6 @@ import { CARD_TEX_H, CARD_TEX_W, drawCard, targetColor, type CardState } from '.
 import type { FieldScene } from '../FieldScene';
 import type { View } from '../view';
 
-const PORT_LABEL = [':22', '/login', '/search', '/comments', ':*'];
 const POOL = 48;
 
 // Cards sit on whole device pixels, so the 2x canvas is drawn 1:1 and never resampled.
@@ -35,13 +34,13 @@ interface Visual { slot: number; box: Phaser.GameObjects.Container; img: Phaser.
 const bugPose = (kind: BugKind, path: number, time: number, phase: number): { x: number; y: number; rot: number; flip: boolean } => {
   if (kind === 'fly' || kind === 'gnat') {
     const a = time * (path ? 6.1 : 7.3) + phase;
-    return { x: (path ? 40 : 250) + Math.sin(a) * 14, y: -10 + Math.cos(a * 1.3) * 20, rot: Math.sin(a * 0.7) * 0.4, flip: false };
+    return { x: (path ? 40 : PKT_W - 40) + Math.sin(a) * 14, y: -10 + Math.cos(a * 1.3) * 20, rot: Math.sin(a * 0.7) * 0.4, flip: false };
   }
   const u = ((time / (path ? 6.5 : 5)) + phase) % 1;
   const out = u < 0.5, k = out ? u / 0.5 : (u - 0.5) / 0.5;
-  const x = out ? 8 + k * 242 : 250 - k * 242;
+  const x = out ? 8 + k * (PKT_W - 48) : PKT_W - 40 - k * (PKT_W - 48);
   if (kind === 'worm') return { x, y: -6, rot: 0, flip: !out };
-  return { x: path ? 258 - x : x, y: path ? 52 : -10, rot: (out !== !!path ? 1 : -1) * Math.PI / 2, flip: false };
+  return { x: path ? PKT_W - 32 - x : x, y: path ? PKT_H : -10, rot: (out !== !!path ? 1 : -1) * Math.PI / 2, flip: false };
 };
 
 // Packet cards on pooled 2x canvases, the bugs that crawl on them, and the target brackets.
@@ -156,13 +155,15 @@ export class PacketsView implements View {
   private paint(p: Packet, v: Visual, run: Run): void {
     const s = run.state;
     const state: CardState = s.locked === p.id ? 'locked' : p.doomed ? 'locked' : this.hovered === p.id ? 'hover' : p.slowed ? 'slowed' : 'idle';
-    const lens = s.owned.includes('lens') && !!p.t.decoded;
+    // The lens swaps the payload line for its decoded form, split from the request line at content time.
+    const decoded = s.owned.includes('lens') ? p.t.decodedPayload : undefined;
+    const lens = decoded !== undefined;
     const key = `${state}|${s.hints}|${lens}|${t('inspector.decoded')}`;
     if (key === v.key) return;
     v.key = key;
     const tex = this.scene.textures.get(`card-${v.slot}`) as Phaser.Textures.CanvasTexture;
     drawCard(tex.getContext(), {
-      src: p.src, port: PORT_LABEL[p.lane], text: lens ? p.t.decoded! : p.t.card,
+      chip: p.t.chip, path: p.t.path, src: p.src, payload: decoded ?? p.t.payload,
       hints: (lens ? p.t.decodedHints ?? p.t.hints : p.t.hints) ?? [], hintsOn: s.hints, decodedTag: lens ? t('inspector.decoded') : null, state, root: s.cfg.root,
     });
     tex.refresh();

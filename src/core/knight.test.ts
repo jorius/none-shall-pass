@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { CHARGE_SECS, KN_X, LANE_H, LANE_X0, PKT_W, SPEAR_SPEED, SQUIRE_COOLDOWN, THROW_COOLDOWN } from './constants';
+import { CHARGE_SECS, KN_X, LANE_H, LANE_X0, PKT_H, PKT_W, PKT_Y, SPEAR_SPEED, SQUIRE_COOLDOWN, THROW_COOLDOWN } from './constants';
 import type { RunEvent } from './events';
 import { stepPackets } from './field';
 import { cycleTarget, handPos, setLane, startCharge, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
@@ -94,7 +94,7 @@ describe('spears', () => {
     throwSpear(s, ev2);
     const thrown = ev2.find((e) => e.type === 'thrown')!;
     expect(thrown).toMatchObject({ type: 'thrown', packetId: p.id, by: 'knight', from });
-    const d = Math.hypot(300 + PKT_W * 0.55 - from.x, 2 * LANE_H + 19 + 26 - from.y);
+    const d = Math.hypot(300 + PKT_W * 0.55 - from.x, 2 * LANE_H + PKT_Y + PKT_H / 2 - from.y);
     expect((thrown as { duration: number }).duration).toBeCloseTo(Math.max(0.12, d / SPEAR_SPEED));
     expect(p.doomed).toBe(true);
     expect(s.locked).toBeNull();

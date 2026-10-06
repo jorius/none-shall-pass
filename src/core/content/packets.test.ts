@@ -67,6 +67,13 @@ describe('packet catalogue', () => {
     expect(() => templateById('nope')).toThrow('unknown packet template nope');
   });
 
+  it('splits the decoded line into its payload once, at content time', () => {
+    expect(templateById('sqli-encoded').decodedPayload).toBe("q=' OR 1=1--");
+    expect(templateById('sqli-tautology').decodedPayload).toBeUndefined();
+    // The lens swaps the payload line alone: every decoded line carries its payload, and nothing else does.
+    for (const t of TEMPLATES) expect(t.decodedPayload, t.id).toBe(t.decoded === undefined ? undefined : cardParts(t.decoded).payload);
+  });
+
   it('covers every family the waves need', () => {
     const kinds = new Set(TEMPLATES.map((t) => t.kind));
     for (const k of ['legit', 'sqli', 'xss', 'brute', 'scan', 'flood']) expect(kinds.has(k as never)).toBe(true);

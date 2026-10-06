@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, STUFF_IP, TAR_MULT, TAR_X0 } from './constants';
+import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, STUFF_IP, TAR_MULT } from './constants';
 import { CAMPAIGN } from './content/waves';
 import type { Difficulty } from './difficulty';
 import type { RunEvent } from './events';
@@ -159,7 +159,7 @@ describe('queueing', () => {
     // Deep enough in the tar (x + PKT_W > TAR_X0) to stay short of the fire (x < FW_X - PKT_W) for the whole four seconds;
     // each follower starts 50 px short of the gap, so the three of them queue up one after another.
     const head = place(s, 'brute-stuffing', 400, '198.51.100.77');
-    const a = place(s, 'legit-login', 30), b = place(s, 'legit-login', -340), c = place(s, 'legit-login', -710);
+    const a = place(s, 'legit-login', head.x - PKT_W - SPAWN_GAP - 50), b = place(s, 'legit-login', a.x - PKT_W - SPAWN_GAP - 50), c = place(s, 'legit-login', b.x - PKT_W - SPAWN_GAP - 50);
     for (let i = 0; i < 240; i++) {
       const before = [head, a, b, c].map((p) => p.x);
       stepPackets(s, 1 / 60, []);
@@ -175,9 +175,9 @@ describe('queueing', () => {
     const s = freshState();
     s.owned.push('tarpit');
     s.seen[STUFF_IP] = 3; // a repeat visitor: the tar slows the head to 40%; the follower is a first-timer at full speed
-    // The head starts in the tar (x + PKT_W > TAR_X0) and stays in it (x < TAR_X1) all the way to the fire at x = FW_X - PKT_W.
+    // The head starts 60 px short of the fire (x = FW_X - PKT_W), inside the tar (x + PKT_W > TAR_X0, x < TAR_X1) all the way in.
     // The follower starts 50 px short of the gap: it closes in, is held behind the head, and is let go only once the head is entering.
-    const head = place(s, 'brute-stuffing', TAR_X0, STUFF_IP), next = place(s, 'legit-login', TAR_X0 - PKT_W - SPAWN_GAP - 50);
+    const head = place(s, 'brute-stuffing', FW_X - PKT_W - 60, STUFF_IP), next = place(s, 'legit-login', head.x - PKT_W - SPAWN_GAP - 50);
     let held = 0, move = 0, moveBefore = 0;
     for (let i = 0; i < 300 && !head.entering; i++) {
       const before = next.x;

@@ -30,6 +30,7 @@ export interface PacketTemplate {
 export interface Template extends PacketTemplate {
   raw: string;
   decoded?: string;
+  decodedPayload?: string;
   chip: Chip;
   path: string;
   payload: string;

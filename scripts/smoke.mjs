@@ -9,6 +9,8 @@ import { chromium } from 'playwright';
 const PORT = 4318;
 const URL = `http://localhost:${PORT}/none-shall-pass/`;
 const OUT = 'smoke-out';
+// A packet card's size and its offset in the lane, as src/core/constants.ts has them: the page does not expose them.
+const PKT_W = 340, PKT_H = 54, PKT_Y = 18;
 
 // Steps the run inside the page until `cond(state, arg)` holds, so a check gets its log entries however slow the frame rate.
 const stepUntil = async (page, cond, arg) => {
@@ -137,13 +139,13 @@ const CHECKS = {
   async resizeAndClick(page) {
     const clickPacket = async () => {
       await stepUntil(page, (s) => s.packets.some((p) => p.x > 250 && p.x < 550 && !p.entering));
-      const target = await page.evaluate(() => {
+      const target = await page.evaluate(([w, h, y0]) => {
         const s = window.__nsp.app.run.state;
         const p = s.packets.find((q) => q.x > 250 && q.x < 550 && !q.entering);
         const r = document.querySelector('#stage canvas').getBoundingClientRect();
         const k = r.width / 1280;
-        return { id: p.id, x: r.left + (p.x + 145) * k, y: r.top + (56 + p.lane * 90 + 19 + 26) * k };
-      });
+        return { id: p.id, x: r.left + (p.x + w / 2) * k, y: r.top + (56 + p.lane * 90 + y0 + h / 2) * k };
+      }, [PKT_W, PKT_H, PKT_Y]);
       await page.mouse.click(target.x, target.y);
       const locked = await page.evaluate(() => window.__nsp.app.run.state.locked);
       if (locked !== target.id) throw new Error(`clicked ${target.id}, locked ${locked}`);
@@ -181,14 +183,14 @@ const CHECKS = {
       return ia > ib ? a : b;
     };
     const clickOverlap = async () => {
-      const pt = await page.evaluate(([ida, idb]) => {
+      const pt = await page.evaluate(([ida, idb, w, h, y0]) => {
         const s = window.__nsp.app.run.state;
         const pa = s.packets.find((p) => p.id === ida), pb = s.packets.find((p) => p.id === idb);
-        const mid = (Math.max(pa.x, pb.x) + Math.min(pa.x, pb.x) + 290) / 2;
+        const mid = (Math.max(pa.x, pb.x) + Math.min(pa.x, pb.x) + w) / 2;
         const r = document.querySelector('#stage canvas').getBoundingClientRect();
         const k = r.width / 1280;
-        return { x: r.left + mid * k, y: r.top + (56 + pa.lane * 90 + 19 + 26) * k };
-      }, [a, b]);
+        return { x: r.left + mid * k, y: r.top + (56 + pa.lane * 90 + y0 + h / 2) * k };
+      }, [a, b, PKT_W, PKT_H, PKT_Y]);
       await page.mouse.click(pt.x, pt.y);
       return page.evaluate(() => window.__nsp.app.run.state.locked);
     };

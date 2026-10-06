@@ -162,7 +162,11 @@ export const cardParts = (card: string): { chip: Chip; path: string; payload: st
   return { chip: 'TCP', path: '', payload: card };
 };
 
-export const TEMPLATES: readonly Template[] = LIST.map((t) => ({ ...t, raw: t.request.join('\n'), decoded: decode(t.card), ...cardParts(t.card) }));
+export const TEMPLATES: readonly Template[] = LIST.map((t) => {
+  const decoded = decode(t.card);
+  // The lens swaps the card's payload line alone, so the decoded line is split here once, not at paint time.
+  return { ...t, raw: t.request.join('\n'), decoded, decodedPayload: decoded && cardParts(decoded).payload, ...cardParts(t.card) };
+});
 
 export const templateById = (id: string): Template => {
   const t = TEMPLATES.find((x) => x.id === id);
