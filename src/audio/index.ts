@@ -27,6 +27,8 @@ const MAKEUP = 1.22;
 // menu and the M key work. Without an AudioContext, or before the first gesture, it does nothing at all.
 export class AudioView implements View {
   unlocked = false;
+  // Told once, when the first gesture unlocks it (whether or not a context could be built): whoever hints at the sound has nothing left to ask for.
+  onUnlock: (() => void) | null = null;
   private ctx: AudioContext | null = null;
   private master: GainNode | null = null;
   private sfxGain: GainNode | null = null;
@@ -73,6 +75,7 @@ export class AudioView implements View {
     if (!this.unlocked) {
       this.unlocked = true;
       this.build();
+      this.onUnlock?.();
     }
     this.wake();
   }

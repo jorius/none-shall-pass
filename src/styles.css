@@ -206,6 +206,9 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 /* The debrief's score: its figure is gold as in the HUD, in a box as wide as the final figure while it counts up. */
 .best .num { display: inline-block; color: var(--gold); }
 .sitelink { font-size: 13px; color: var(--dim); text-decoration: none; border-bottom: 1px solid var(--mute); }
+/* The title's hint that a key starts the sound: along the foot of the screen, out of the flow, so it takes no room from the title's
+   column and nothing shifts when the first key or press takes it away. */
+.ov-title .sound-hint { position: absolute; left: 0; right: 0; bottom: 26px; }
 .howto-grid { display: grid; grid-template-columns: auto auto; gap: 8px 18px; text-align: left; font-family: var(--body); font-size: 15px; }
 .howto-grid kbd { font-family: var(--mono); font-size: 13px; color: var(--ink); border: 1px solid var(--mute); padding: 1px 6px; justify-self: end; }
 

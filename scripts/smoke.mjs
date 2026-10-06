@@ -892,14 +892,26 @@ const CHECKS = {
     };
     const state = (sound, music, volume, looping, saved = true) => ({ sound, music, volume, looping, savedSound: saved ? sound : undefined, savedMusic: saved ? music : undefined, savedVolume: saved ? volume : undefined });
 
-    // Before any gesture nothing is built or running, and there is no badge.
+    // Before any gesture nothing is built or running, and there is no badge; the title hints that a key starts the sound, in a note at
+    // least 13px tall that hangs off the flow (nothing on the title is placed by it).
     await page.waitForSelector('#ui .ov-title .btn');
     let a = await audio();
     if (a.unlocked || a.context || a.looping || await badge()) throw new Error(`audio before a gesture: ${JSON.stringify(a)}`);
-    // The first key (a letter the title routes nowhere) builds it on the real AudioContext, and the loop starts under the title.
+    const hint = () => page.evaluate(() => {
+      const h = document.querySelector('#ui .ov-title .sound-hint');
+      return h && { text: h.textContent, size: parseFloat(getComputedStyle(h).fontSize), position: getComputedStyle(h).position, inRow: !!h.closest('.row-btns') };
+    });
+    const titleAt = () => page.evaluate(() => [...document.querySelectorAll('#ui .ov-title > *:not(.sound-hint)')].map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 100) / 100).join(); }).join(' | '));
+    const hinted = await hint(), laidOut = await titleAt();
+    if (!hinted || hinted.text !== '\u266A press any key for sound' || hinted.size < 13 || hinted.position !== 'absolute' || hinted.inRow) throw new Error(`the title's sound hint: ${JSON.stringify(hinted)}`);
+    await fits(page, 'title with the sound hint');
+    await page.screenshot({ path: `${OUT}/title-hint.png` });
+    // The first key (a letter the title routes nowhere) builds it on the real AudioContext, and the loop starts under the title; the hint goes
+    // with it and takes nothing else with it: every other thing on the title is where it was.
     await page.keyboard.press('x');
     a = await audio();
     if (!a.unlocked || !a.context || !a.looping) throw new Error(`after the first key: ${JSON.stringify(a)}`);
+    if (await hint() || await titleAt() !== laidOut) throw new Error(`the hint's going moved the title, or did not go: ${JSON.stringify([await hint(), laidOut, await titleAt()])}`);
     // Every effect schedules on the real context without throwing, which the unit tests' fake context cannot show.
     const failed = await page.evaluate(() => {
       const errors = [];
@@ -994,6 +1006,9 @@ const CHECKS = {
     // The save also has a volume of 0, which the pause menu cannot set: it is dropped and the default 2 applies.
     await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true, sound: false, music: false, volume: 0 } })));
     await page.reload({ waitUntil: 'networkidle' });
+    // No key will bring a sound from a muted save, so the title does not hint at one.
+    await page.waitForSelector('#ui .ov-title .btn');
+    if (await hint()) throw new Error('the title hints at a sound a muted save will not make');
     await play(page);
     if (!await badge()) throw new Error('a muted save came up with no badge');
     // The badge hangs under the bar's left end, so the bar keeps the room it had at its widest (wave 5, hints on, a five-digit
@@ -1024,6 +1039,14 @@ const CHECKS = {
     if (await switches() !== 'SONIDO · NO | MÚSICA · NO | VOLUMEN · 2/3') throw new Error(`Spanish pause switches: ${await switches()}`);
     await fits(page, 'Spanish pause with the sound switches');
     await page.screenshot({ path: `${OUT}/sound-pause-es.png` });
+    // Not muted, in Spanish, before any key: the title's hint is there and fits.
+    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#ui .ov-title .sound-hint');
+    const hintEs = await hint();
+    if (hintEs.text !== '\u266A pulsa cualquier tecla para el sonido' || hintEs.size < 13) throw new Error(`the Spanish sound hint: ${JSON.stringify(hintEs)}`);
+    await fits(page, 'Spanish title with the sound hint');
+    await page.screenshot({ path: `${OUT}/title-hint-es.png` });
   },
   async armory(page) {
     // The Armory is read only: three branches, fourteen cards, CLOSE focused, the detail open on the first card. From the title

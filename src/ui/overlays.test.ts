@@ -77,6 +77,48 @@ describe('Overlays', () => {
     expect(document.activeElement).toBe(document.body);
   });
 
+  it('hints at the sound on the title until the first key or press unlocks it, and takes the hint away without drawing the title again', () => {
+    boot();
+    const hint = (): string | undefined => box().querySelector('.sound-hint')?.textContent ?? undefined;
+    expect(hint()).toBe('♪ press any key for sound');
+    // The press that unlocks the audio may be the mouse-down of a click on a button: a button drawn again under it never gets its click,
+    // so the hint goes and every button stays the one that was there.
+    const before = buttons();
+    audio.unlock();
+    expect(hint()).toBeUndefined();
+    expect(buttons().every((b, i) => b === before[i]) && buttons().length === before.length).toBe(true);
+    // Drawn again (a language switch, a visit back from the setup), the title does not hint: the audio is unlocked.
+    named(/^ES$/).click();
+    expect(box().textContent).toContain('JUGAR CAMPAÑA');
+    expect(hint()).toBeUndefined();
+    named(/JUGAR CAMPAÑA/).click();
+    named(/^VOLVER/).click();
+    expect(box().className).toBe('ov show ov-title');
+    expect(hint()).toBeUndefined();
+  });
+
+  it('hints in Spanish, and not at all to a player who has muted everything', () => {
+    setLang('es');
+    boot();
+    expect(box().querySelector('.sound-hint')?.textContent).toBe('♪ pulsa cualquier tecla para el sonido');
+    // The sound and the music both off (a muted save): no key will bring a sound, so the title promises none.
+    audio.set({ sound: false, music: false });
+    app.refresh();
+    expect(box().querySelector('.sound-hint')).toBeNull();
+    audio.set({ music: true });
+    app.refresh();
+    expect(box().querySelector('.sound-hint')).not.toBeNull();
+  });
+
+  it('hints on a title the audio was unlocked before, never: a visit back from the how-to', () => {
+    boot();
+    audio.unlock();
+    named(/HOW TO PLAY/).click();
+    expect(box().className).toBe('ov show ov-howto');
+    named(/BACK/).click();
+    expect([box().className, box().querySelector('.sound-hint')]).toEqual(['ov show ov-title', null]);
+  });
+
   it('unlocks Overtime and shows the bests after a win', () => {
     store.recordResult({ mode: 'campaign', difficulty: 'analyst', knight: 'black', root: false, tampered: false, won: true, reason: 'won', score: 18420, wave: 6, wavesCleared: 6, uptime: 80, rep: 9,
       stats: { hits: { 1: 0, 2: 0, 3: 0 }, squireHits: 0, chargeHits: 0, ruleBlocks: 0, served: 0, decoysKept: 0, neutralized: 0, falsePositives: 1, breaches: { sqli: 0, xss: 0, brute: 0, scan: 0, flood: 0 }, wavesCleared: 6 } });

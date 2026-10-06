@@ -237,6 +237,24 @@ describe('AudioView', () => {
     expect([make.mock.calls.length, view.unlocked, view.looping]).toEqual([1, true, true]);
   });
 
+  it('tells whoever asked, once, when the first gesture unlocks it: with the audio built, or with none to build', () => {
+    for (const make of [() => studio().ctx, () => null, () => { throw new Error('no web audio'); }]) {
+      const view = new AudioView(make, ON);
+      const told: boolean[] = [];
+      view.onUnlock = () => told.push(view.unlocked);
+      view.screen('title');
+      expect(told).toEqual([]);
+      view.unlock();
+      view.unlock();
+      view.unlock();
+      expect(told).toEqual([true]);
+    }
+    // Nobody asked: nothing to tell, and the first gesture is no less a gesture.
+    const quiet = new AudioView(() => null, ON);
+    expect(() => quiet.unlock()).not.toThrow();
+    expect(quiet.unlocked).toBe(true);
+  });
+
   it('plays an effect for a throw, a hit, a miss, a swallow, a breach, a pick, a new wave and a charge', () => {
     const { view, heard } = effects();
     const packet = place(freshState(), 'scan-telnet', 300);

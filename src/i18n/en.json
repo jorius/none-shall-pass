@@ -33,7 +33,7 @@
     "tagline": "Guard the server. Read the packets. Let the real users through.", "play": "PLAY CAMPAIGN", "overtime": "OVERTIME",
     "overtimeLocked": "win the campaign to unlock", "howto": "HOW TO PLAY", "armory": "ARMORY", "best": "BEST", "bestCampaign": "Campaign · grade {g} · {s} pts",
     "bestOvertime": "Overtime · wave {w} · {s} pts", "rootOn": "ROOT MODE · faster packets, no hints, ×1.5 score", "site": "jorius.github.io ↗",
-    "asKnight": "Playing as {k} · {d}"
+    "asKnight": "Playing as {k} · {d}", "soundHint": "♪ press any key for sound"
   },
   "setup": {
     "title": "CHOOSE YOUR KNIGHT", "sub": "Every one of them holds the same gate. They just hold it differently.", "knights": "KNIGHTS", "difficulty": "DIFFICULTY",

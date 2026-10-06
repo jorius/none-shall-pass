@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { setLang } from '../i18n';
 
 // local
-import { renderHowto } from './title';
+import type { Bests } from '../storage';
+import { renderHowto, renderTitle, type TitleDeps } from './title';
 
 describe('renderHowto', () => {
   let box: HTMLElement, back: number;
@@ -62,5 +63,43 @@ describe('renderHowto', () => {
       ['M', 'silencio'],
       ['P', 'pausa'],
     ]);
+  });
+});
+
+describe('renderTitle', () => {
+  let box: HTMLElement;
+  const bests: Bests = { campaign: {}, overtime: {}, won: false };
+  const deps = (over: Partial<TitleDeps> = {}): TitleDeps => ({
+    bests, root: false, knight: 'black', difficulty: 'analyst', soundHint: true,
+    play: () => undefined, overtime: () => undefined, howto: () => undefined, armory: () => undefined, toggleLang: () => undefined, ...over,
+  });
+  beforeEach(() => {
+    document.body.innerHTML = '';
+    box = document.createElement('div');
+    document.body.append(box);
+  });
+  afterEach(() => setLang('en'));
+
+  it('hints at the sound with a note, until the audio has been unlocked', () => {
+    renderTitle(box, deps());
+    expect([...box.querySelectorAll('.sound-hint')].map((e) => [e.tagName, e.className, e.textContent])).toEqual([['DIV', 'note sound-hint', '♪ press any key for sound']]);
+    renderTitle(box, deps({ soundHint: false }));
+    expect(box.querySelector('.sound-hint')).toBeNull();
+  });
+
+  it('hints in Spanish too', () => {
+    setLang('es');
+    renderTitle(box, deps());
+    expect(box.querySelector('.sound-hint')?.textContent).toBe('♪ pulsa cualquier tecla para el sonido');
+  });
+
+  it('keeps the hint out of the row of buttons, so no button changes place with it', () => {
+    renderTitle(box, deps());
+    const row = box.querySelector('.row-btns')!;
+    expect(row.querySelector('.sound-hint')).toBeNull();
+    const withHint = [...row.querySelectorAll('button')].map((b) => b.textContent);
+    renderTitle(box, deps({ soundHint: false }));
+    expect([...box.querySelectorAll('.row-btns button')].map((b) => b.textContent)).toEqual(withHint);
+    expect(withHint).toEqual(['PLAY CAMPAIGN', 'OVERTIME', 'HOW TO PLAY', 'ARMORY', 'ES']);
   });
 });

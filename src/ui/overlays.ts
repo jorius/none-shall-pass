@@ -51,8 +51,11 @@ export class Overlays implements View {
   // What a pick has sent flying (the icon's copy, then the tile's twin): they live on the layer, outside the box, so a screen change clears them.
   private readonly flying = new Set<HTMLElement>();
 
-  constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView; audio: Pick<AudioView, 'settings' | 'set'> }) {
+  constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView; audio: Pick<AudioView, 'settings' | 'set' | 'unlocked' | 'onUnlock'> }) {
     this.box = el('div', 'ov', ui);
+    // The first key or press unlocks the audio, which is all the title's ♪ hint asks for. It goes in place, not by drawing the title again: the
+    // press that unlocks may be the mouse-down of a click, and a button replaced before the mouse-up never gets that click.
+    opts.audio.onUnlock = () => this.box.querySelector('.sound-hint')?.remove();
     app.onScreen = (s) => this.onScreen(s);
     // Saved the moment the run ends, once; the debrief comes up later with the best it had to beat.
     app.onEnd = (run) => {
@@ -225,7 +228,12 @@ export class Overlays implements View {
     switch (this.kind) {
       case 'title':
         // The title shows the pair last played and the bests of its difficulty; PLAY and OVERTIME go through the setup.
-        renderTitle(this.box, { bests: a.store.bests(), root: a.root, ...chosen(a.store.prefs()), play: () => a.openSetup('campaign'), overtime: () => a.openSetup('overtime'), howto: () => this.show('howto'), armory: () => a.act('armory'), toggleLang: this.toggleLang });
+        renderTitle(this.box, {
+          bests: a.store.bests(), root: a.root, ...chosen(a.store.prefs()),
+          // Until a key or press unlocks the audio, and only for a player who has a sound to be unlocked (the switches are not both off).
+          soundHint: !this.opts.audio.unlocked && (this.opts.audio.settings.sound || this.opts.audio.settings.music),
+          play: () => a.openSetup('campaign'), overtime: () => a.openSetup('overtime'), howto: () => this.show('howto'), armory: () => a.act('armory'), toggleLang: this.toggleLang,
+        });
         break;
       case 'howto':
         renderHowto(this.box, () => this.show('title'));

@@ -19,6 +19,8 @@ export interface TitleDeps {
   howto(): void;
   armory(): void;
   toggleLang(): void;
+  // Whether to hint that a key starts the sound (it does not until the first one: browsers start no audio before a gesture).
+  soundHint: boolean;
 }
 
 export const renderTitle = (box: HTMLElement, d: TitleDeps): void => {
@@ -43,6 +45,8 @@ export const renderTitle = (box: HTMLElement, d: TitleDeps): void => {
     if (c) best.append(el('div', '', undefined, t('title.bestCampaign', { g: c.grade, s: fmtNum(c.score) })));
     if (o) best.append(el('div', '', undefined, t('title.bestOvertime', { w: o.wave, s: fmtNum(o.score) })));
   }
+  // Out of the flow (styles.css), so it takes no room and nothing moves when it goes.
+  if (d.soundHint) el('div', 'note sound-hint', box, t('title.soundHint'));
   const a = el('a', 'sitelink', box, t('title.site'));
   a.href = 'https://jorius.github.io/';
   a.target = '_blank';
