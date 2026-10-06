@@ -37,6 +37,7 @@ import { LoadoutTiles } from './ui/loadout';
 import { Overlays } from './ui/overlays';
 import { renderPhoneGate, shouldGate } from './ui/phoneGate';
 import { UptimeStrip } from './ui/uptime';
+import { renderWebglGate, shouldGateWebgl } from './ui/webglGate';
 
 const loadFonts = (): Promise<unknown> => Promise.race([
   Promise.all([
@@ -58,6 +59,8 @@ const boot = async (): Promise<void> => {
   // `pointer` is only the primary input; `any-pointer` spares a tablet with a trackpad or a mouse.
   const coarseOnly = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches;
   if (shouldGate(Math.min(window.screen.width, window.screen.height), coarseOnly)) { renderPhoneGate(document.getElementById('app')!); return; }
+  // Phaser 4 has no canvas renderer: without WebGL the card comes up instead of a blank page.
+  if (shouldGateWebgl(document.createElement('canvas'))) { renderWebglGate(document.getElementById('app')!); return; }
   const game = new Phaser.Game({
     type: Phaser.WEBGL,
     parent: 'stage',
@@ -101,4 +104,5 @@ const boot = async (): Promise<void> => {
   app.quit();
 };
 
-void boot();
+// Whatever else stops the boot ends on the card with a generic message, not on a blank page.
+boot().catch((e: unknown) => { console.error(e); renderWebglGate(document.getElementById('app')!, 'boot'); });

@@ -1,5 +1,5 @@
 {
-  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0,75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT" },
+  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0,75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT", "clearing": "DESPEJANDO" },
   "lane": { "0": "ssh", "1": "acceso", "2": "búsqueda", "3": "comentarios", "4": "otros" },
   "uptime": "DISPONIBILIDAD",
   "actor": { "you": "TÚ", "squire": "ESCUDERO", "target": "OBJETIVO · ESPACIO" },
@@ -47,6 +47,8 @@
     "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "selected": "SELECCIONADO · {k}", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
   },
   "phone": { "title": "Este necesita un teclado.", "body": "None Shall Pass es un juego de escritorio que se juega con las flechas, Tab y Espacio. Envíate el enlace y juégalo en un computador.", "copy": "COPIAR ENLACE", "copied": "COPIADO ✓" },
+  "webgl": { "title": "Este necesita WebGL.", "body": "None Shall Pass dibuja con WebGL y este navegador lo tiene desactivado o no lo soporta. Activa la aceleración por hardware o prueba un Chrome, Firefox, Safari o Edge actual." },
+  "boot": { "title": "Algo salió mal.", "body": "El juego no pudo iniciar. Recarga la página o prueba un navegador actual." },
   "console": { "title": "root@firewall:~", "greeting": "Escribe help.", "ended": "La partida terminó: ya no hay en qué hacer trampa.", "input": "Comando de la consola" },
   "lang": { "toggle": "EN" }
 }

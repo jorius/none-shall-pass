@@ -83,12 +83,14 @@ export class Hud implements View {
     if (!run) return;
     const s = run.state;
     const secs = Math.max(0, Math.ceil(s.timeLeft));
-    const key = `${s.wave}|${secs}|${s.score}|${s.credits}|${s.rep}|${s.hints}`;
+    // Spawning stops before the clock does, and the last packets take a while to land: the clock says so, not 0:00.
+    const clock = secs === 0 && s.phase === 'playing' ? t('hud.clearing') : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    const key = `${s.wave}|${clock}|${s.score}|${s.credits}|${s.rep}|${s.hints}`;
     if (key === this.last) return;
     this.last = key;
     const name = loc(run.waveDef.name);
     const n = s.cfg.mode === 'campaign' ? `${s.wave}/${CAMPAIGN.length}` : `${s.wave}`;
-    this.waveEl.replaceChildren(`${t('hud.wave')} `, el('b', '', undefined, n), ' · ', el('b', '', undefined, name), ' · ', el('b', '', undefined, `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`));
+    this.waveEl.replaceChildren(`${t('hud.wave')} `, el('b', '', undefined, n), ' · ', el('b', '', undefined, name), ' · ', el('b', '', undefined, clock));
     this.score.textContent = fmtNum(s.score);
     this.credits.textContent = fmtNum(s.credits);
     this.pips.innerHTML = Array.from({ length: MAX_REP }, (_, i) => `<i class="${i < s.rep ? '' : 'off'}"></i>`).join('');

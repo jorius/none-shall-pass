@@ -1,5 +1,5 @@
 {
-  "hud": { "score": "SCORE", "credits": "CREDITS", "reputation": "REPUTATION", "wave": "WAVE", "hintsOn": "HINTS ON ×0.75", "hintsOff": "HINTS OFF", "pause": "PAUSE · P", "root": "ROOT" },
+  "hud": { "score": "SCORE", "credits": "CREDITS", "reputation": "REPUTATION", "wave": "WAVE", "hintsOn": "HINTS ON ×0.75", "hintsOff": "HINTS OFF", "pause": "PAUSE · P", "root": "ROOT", "clearing": "CLEARING" },
   "lane": { "0": "ssh", "1": "auth", "2": "query", "3": "user posts", "4": "other ports" },
   "uptime": "UPTIME",
   "actor": { "you": "YOU", "squire": "SQUIRE", "target": "TARGET · SPACE" },
@@ -47,6 +47,8 @@
     "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "selected": "SELECTED · {k}", "again": "PLAY AGAIN", "toTitle": "TITLE"
   },
   "phone": { "title": "This one needs a keyboard.", "body": "None Shall Pass is a desktop game played with the arrow keys, Tab and Space. Send yourself the link and play it on a computer.", "copy": "COPY LINK", "copied": "COPIED ✓" },
+  "webgl": { "title": "This one needs WebGL.", "body": "None Shall Pass draws with WebGL, and this browser has it switched off or does not support it. Turn on hardware acceleration, or try a current Chrome, Firefox, Safari or Edge." },
+  "boot": { "title": "Something went wrong.", "body": "The game could not start. Reload the page, or try a current browser." },
   "console": { "title": "root@firewall:~", "greeting": "Type help.", "ended": "The run is over: nothing left to cheat.", "input": "Console command" },
   "lang": { "toggle": "ES" }
 }

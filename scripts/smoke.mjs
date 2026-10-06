@@ -546,6 +546,22 @@ const CHECKS = {
     if (idle.run !== null || idle.paused || idle.cards || idle.score !== '0' || idle.coach !== 'none') throw new Error(`after quitting: ${JSON.stringify(idle)}`);
     await page.screenshot({ path: `${OUT}/quit-title.png` });
   },
+  async webgl(page) {
+    // A browser without WebGL gets the card instead of a blank page, and Phaser never starts.
+    await page.addInitScript(() => {
+      const get = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (kind, ...rest) { return /^webgl/.test(kind) ? null : get.call(this, kind, ...rest); };
+    });
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('.gate h2');
+    if (await page.$('#stage canvas')) throw new Error('the game booted without WebGL');
+    const card = await page.evaluate(() => {
+      const g = document.querySelector('.gate');
+      return { title: g.querySelector('h2').textContent, link: g.querySelector('a').href, fits: g.scrollHeight <= g.clientHeight && g.scrollWidth <= g.clientWidth };
+    });
+    if (card.title !== 'This one needs WebGL.' || !card.link.startsWith('https://jorius.github.io/') || !card.fits) throw new Error(`webgl card: ${JSON.stringify(card)}`);
+    await page.screenshot({ path: `${OUT}/webgl.png` });
+  },
   async reduced(page) {
     // Reduced effects double the glitch periods (the title, the low-uptime strip), hide the scan lines and drop the
     // rack's shake on a breach, and nothing else changes: a shot of the burning field each way.
