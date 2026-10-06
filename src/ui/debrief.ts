@@ -8,6 +8,7 @@ import type { MaliciousKind } from '../core/types';
 import { fmtNum, lang, loc, t } from '../i18n';
 
 // local
+import { track } from '../analytics';
 import { button, el } from './dom';
 
 // The best this slot held before the run's own result was saved: what the run had to beat.
@@ -73,6 +74,7 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, best:
   ta.value = text;
   const row = el('div', 'row-btns', box);
   const copy = button(row, 'btn', t('debrief.copy'), () => {
+    track('share-copied', { mode: r.mode });
     // Without clipboard access the line is only selected, and the button says so instead of claiming a copy.
     const fallback = (): void => { ta.focus(); ta.select(); copy.textContent = t('debrief.selected', { k: copyKeys() }); };
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { copy.textContent = t('debrief.copied'); }, fallback);

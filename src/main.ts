@@ -22,6 +22,7 @@ import { RootModeView } from './game/views/rootMode';
 import { detectLang, onLang, setLang } from './i18n';
 import { RENDER_SCALE, SCREEN_H, SCREEN_W } from './stage';
 import { createStore } from './storage';
+import { AnalyticsView } from './ui/analyticsView';
 import { Bubble } from './ui/bubble';
 import { Coach } from './ui/coach';
 import { ConsoleView } from './ui/consoleView';
@@ -93,6 +94,7 @@ const boot = async (): Promise<void> => {
   app.add({ pause: (p) => ui.classList.toggle('paused', p) });
   app.add(new Overlays(ui, app, { effects }));
   app.add(new ConsoleView(ui, app), new RootModeView(scene, ui, fireWall, app));
+  app.add(new AnalyticsView(app));
   ui.classList.toggle('reduced', effects.reduced);
   onLang(() => app.refresh());
   (window as unknown as { __nsp: unknown }).__nsp = { game, app, effects };

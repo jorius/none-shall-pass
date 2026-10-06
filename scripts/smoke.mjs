@@ -86,6 +86,11 @@ const everyCardFits = async (page, what) => {
   await page.evaluate(() => { const app = window.__nsp.app; app.run.state.draft.picks = window.__smokeHand; app.refresh(); });
 };
 
+// Every page runs with the Umami script blocked: smoke stays off the network, and each check proves the game
+// plays without its tracker. The blocked request's console error is the one expected error.
+const blockTracker = (target) => target.route('https://cloud.umami.is/**', (r) => r.abort());
+const unexpected = (m) => m.type() === 'error' && !m.location().url.startsWith('https://cloud.umami.is/');
+
 const spanish = (page) => page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
 
 const CHECKS = {
@@ -646,6 +651,7 @@ const CHECKS = {
     await code();
     await page.waitForSelector('#ui .ov-title .badge-root');
     await fits(page, 'root title');
+    await page.screenshot({ path: `${OUT}/root-title.png` });
     await play(page);
     await stepUntil(page, (s) => s.packets.filter((p) => !p.entering).length >= 3);
     // Any refresh (a language switch, the hints key) applies the mode again without stacking a second filter.
@@ -663,13 +669,35 @@ const CHECKS = {
     const off = await look();
     if (off.body || off.ui || off.filters !== 0 || off.badge !== 'none' || off.hints === 'none') throw new Error(`root mode left on: ${JSON.stringify(off)}`);
   },
+  async analytics(page) {
+    // The tag ships, for the site's domain only; blocked (as on every page here), it never loaded and the game plays on.
+    const tag = await page.$eval('script[src="https://cloud.umami.is/script.js"]', (e) => ({ defer: e.defer, ...e.dataset }));
+    if (!tag.defer || tag.websiteId !== 'f182739a-828d-4a63-81ab-07e8fd73945f' || tag.domains !== 'jorius.github.io') throw new Error(`umami tag: ${JSON.stringify(tag)}`);
+    if (await page.evaluate(() => 'umami' in window)) throw new Error('the blocked tracker loaded');
+    // A tracker that only records: the events carry modes and coarse numbers, never what was typed or read.
+    await page.waitForSelector('#ui .ov-title .btn');
+    await page.evaluate(() => { window.__sent = []; window.umami = { track: (n, d) => { window.__sent.push([n, d ?? null]); } }; });
+    await play(page);
+    await page.keyboard.press('`');
+    await page.waitForSelector('#ui .term.show input');
+    await page.waitForFunction(() => document.activeElement?.tagName === 'INPUT');
+    await page.keyboard.type('nmap shop.example');
+    await page.keyboard.press('Enter');
+    await page.keyboard.type('skip');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'draft');
+    const sent = JSON.stringify(await page.evaluate(() => window.__sent));
+    const want = JSON.stringify([['game-start', { mode: 'campaign', root: false }], ['console-opened', null], ['wave-cleared', { mode: 'campaign', wave: 1 }]]);
+    if (sent !== want) throw new Error(`sent ${sent}`);
+  },
   async phone(page) {
     // A real phone: a small touch screen with no fine pointer gets the card, and the game never boots.
     const browser = page.context().browser();
     const device = async (opts) => {
       const ctx = await browser.newContext(opts), p = await ctx.newPage(), errors = [];
+      await blockTracker(ctx);
       p.on('pageerror', (e) => errors.push(e.stack ?? e.message));
-      p.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+      p.on('console', (m) => { if (unexpected(m)) errors.push(m.text()); });
       await p.goto(URL, { waitUntil: 'networkidle' });
       return { ctx, p, errors };
     };
@@ -734,8 +762,9 @@ const main = async () => {
     for (const name of names) {
       const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
       const errors = [];
+      await blockTracker(page);
       page.on('pageerror', (e) => errors.push(e.stack ?? e.message));
-      page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+      page.on('console', (m) => { if (unexpected(m)) errors.push(m.text()); });
       try {
         await page.goto(URL, { waitUntil: 'networkidle' });
         await CHECKS[name](page);
