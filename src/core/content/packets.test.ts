@@ -101,4 +101,10 @@ describe('card parts', () => {
   it('falls back to a TCP chip with no path for a shape it does not know', () => {
     expect(cardParts('ICMP echo request')).toEqual({ chip: 'TCP', path: '', payload: 'ICMP echo request' });
   });
+
+  it('falls through to the fallback on a path shape it does not expect, instead of truncating it', () => {
+    expect(cardParts('GET /wp-login.php?x=1')).toEqual({ chip: 'TCP', path: '', payload: 'GET /wp-login.php?x=1' });
+    expect(cardParts('GET /api/v1/x')).toEqual({ chip: 'TCP', path: '', payload: 'GET /api/v1/x' });
+    for (const t of TEMPLATES) expect(t.path, t.id).not.toBe('');
+  });
 });

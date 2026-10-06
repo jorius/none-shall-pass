@@ -149,8 +149,9 @@ const decode = (s: string): string | undefined => {
 };
 
 // The card's request line, split for the chip layout: the method or protocol, the path or port, and only the payload.
+// A path is one lowercase segment; any other shape falls through to the plain fallback rather than a truncated path.
 export const cardParts = (card: string): { chip: Chip; path: string; payload: string } => {
-  let m = /^(GET|POST) (\/[a-z]+)\??(.*)$/.exec(card);
+  let m = /^(GET|POST) (\/[a-z]+)(?=[\s?]|$)\??(.*)$/.exec(card);
   if (m) return { chip: m[1] as Chip, path: m[2], payload: m[3].trim() };
   m = /^SSH-2\.0-(.*)$/.exec(card);
   if (m) return { chip: 'SSH', path: ':22', payload: m[1] };
