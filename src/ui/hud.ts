@@ -12,15 +12,7 @@ import { fmtNum, loc, t } from '../i18n';
 
 // local
 import type { App } from '../app';
-import { el } from './dom';
-
-// A clicked toggle must not keep the focus, or the next Space press would click it again.
-const button = (parent: HTMLElement, text: string, onClick: () => void): HTMLButtonElement => {
-  const b = el('button', 'toggle', parent, text);
-  b.onmousedown = (e) => e.preventDefault();
-  b.onclick = onClick;
-  return b;
-};
+import { button, el } from './dom';
 
 export class Hud implements View {
   private readonly waveEl: HTMLElement;
@@ -52,8 +44,8 @@ export class Hud implements View {
     this.labels.push(el('span', '', rep, t('hud.reputation')));
     rep.dataset.key = 'hud.reputation';
     this.pips = el('span', 'pips', rep);
-    this.hints = button(r, '', () => app.act('hints'));
-    this.pauseBtn = button(r, t('hud.pause'), () => app.act('pause'));
+    this.hints = button(r, 'toggle', '', () => app.act('hints'));
+    this.pauseBtn = button(r, 'toggle', t('hud.pause'), () => app.act('pause'));
   }
 
   refresh(run: Run | null): void {

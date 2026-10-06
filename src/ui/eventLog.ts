@@ -10,19 +10,11 @@ import type { View } from '../game/view';
 import { loc, t } from '../i18n';
 
 // local
-import { el } from './dom';
+import { button, el } from './dom';
 import type { Inspector } from './inspector';
 
 const GLYPH: Record<LogEntry['outcome'], string> = { hit: '✓', squire: '✓', rule: '✓', served: '●', neutralized: '◆', breach: '✗', fp: '☹' };
 const CLS: Record<LogEntry['outcome'], string> = { hit: 'ok', squire: 'ok', rule: 'ok', served: 'ok', neutralized: 'ok', breach: 'bad', fp: 'fp' };
-
-// Like the HUD toggles: a clicked filter must not keep the focus, or the next Space press would click it again.
-const button = (parent: HTMLElement, cls: string, text: string, onClick: () => void): HTMLButtonElement => {
-  const b = el('button', cls, parent, text);
-  b.onmousedown = (e) => e.preventDefault();
-  b.onclick = onClick;
-  return b;
-};
 
 // Every outcome, newest first, scrollable, with a MISTAKES filter: where you went wrong stays findable.
 // Rows are text nodes only, so a payload in the log can never turn into markup.
