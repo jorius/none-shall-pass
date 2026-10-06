@@ -107,6 +107,7 @@ Success: Jose plays a full campaign on the test server and sees every item below
 - **Music:** one CC0 chiptune loop from OpenGameArt (chosen at implementation, ≤ 1 MB as OGG with an MP3 fallback, in `public/audio/`, credited in the README with its author and licence), at low volume, looping.
 - **Controls:** M toggles mute (the HUD shows a small speaker glyph when muted); the pause menu gets MUSIC and SOUND toggles and a three-step volume; prefs persist; default on. Audio starts on the first key press or click, as browsers require; the title shows a small "♪" hint until then.
 - A missing or blocked AudioContext never throws into the game.
+- **Note (as built, v1.1):** the music ships built in, like the effects: a 16-step loop (bass, lead and hat) played by a small Web Audio sequencer in `src/audio/music.ts`, not a downloaded CC0 file. That leaves no network dependency and no licence to carry in the README, and it replaces the CC0 loop named above and in §16.7. `public/audio/` stays reserved for a CC0 file later: dropping one there and playing it in place of the sequencer would be a swap inside `src/audio`, and the README would then credit its author and licence.
 
 ## 13. Animation polish
 

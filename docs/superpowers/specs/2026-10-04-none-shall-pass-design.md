@@ -1,6 +1,6 @@
 # None Shall Pass: design spec
 
-Date: 2026-10-04 · Status: implemented (v1, local) · Visual reference: `docs/mocks/2026-10-04-core-loop-v4.html`
+Date: 2026-10-04 · Status: v1 + round one implemented (local) · Visual reference: `docs/mocks/2026-10-04-core-loop-v4.html`
 (open it in a browser; it is the playable HTML mock this spec was shaped from).
 
 ## 1. What it is
@@ -197,7 +197,7 @@ on the field.
 
 | Card | Cat · rarity | Effect | Field object |
 |---|---|---|---|
-| Destrier | Knight · L | targeting rides out to the packet; it crawls at 30% for 5 s (gold bar); post empty meanwhile | mounted knight, gallop frames |
+| Destrier | Knight · L | three levels (I, II, III) that slow the knight's own lane and add a charge: see the round-one spec §6 | mounted knight, gallop frames |
 | Squire | Knight · R | auto-throws at tier-1 attacks every 3 s | second, smaller knight |
 | Decoding lens | Knight · C | cards and inspector show URL-decoded payloads | `DECODED` tag on cards |
 | Observability I · logs | Knight · C | tier-1 attacks crawl with bugs | bugs on cards |
@@ -321,7 +321,7 @@ src/
   main.ts
 ```
 
-- **Simulation owns the rules.** `Run.step(dt)` advances packets, timers, the knight's hold, the Squire and
+- **Simulation owns the rules.** `Run.step(dt)` advances packets, timers, the knight's Destrier slow and charge, the Squire and
   the wave clock at a fixed 60 Hz timestep and returns events (`spawned`, `targeted`, `thrown`, `hit`,
   `ruleBlocked`, `entered`, `resolved`, `breach`, `falsePositive`, `waveCleared`, `runEnded`). Views
   subscribe to events; they never decide outcomes. Player intents (`setLane`, `cycleTarget`, `target`,
@@ -348,7 +348,7 @@ no personal data.
 
 - **Unit (vitest, coverage gate 80% on `src/core`)**: rules (every card against every relevant packet),
   scoring and grades, share text, draft dealing and prerequisites, spawn spacing per lane, entering and
-  resolve timing, hold timer, Squire targeting, deterministic full-wave simulations with scripted inputs,
+  resolve timing, Destrier lane slow and charge, Squire targeting, deterministic full-wave simulations with scripted inputs,
   locale key parity, content invariants (documentation IPs only, every malicious packet has a tier and a
   `why` in both languages).
 - **Smoke (Playwright, headless only)**: boots without console errors, title → campaign → targets and
