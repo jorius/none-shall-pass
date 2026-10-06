@@ -28,11 +28,14 @@ const button = (parent: HTMLElement, cls: string, text: string, onClick: () => v
 // Rows are text nodes only, so a payload in the log can never turn into markup.
 export class EventLog implements View {
   private readonly rows: HTMLElement;
+  private readonly none: HTMLElement;
   private readonly title: HTMLElement;
   private readonly count: HTMLElement;
   private readonly all: HTMLButtonElement;
   private readonly mis: HTMLButtonElement;
   private run: Run | null = null;
+  // How far the list is scrolled only to keep rows still under a pointer resting at its top.
+  private held = 0;
 
   constructor(bottom: HTMLElement, private readonly inspector: Inspector) {
     const box = el('div', 'log', bottom);
@@ -43,13 +46,22 @@ export class EventLog implements View {
     const f = el('span', 'lfilter', head);
     this.all = button(f, 'on', t('log.all'), () => this.filter(false));
     this.mis = button(f, '', t('log.mistakes'), () => this.filter(true));
+    // Outside .rows, which holds exactly one element per log entry.
+    this.none = el('div', 'none', box, t('log.noMistakes'));
+    this.none.hidden = true;
     this.rows = el('div', 'rows', box);
+    // Once the pointer that was holding the top goes, the list returns to the newest row.
+    this.rows.addEventListener('mouseleave', () => {
+      if (this.held && this.rows.scrollTop === this.held) this.rows.scrollTop = 0;
+      this.held = 0;
+    });
   }
 
   private filter(mistakes: boolean): void {
     this.rows.classList.toggle('mistakes', mistakes);
     this.mis.classList.toggle('on', mistakes);
     this.all.classList.toggle('on', !mistakes);
+    this.renderCount();
   }
 
   private pts(e: LogEntry): string {
@@ -81,10 +93,12 @@ export class EventLog implements View {
     const m = log.filter((e) => e.outcome === 'breach' || e.outcome === 'fp').length;
     const events = log.length === 1 ? t('log.event') : t('log.events', { n: log.length });
     this.count.textContent = log.length ? `${events} · ${m === 1 ? t('log.nMistake') : t('log.nMistakes', { n: m })}` : t('log.hint');
+    this.none.hidden = m > 0 || !this.rows.classList.contains('mistakes');
   }
 
   start(run: Run): void {
     this.run = run;
+    this.held = 0;
     this.rows.replaceChildren();
     this.filter(false);
     this.renderCount();
@@ -94,6 +108,7 @@ export class EventLog implements View {
     this.title.textContent = t('log.title');
     this.all.textContent = t('log.all');
     this.mis.textContent = t('log.mistakes');
+    this.none.textContent = t('log.noMistakes');
     const top = this.rows.scrollTop;
     this.rows.replaceChildren(...(this.run?.state.log ?? []).map((e) => this.row(e)));
     this.rows.scrollTop = top;
@@ -107,8 +122,13 @@ export class EventLog implements View {
     this.rows.prepend(r);
     // The run keeps the newest LOG_MAX entries, and so does the DOM.
     while (this.rows.childElementCount > run.state.log.length) this.rows.lastElementChild!.remove();
-    // Scrolled down reading an old row: hold it in place instead of letting the new one push it away.
-    if (prev > 0) this.rows.scrollTop = prev + r.offsetHeight;
+    // Scrolled down reading an old row, or resting the pointer on one at the top: hold it in place instead of letting
+    // the new row push it away (under a still pointer that would also swap the verdict in the inspector).
+    const pointer = this.rows.matches(':hover');
+    if (prev > 0 || pointer) {
+      this.rows.scrollTop = prev + r.offsetHeight;
+      if (pointer && prev === this.held) this.held = this.rows.scrollTop;
+    }
     this.renderCount();
   }
 }

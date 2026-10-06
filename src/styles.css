@@ -131,6 +131,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .lfilter { margin-left: auto; display: flex; }
 .lfilter button { font-family: var(--mono); font-size: 13px; line-height: 18px; background: transparent; color: var(--dim); border: 1px solid var(--mute); padding: 0 8px; cursor: pointer; }
 .lfilter button.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.log .none { font-family: var(--body); font-size: 14px; color: var(--dim); padding: 2px 4px; }
 /* The log holds a scrolled-up row in place itself (EventLog.event), so the browser's own scroll anchoring stays out of it. */
 .rows { flex: 1; overflow-y: auto; overflow-anchor: none; min-height: 0; scrollbar-width: thin; scrollbar-color: var(--dim) var(--soft); padding-right: 4px; }
 .rows.mistakes .row:not(.bad):not(.fp) { display: none; }

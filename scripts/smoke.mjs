@@ -10,6 +10,16 @@ const PORT = 4318;
 const URL = `http://localhost:${PORT}/none-shall-pass/`;
 const OUT = 'smoke-out';
 
+// Steps the run inside the page until `cond(state, arg)` holds, so a check gets its log entries however slow the frame rate.
+const stepUntil = async (page, cond, arg) => {
+  const ok = await page.evaluate(([src, a]) => {
+    const app = window.__nsp.app, test = new Function('s', 'a', `return (${src})(s, a);`);
+    for (let i = 0; i < 60 * 120 && !test(app.run.state, a); i++) app.dispatch(app.run.step(1 / 60));
+    return test(app.run.state, a);
+  }, [cond.toString(), arg]);
+  if (!ok) throw new Error(`the run never reached ${cond}`);
+};
+
 const CHECKS = {
   async boot(page) {
     await page.waitForSelector('#stage canvas');
@@ -200,18 +210,30 @@ const CHECKS = {
     await page.waitForFunction(() => ![...document.querySelectorAll('#ui .float')].some((e) => e.textContent === '+777'), null, { timeout: 3000 });
   },
   async log(page) {
-    const grown = async (n) => page.waitForFunction((k) => window.__nsp.app.run.state.log.length > k, n, { timeout: 20000 });
+    // Paused, the run only moves when this check steps it, so a busy CPU cannot time it out.
+    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
+    await page.keyboard.press('p');
     const logLength = () => page.evaluate(() => window.__nsp.app.run.state.log.length);
-    await page.waitForFunction(() => window.__nsp.app.run.state.log.length >= 8, null, { timeout: 40000 });
+    await stepUntil(page, (s) => s.log.length >= 8);
     const rows = await page.$$eval('#ui .rows .row', (a) => a.length);
     if (rows < 8) throw new Error(`only ${rows} log rows`);
+    // A pointer resting on the top row keeps that row, and its verdict, while new rows arrive above it.
     await page.hover('#ui .rows .row:first-child');
     await page.waitForSelector('#ui .ins .verdict');
-    // The verdict stays up while the pointer crosses into the inspector, and goes when it leaves the panel.
+    const rest = await page.evaluate(() => {
+      window.__smokeRow = document.querySelector('#ui .rows .row');
+      return { top: window.__smokeRow.getBoundingClientRect().top, verdict: document.querySelector('#ui .ins').textContent };
+    });
+    await stepUntil(page, (s, n) => s.log.length > n, await logLength());
+    const rested = await page.evaluate(() => ({ top: window.__smokeRow.getBoundingClientRect().top, verdict: document.querySelector('#ui .ins').textContent }));
+    if (Math.abs(rested.top - rest.top) > 1 || rested.verdict !== rest.verdict) throw new Error(`a new row moved the row under the pointer: ${JSON.stringify([rest.top, rested.top])}`);
+    // The verdict stays up while the pointer crosses into the inspector, and goes when it leaves the panel;
+    // the list, held only for the pointer, goes back to the newest row.
     await page.hover('#ui .ins');
     if (!(await page.$('#ui .ins .verdict'))) throw new Error('the verdict went away on the way to the inspector');
     await page.hover('#stage canvas', { position: { x: 700, y: 150 } });
     await page.waitForSelector('#ui .ins .verdict', { state: 'detached' });
+    if (await page.$eval('#ui .rows', (e) => e.scrollTop) !== 0) throw new Error('the log did not return to the newest row');
     // Scrolled down to an older row, a new one arriving must not push it away.
     const before = await page.evaluate(() => {
       const box = document.querySelector('#ui .rows');
@@ -219,26 +241,30 @@ const CHECKS = {
       window.__smokeRow = [...box.children].find((r) => r.getBoundingClientRect().top >= box.getBoundingClientRect().top);
       return window.__smokeRow.getBoundingClientRect().top;
     });
-    await grown(await logLength());
+    await stepUntil(page, (s, n) => s.log.length > n, await logLength());
     const after = await page.evaluate(() => window.__smokeRow.getBoundingClientRect().top);
     if (Math.abs(after - before) > 1) throw new Error(`a new row moved the row being read by ${after - before}px`);
-    // Wave 1's scans all hit the lockdown, so make one mistake for the MISTAKES view to show: spear a real user.
-    await page.waitForFunction(() => window.__nsp.app.run.state.packets.some((p) => p.t.kind === 'legit' && !p.entering && !p.doomed), null, { timeout: 20000 });
+    // Wave 1's scans all hit the lockdown, so the MISTAKES view starts out empty and says so.
+    if (await page.evaluate(() => window.__nsp.app.run.state.log.some((e) => e.outcome === 'breach' || e.outcome === 'fp'))) throw new Error('wave 1 already has a mistake');
+    await page.click('#ui .lfilter button:nth-child(2)');
+    if ((await page.textContent('#ui .log .none:not([hidden])')) !== 'No mistakes yet.') throw new Error('no empty MISTAKES line');
+    await page.click('#ui .lfilter button:nth-child(1)');
+    // Then make one: spear a real user.
+    await stepUntil(page, (s) => s.packets.some((p) => p.t.kind === 'legit' && !p.entering && !p.doomed));
     await page.evaluate(() => {
       const app = window.__nsp.app, p = app.run.state.packets.find((q) => q.t.kind === 'legit' && !q.entering && !q.doomed);
       app.dispatch(app.run.target(p.id));
       app.dispatch(app.run.throwSpear());
     });
-    await page.waitForFunction(() => window.__nsp.app.run.state.log.some((e) => e.outcome === 'fp'), null, { timeout: 5000 });
-    // Paused, so no new row shifts the list: an attack's verdict, kept while the pointer goes over to the filter.
-    await page.keyboard.press('p');
+    await stepUntil(page, (s) => s.log.some((e) => e.outcome === 'fp'));
+    // An attack's verdict, kept while the pointer goes over to the filter.
     const attack = await page.evaluate(() => Math.max(0, window.__nsp.app.run.state.log.findIndex((e) => e.packet.t.kind !== 'legit')));
     await page.hover(`#ui .rows .row:nth-child(${attack + 1})`);
     await page.click('#ui .lfilter button:nth-child(2)');
     await page.screenshot({ path: `${OUT}/log.png` });
     if (!(await page.$('#ui .ins .verdict'))) throw new Error('no verdict in the inspector');
-    await page.keyboard.press('p');
-    await grown(await logLength());
+    if (await page.$('#ui .log .none:not([hidden])')) throw new Error('the empty MISTAKES line shows next to a mistake');
+    await stepUntil(page, (s, n) => s.log.length > n, await logLength());
     const filtered = await page.evaluate(() => {
       const box = document.querySelector('#ui .rows');
       const shown = [...box.children].filter((r) => r.offsetHeight > 0);
@@ -250,13 +276,13 @@ const CHECKS = {
     // Spanish, at its longest: a held, bugged attack with the lens on keeps the inspector at 760px and its title inside it.
     await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true } })));
     await page.reload({ waitUntil: 'networkidle' });
-    await page.waitForFunction(() => window.__nsp?.app?.run?.state?.log?.length >= 3, null, { timeout: 40000 });
-    await page.waitForFunction(() => window.__nsp.app.run.state.packets.some((p) => p.t.kind !== 'legit' && !p.entering), null, { timeout: 20000 });
+    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
     // Off the field and the log, so neither a packet nor a row takes the inspector over.
     await page.hover('#ui .hud .title');
     await page.keyboard.press('p');
+    await stepUntil(page, (s) => s.log.length >= 3 && s.packets.some((p) => p.t.kind !== 'legit' && !p.entering));
     await page.evaluate(() => {
-      const app = window.__nsp.app, s = app.run.state;
+      const s = window.__nsp.app.run.state;
       const p = s.packets.find((q) => q.t.kind !== 'legit' && !q.entering);
       s.owned.push('obs3', 'lens');
       s.hints = true;

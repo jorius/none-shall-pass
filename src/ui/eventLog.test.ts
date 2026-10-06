@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // packages
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // core
 import { LOG_MAX } from '../core/constants';
@@ -35,7 +35,10 @@ describe('EventLog', () => {
     run = new Run(cfg());
     log.start(run);
   });
-  afterEach(() => setLang('en'));
+  afterEach(() => {
+    setLang('en');
+    vi.restoreAllMocks();
+  });
 
   it('lists every outcome newest first and counts the mistakes', () => {
     expect(count()).toBe('hover a line for the verdict');
@@ -68,6 +71,47 @@ describe('EventLog', () => {
     expect(rows()).toHaveLength(3);
     button(0).click();
     expect(bottom.querySelector('.rows')?.classList.contains('mistakes')).toBe(false);
+  });
+
+  it('says so when the MISTAKES view has nothing to show', () => {
+    const none = (): HTMLElement => bottom.querySelector('.log .none') as HTMLElement;
+    add('legit-socks', { outcome: 'served' });
+    expect(none().hidden).toBe(true);
+    button(1).click();
+    expect(none().hidden).toBe(false);
+    expect(none().textContent).toBe('No mistakes yet.');
+    add('sqli-union', { outcome: 'breach', points: 0, damage: 12 });
+    expect(none().hidden).toBe(true);
+    log.start(new Run(cfg()));
+    button(1).click();
+    setLang('es');
+    log.refresh();
+    expect(none().hidden).toBe(false);
+    expect(none().textContent).toBe('Aún no hay errores.');
+    button(0).click();
+    expect(none().hidden).toBe(true);
+  });
+
+  it('holds the rows still under a pointer resting at the top, and returns to the top when it leaves', () => {
+    const box = bottom.querySelector('.rows') as HTMLElement;
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(24);
+    const hover = vi.spyOn(box, 'matches').mockImplementation((sel) => sel === ':hover');
+    add('legit-socks', { outcome: 'served' });
+    add('legit-socks', { outcome: 'served' });
+    expect(box.scrollTop).toBe(48);
+    box.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(box.scrollTop).toBe(0);
+    // Scrolled down by the player: held while reading, and left where the player put it.
+    hover.mockReturnValue(false);
+    box.scrollTop = 30;
+    add('legit-socks', { outcome: 'served' });
+    expect(box.scrollTop).toBe(54);
+    box.dispatchEvent(new MouseEvent('mouseleave'));
+    expect(box.scrollTop).toBe(54);
+    // At the top with no pointer on the list, the newest row simply shows up first.
+    box.scrollTop = 0;
+    add('legit-socks', { outcome: 'served' });
+    expect(box.scrollTop).toBe(0);
   });
 
   it('never holds more rows than the run keeps', () => {
