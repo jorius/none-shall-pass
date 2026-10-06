@@ -44,11 +44,12 @@ describe('Hud', () => {
     expect(at(-1, 'ended')).toBe('0:00');
   });
 
-  it('says DESPEJANDO in Spanish', () => {
+  // DESPEJANDO ran the Spanish HUD past its bar at its widest (wave 5, hints on, five-digit score): DESPEJE fits.
+  it('says DESPEJE in Spanish', () => {
     at(0);
     setLang('es');
     hud.refresh(run);
-    expect(clock()).toBe('DESPEJANDO');
+    expect(clock()).toBe('DESPEJE');
   });
 
   it('draws one pip per point of the difficulty\'s reputation', () => {

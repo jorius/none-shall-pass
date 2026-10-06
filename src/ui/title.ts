@@ -53,9 +53,10 @@ export const renderHowto = (box: HTMLElement, back: () => void): void => {
   box.innerHTML = '';
   el('h2', '', box, t('howto.title'));
   const grid = el('div', 'howto-grid', box);
+  // Every key the game answers to, one row each, in the order a player meets them: the field, the target, the rules that bend it, the screens.
   const rows: [string, string][] = [
-    ['↑ ↓', 'howto.k1'], ['Tab', 'howto.k2'], [t('howto.space'), 'howto.k3'], ['Esc', 'howto.k4'],
-    [t('howto.click'), 'howto.k5'], ['H', 'howto.k6'], ['P', 'howto.k7'],
+    ['↑ ↓', 'howto.k1'], ['Tab', 'howto.k2'], ['Shift+Tab', 'howto.k8'], [t('howto.space'), 'howto.k3'], ['Esc', 'howto.k4'],
+    [t('howto.click'), 'howto.k5'], ['H', 'howto.k6'], ['C', 'howto.k9'], ['T', 'howto.k10'], ['M', 'howto.k11'], ['P', 'howto.k7'],
   ];
   for (const [k, key] of rows) { el('kbd', '', grid, k); el('span', '', grid, t(key)); }
   el('p', '', box, t('howto.lesson'));

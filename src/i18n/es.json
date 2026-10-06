@@ -1,5 +1,5 @@
 {
-  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0,75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT", "clearing": "DESPEJANDO", "muted": "SILENCIO · M" },
+  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0,75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT", "clearing": "DESPEJE", "muted": "SILENCIO · M" },
   "lane": { "0": "ssh", "1": "acceso", "2": "búsqueda", "3": "comentarios", "4": "otros" },
   "uptime": "DISPONIBILIDAD",
   "actor": { "you": "TÚ", "squire": "ESCUDERO", "target": "OBJETIVO · ESPACIO" },
@@ -46,8 +46,9 @@
   },
   "howto": {
     "title": "CÓMO JUGAR", "back": "VOLVER", "space": "Espacio", "click": "clic",
-    "k1": "elige un carril", "k2": "siguiente paquete en ese carril (Shift: anterior)", "k3": "arroja una lanza al objetivo", "k4": "suelta el objetivo",
+    "k1": "elige un carril", "k2": "siguiente paquete en ese carril", "k3": "arroja una lanza al objetivo", "k4": "suelta el objetivo",
     "k5": "haz clic en un paquete para apuntarle", "k6": "pistas: subraya las señales (puntaje ×0,75)", "k7": "pausa",
+    "k8": "paquete anterior en ese carril", "k9": "carga por el carril (Destrero III)", "k10": "la Armería: todas las mejoras y lo que tienes", "k11": "silencio",
     "lesson": "Los paquetes que llegan al muro de fuego se queman dentro de tu servidor. Lancea los ataques, deja pasar a los usuarios reales y gasta los créditos de cada oleada en mejoras que enseñan defensas reales. Las reglas baratas fallan y se equivocan; las soluciones de raíz cuestan más y no dejan fugas."
   },
   "debrief": {

@@ -46,8 +46,9 @@
   },
   "howto": {
     "title": "HOW TO PLAY", "back": "BACK", "space": "Space", "click": "click",
-    "k1": "pick a lane", "k2": "next packet in that lane (Shift: previous)", "k3": "throw a spear at the target", "k4": "let the target go",
+    "k1": "pick a lane", "k2": "next packet in that lane", "k3": "throw a spear at the target", "k4": "let the target go",
     "k5": "click a packet to target it", "k6": "hints: underline the tells (score ×0.75)", "k7": "pause",
+    "k8": "previous packet in that lane", "k9": "charge the lane (Destrier III)", "k10": "the Armory: every upgrade and what you own", "k11": "mute",
     "lesson": "Packets that reach the wall of fire burn into your server. Spear the attacks, let real users through, and spend each wave's credits on upgrades that teach real defences. Cheap rules leak and misfire; root-cause fixes cost more and stay clean."
   },
   "debrief": {

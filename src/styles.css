@@ -45,10 +45,11 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
    stops short of the coach tip (x 130). */
 .hud .mute { position: absolute; left: 0; top: 100%; margin-top: 1px; padding: 2px 6px 3px 8px; font-size: 13px; line-height: 16px; color: var(--dim); background: var(--paper); border: 1px solid var(--mute); border-width: 0 1px 1px 0; }
 .hud .mute .note { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--r); }
-/* Spanish labels run about 110px longer, so the Spanish HUD packs tighter to stay on one line. */
+/* Spanish labels run about 110px longer, so the Spanish HUD packs tighter to stay on one line. At its widest (wave 5, hints on, five-digit
+   score) with DESPEJE in the clock, the right group's 13px gaps leave the 8px or more the bar keeps between its two groups (14px left 6). */
 :lang(es) .hud { padding: 0 16px; }
 :lang(es) .hud-l { gap: 16px; }
-:lang(es) .hud-r { gap: 14px; }
+:lang(es) .hud-r { gap: 13px; }
 :lang(es) .hud .title { letter-spacing: .1em; }
 :lang(es) .hud .stat b { margin-left: 4px; }
 :lang(es) .pips { gap: 2px; }

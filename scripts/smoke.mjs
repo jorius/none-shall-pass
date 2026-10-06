@@ -403,21 +403,27 @@ const CHECKS = {
     if (shot[25] === 6) throw new Error('part of the canvas did not draw under the UI layer');
     const cur = await page.$$eval('#ui .glabel.cur', (a) => a.length);
     if (cur !== 1) throw new Error('lane highlight missing');
-    // Spanish runs about 110px longer: at its widest (wave 5, hints on, five-digit score) the HUD stays on one line.
+    // Spanish runs about 110px longer: at its widest (wave 5, hints on, five-digit score) the HUD stays on one line, with the clock counting
+    // and with it saying DESPEJE (time up mid-wave, the last packets still landing: a word where a clock was). The run is held, so neither
+    // a step nor the wave clearing can change the HUD between the figures and the shot.
     await spanish(page);
     await page.reload({ waitUntil: 'networkidle' });
     await play(page);
-    const fit = await page.evaluate(() => {
+    await freeze(page);
+    const widest = (timeLeft) => page.evaluate((left) => {
       const app = window.__nsp.app;
-      Object.assign(app.run.state, { wave: 5, score: 88888, credits: 8888, hints: true });
+      Object.assign(app.run.state, { wave: 5, score: 88888, credits: 8888, hints: true, timeLeft: left });
       app.refresh();
       const hud = document.querySelector('#ui .hud'), k = hud.getBoundingClientRect().width / 1280;
       const l = hud.querySelector('.hud-l').getBoundingClientRect(), r = hud.querySelector('.hud-r').getBoundingClientRect();
       const tall = [...hud.querySelectorAll('.hud-l > *, .hud-r > *')].filter((e) => e.getBoundingClientRect().height / k > 32).length;
-      return { tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - hud.getBoundingClientRect().right) / k) };
-    });
-    if (fit.tall || fit.room < 8 || fit.over > 0) throw new Error(`Spanish HUD does not fit: ${JSON.stringify(fit)}`);
-    await page.screenshot({ path: `${OUT}/hud-es.png` });
+      return { clock: hud.querySelector('.wave b:last-child').textContent, tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - hud.getBoundingClientRect().right) / k) };
+    }, timeLeft);
+    for (const [left, clock] of [[42, '0:42'], [0, 'DESPEJE']]) {
+      const fit = await widest(left);
+      if (fit.clock !== clock || fit.tall || fit.room < 8 || fit.over > 0) throw new Error(`Spanish HUD does not fit with the clock at ${clock}: ${JSON.stringify(fit)}`);
+      await page.screenshot({ path: `${OUT}/${clock === 'DESPEJE' ? 'hud-es-clearing' : 'hud-es'}.png` });
+    }
   },
   async panels(page) {
     // The HUD, gutter and uptime strip are opaque: a click on them must not reach the field behind them.
@@ -604,6 +610,15 @@ const CHECKS = {
     await page.waitForSelector('#ui .ov-title .best');
     if (await page.$eval('#ui .ov-title .row-btns .btn:nth-child(2)', (b) => b.disabled)) throw new Error('Overtime still locked after a win');
     await fits(page, 'title with bests');
+    // The how-to lists every key (eleven rows); its keys and meanings sit on one line each and the screen holds them, in both languages.
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(3)');
+    await page.waitForSelector('#ui .ov-howto kbd');
+    const keys = await page.$$eval('#ui .ov-howto .howto-grid > kbd', (k) => k.map((e) => e.textContent).join(' '));
+    if (keys !== '↑ ↓ Tab Shift+Tab Space Esc click H C T M P') throw new Error(`the how-to's keys: ${keys}`);
+    await fits(page, 'how-to');
+    await page.screenshot({ path: `${OUT}/howto.png` });
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#ui .ov-title .btn');
     await page.click('#ui .ov-title .row-btns .btn:nth-child(5)');
     await page.waitForFunction(() => document.documentElement.lang === 'es' && /JUGAR CAMPAÑA/.test(document.querySelector('#ui .ov-title').textContent));
     await fits(page, 'Spanish title');
@@ -614,6 +629,8 @@ const CHECKS = {
     await page.click('#ui .ov-title .row-btns .btn:nth-child(3)');
     await page.waitForSelector('#ui .ov-howto kbd');
     await fits(page, 'Spanish how-to');
+    const keysEs = await page.$$eval('#ui .ov-howto .howto-grid > kbd', (k) => k.map((e) => e.textContent).join(' '));
+    if (keysEs !== '↑ ↓ Tab Shift+Tab Espacio Esc clic H C T M P') throw new Error(`the Spanish how-to's keys: ${keysEs}`);
     await page.screenshot({ path: `${OUT}/howto-es.png` });
     await page.keyboard.press('Escape');
     // By keyboard: Tab stays on the title's buttons (the layer behind is inert), Enter opens the setup with START
