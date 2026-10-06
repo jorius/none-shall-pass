@@ -61,6 +61,8 @@ export class PacketsView implements View {
     scene.layers.packets.add([this.overlay, this.tag]);
     scene.input.on('pointermove', (ptr: Phaser.Input.Pointer) => this.onMove(ptr));
     scene.input.on('pointerdown', (ptr: Phaser.Input.Pointer) => this.onDown(ptr));
+    // A quick flick can go from a card straight onto a DOM panel with no move over the canvas in between.
+    scene.input.on('gameout', () => { if (this.hovered !== null) { this.hovered = null; this.intents.hover(null); } });
   }
 
   // The card drawn on top under the pointer: hits follow the display order, so a click lands on
