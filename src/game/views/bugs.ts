@@ -20,7 +20,8 @@ const DART = 0.3, GNAT_STAY = 0.4;
 export interface Spot { x: number; y: number; stay: number }
 
 // One lap of the card's edge, clockwise from the top-left corner: `u` is the progress in laps, and it wraps.
-// The rotation points the sprite's top away from the card, so a crawler straddles the rim as it goes.
+// `rot` is the heading along the edge, 0 rightward along the top and clockwise-positive as Phaser turns; a sprite drawn
+// head-up turns a further quarter to lead with it, and its legs then straddle the rim.
 export const bugPath = (_kind: BugKind, u: number, w: number, h: number): { x: number; y: number; rot: number } => {
   const per = 2 * (w + h), d = ((u % 1) + 1) % 1 * per;
   if (d < w) return { x: d, y: 0, rot: 0 };
@@ -87,8 +88,9 @@ export class BugRig {
     if (this.kind === 'fly' || this.kind === 'gnat') { this.flyFrame(age, dt, reduced); return; }
     const laps = age / LAP_SECS[this.kind], u = laps + this.phase;
     const lead = bugPath(this.kind, u, this.w, this.h);
-    // The worm's head sprite faces left, so it turns half round to lead; the segments trail it along the path and slither sideways.
-    const turn = this.kind === 'worm' ? Math.PI : 0;
+    // The spider and the beetle are drawn head-up, the worm head-left: each turns onto the heading so the head leads.
+    // The worm's segments trail it along the path and slither sideways.
+    const turn = this.kind === 'worm' ? Math.PI : Math.PI / 2;
     this.parts.forEach((img, i) => {
       const p = i === 0 ? lead : bugPath(this.kind, u - i * 0.012, this.w, this.h);
       const sway = this.kind === 'worm' ? Math.sin(age * 7 - i * 0.9) * 2.5 : 0;
@@ -97,10 +99,11 @@ export class BugRig {
       if (this.kind !== 'worm') img.setTexture(`bug-${this.kind}-${Math.floor(age / 0.12) % 2}`);
     });
     // One bite a lap, where the head is when the lap's moment comes; the dice pick the moment, so the spots spread around the frame.
-    // Laps spent at the limit are skipped, not caught up on, if the limit ever rises.
+    // A moment the limit blocks is forfeited, and the next one is always in a later lap, so a limit raised afterwards
+    // (reduced effects switched off) does not fire a stale bite at once.
     const limit = reduced ? 2 : MAX_BITES;
-    if (laps >= this.nextBite && this.bites < limit) {
-      this.bite(lead.x, lead.y);
+    if (laps >= this.nextBite) {
+      if (this.bites < limit) this.bite(lead.x, lead.y);
       this.lap = Math.max(this.lap, Math.floor(laps)) + 1;
       this.nextBite = this.lap + this.rng();
     }
@@ -118,9 +121,10 @@ export class BugRig {
     const k = Math.min(1, this.flyT / DART), ease = 1 - (1 - k) * (1 - k);
     const x = this.flyFrom.x + (spot.x - this.flyFrom.x) * ease, y = this.flyFrom.y + (spot.y - this.flyFrom.y) * ease;
     // Landed, it twitches and flicks its wings; in the air the housefly's wings blur (the gnat, with no blur frame, flies on its up-stroke).
+    // Its eyes sit at the sprite's left, so it flips to face where it darts.
     const twitch = k >= 1 ? Math.sin(age * 40) * 0.6 : 0;
     const key = k < 1 ? (this.kind === 'fly' ? 'bug-fly-wing' : `bug-${this.kind}-1`) : `bug-${this.kind}-${Math.floor(age / 0.08) % 2}`;
-    img.setPosition(x + twitch, y).setTexture(key);
+    img.setPosition(x + twitch, y).setFlipX(spot.x > this.flyFrom.x).setTexture(key);
   }
 
   // Nothing of the rig shows past the fire: parts and bites at a local x of `limit` or more hide.

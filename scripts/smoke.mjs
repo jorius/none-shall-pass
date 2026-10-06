@@ -222,7 +222,7 @@ const CHECKS = {
     await page.evaluate(() => { const app = window.__nsp.app; app.run.state.owned.push('obs3'); app.dispatch([{ type: 'owned', owned: [...app.run.state.owned] }]); });
     await stepUntil(page, (s) => s.wave === 3 && s.packets.some((p) => p.t.kind === 'sqli' && p.x > 200 && p.x < 500 && !p.entering && !p.doomed));
     const id = await page.evaluate(() => window.__nsp.app.run.state.packets.find((p) => p.t.kind === 'sqli' && p.x > 200 && p.x < 500 && !p.entering && !p.doomed).id);
-    const rigs = () => page.evaluate(() => window.__nsp.packets.rigs());
+    const rigs = () => page.evaluate(() => window.__nsp.packets.debugRigs());
     const bugAt = (name) => page.evaluate((n) => { const s = window.__nsp.game.scene.getScene('field').layers.packets.list.find((o) => o.name === n).list.at(-1); return [s.x, s.y]; }, name);
     // Frozen, the card stays put while its rig runs ahead on the debug clock; the crumbs are counted at the effects call.
     await freeze(page);
@@ -273,7 +273,7 @@ const CHECKS = {
     await freeze(page, false);
     await stepUntil(page, (s, pid) => !s.packets.some((p) => p.id === pid), id);
     const gone = await page.evaluate((pid) => ({
-      rig: window.__nsp.packets.rigs().some((r) => r.id === pid), box: window.__smokeBox.active || !!window.__smokeBox.scene,
+      rig: window.__nsp.packets.debugRigs().some((r) => r.id === pid), box: window.__smokeBox.active || !!window.__smokeBox.scene,
       parts: window.__smokeParts.length, live: window.__smokeParts.filter((o) => o.active || o.scene).length,
     }), id);
     if (gone.rig || gone.box || gone.parts !== 7 || gone.live) throw new Error(`after the card died: ${JSON.stringify(gone)}`);

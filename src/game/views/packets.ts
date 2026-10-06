@@ -174,7 +174,7 @@ export class PacketsView implements View {
 
   // Debug hooks for the smoke test: the live rigs, and a clock that runs them ahead of the view in 60 Hz steps,
   // so a check can watch a lap's worth of bites without waiting a lap.
-  rigs(): { id: number; kind: BugKind; bites: number }[] {
+  debugRigs(): { id: number; kind: BugKind; bites: number }[] {
     return [...this.visuals].flatMap(([id, v]) => (v.rig ? [{ id, kind: v.rig.kind, bites: v.rig.bites }] : []));
   }
 
