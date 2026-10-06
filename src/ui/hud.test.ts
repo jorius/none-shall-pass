@@ -84,6 +84,59 @@ describe('Hud', () => {
     expect([14, 10, 9, 6, 5].map((rep) => at('intern', rep))).toEqual(['pips good', 'pips good', 'pips mid', 'pips mid', 'pips low']);
   });
 
+  describe('the mute badge', () => {
+    let audio: { sound: boolean; music: boolean };
+    const badge = (): HTMLElement => ui.querySelector<HTMLElement>('.hud .mute')!;
+    const shown = (): boolean => badge().style.display !== 'none';
+    beforeEach(() => {
+      audio = { sound: true, music: true };
+      ui = document.createElement('div');
+      hud = new Hud(ui, { act: () => undefined, root: false, audioSettings: () => audio } as unknown as App);
+      run = new Run(cfg());
+      hud.start(run);
+    });
+
+    it('shows only while sound and music are both off, as the HUD is refreshed', () => {
+      expect(shown()).toBe(false);
+      audio.sound = false;
+      hud.refresh(run);
+      expect(shown()).toBe(false);
+      audio.music = false;
+      hud.refresh(run);
+      expect(shown()).toBe(true);
+      expect(badge().textContent).toContain('MUTED · M');
+      audio.sound = true;
+      hud.refresh(run);
+      expect(shown()).toBe(false);
+    });
+
+    it('is up from the start when the last session ended muted, and behind the title as well', () => {
+      audio.sound = false;
+      audio.music = false;
+      hud.start(new Run(cfg()));
+      expect(shown()).toBe(true);
+      hud.refresh(null);
+      expect(shown()).toBe(true);
+    });
+
+    it('says SILENCIO · M in Spanish', () => {
+      audio.sound = false;
+      audio.music = false;
+      hud.refresh(run);
+      setLang('es');
+      hud.refresh(run);
+      expect(badge().textContent).toContain('SILENCIO · M');
+    });
+
+    it('stays out when no audio is wired', () => {
+      const bare = document.createElement('div');
+      const quiet = new Hud(bare, { act: () => undefined, root: false } as unknown as App);
+      quiet.start(run);
+      quiet.refresh(run);
+      expect(bare.querySelector<HTMLElement>('.hud .mute')!.style.display).toBe('none');
+    });
+  });
+
   it('hides the hints toggle on Zero-day, which allows none, as it does in root mode', () => {
     const hints = (): string => ui.querySelector<HTMLElement>('.toggle')!.style.display;
     expect(hints()).toBe('');

@@ -2,6 +2,9 @@
 // packages
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// audio
+import { AudioView } from '../audio';
+
 // core
 import { cardById } from '../core/content/cards';
 import type { LogEntry } from '../core/events';
@@ -27,14 +30,19 @@ vi.mock('../art/dataurl', () => ({ iconUrl: (icon: string) => `data:image/png;${
 const fakeEntry = (outcome: 'breach' | 'fp'): LogEntry => ({ seq: 1, wave: 1, outcome, packet: place(freshState(), outcome === 'fp' ? 'legit-socks' : 'scan-telnet', 300), points: 0 });
 
 describe('Overlays', () => {
-  let ui: HTMLElement, hud: HTMLElement, app: App, store: Store, effects: { reduced: boolean }, unLang = (): void => {};
+  let ui: HTMLElement, hud: HTMLElement, app: App, store: Store, audio: AudioView, effects: { reduced: boolean }, unLang = (): void => {};
   const box = (): HTMLElement => ui.querySelector('.ov')!;
   const buttons = (): HTMLButtonElement[] => [...box().querySelectorAll('button')];
   const named = (text: RegExp): HTMLButtonElement => buttons().find((b) => text.test(b.textContent ?? ''))!;
   const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
   const boot = (): void => {
     app = new App({ onFrame: null } as unknown as FieldScene, store);
-    app.add(new Overlays(ui, app, { effects: effects as EffectsView }));
+    // As main.ts wires it, but with no context to play on: the switches and the saved prefs are the real ones. The apps of the
+    // earlier tests still listen on the window, so each mutes its own view and not whichever the variable holds by then.
+    const mine = new AudioView(() => null, store.prefs(), (p) => store.setPrefs(p));
+    audio = mine;
+    app.onMute = () => mine.toggleMute();
+    app.add(new Overlays(ui, app, { effects: effects as EffectsView, audio: mine }));
     // As main.ts wires it: a language switch refreshes every view.
     unLang = onLang(() => app.refresh());
     app.quit();
@@ -232,6 +240,77 @@ describe('Overlays', () => {
     expect(box().className).toBe('ov show ov-title');
   });
 
+  it('switches sound and music and steps the volume from the pause menu, saving each, and a keyboard player keeps the button', () => {
+    boot();
+    app.startRun('campaign');
+    app.act('pause');
+    // Their own row, after the five that were there before.
+    expect([...box().querySelectorAll('.row-btns')].map((r) => [...r.querySelectorAll('button')].map((b) => b.textContent))).toEqual([
+      ['RESUME', 'QUIT TO TITLE', 'ARMORY · T', 'ES', 'REDUCED EFFECTS · OFF'], ['SOUND · ON', 'MUSIC · ON', 'VOLUME · 2/3'],
+    ]);
+    named(/^SOUND/).focus();
+    named(/^SOUND/).click();
+    expect([audio.settings.sound, store.prefs().sound, named(/^SOUND/).textContent]).toEqual([false, false, 'SOUND · OFF']);
+    expect(document.activeElement).toBe(named(/^SOUND/));
+    named(/^MUSIC/).focus();
+    named(/^MUSIC/).click();
+    expect([audio.settings.music, store.prefs().music, named(/^MUSIC/).textContent]).toEqual([false, false, 'MUSIC · OFF']);
+    expect(document.activeElement).toBe(named(/^MUSIC/));
+    named(/^SOUND/).click();
+    expect([audio.settings.sound, store.prefs().sound]).toEqual([true, true]);
+    // The volume steps up to 3, wraps to 0 and climbs back to where it began.
+    const volumes: string[] = [];
+    for (let i = 0; i < 4; i++) { named(/^VOLUME/).click(); volumes.push(named(/^VOLUME/).textContent!); }
+    expect(volumes).toEqual(['VOLUME · 3/3', 'VOLUME · 0/3', 'VOLUME · 1/3', 'VOLUME · 2/3']);
+    expect([audio.settings.volume, store.prefs().volume]).toEqual([2, 2]);
+    // The pause is still the pause.
+    expect(app.screen).toBe('paused');
+  });
+
+  it('refreshes the other views when a sound switch moves, so the HUD badge follows', () => {
+    boot();
+    const refreshed = vi.fn();
+    app.add({ refresh: refreshed });
+    app.startRun('campaign');
+    app.act('pause');
+    for (const label of [/^SOUND/, /^MUSIC/, /^VOLUME/]) {
+      refreshed.mockClear();
+      named(label).click();
+      expect(refreshed, String(label)).toHaveBeenCalled();
+    }
+  });
+
+  it('says the sound switches in Spanish, SÍ and NO', () => {
+    boot();
+    app.startRun('campaign');
+    app.act('pause');
+    named(/^ES$/).click();
+    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SONIDO · SÍ', 'MÚSICA · SÍ', 'VOLUMEN · 2/3']);
+    named(/^SONIDO/).click();
+    named(/^MÚSICA/).click();
+    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SONIDO · NO', 'MÚSICA · NO', 'VOLUMEN · 2/3']);
+  });
+
+  it('follows M while the pause menu is open', () => {
+    boot();
+    app.startRun('campaign');
+    app.act('pause');
+    press('m');
+    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SOUND · OFF', 'MUSIC · OFF', 'VOLUME · 2/3']);
+    expect([store.prefs().sound, store.prefs().music]).toEqual([false, false]);
+    press('M');
+    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SOUND · ON', 'MUSIC · ON', 'VOLUME · 2/3']);
+    expect(app.screen).toBe('paused');
+  });
+
+  it('starts the pause menu on what the last session saved', () => {
+    store.setPrefs({ sound: false, music: true, volume: 0 });
+    boot();
+    app.startRun('campaign');
+    app.act('pause');
+    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SOUND · OFF', 'MUSIC · ON', 'VOLUME · 0/3']);
+  });
+
   it('opens the Armory from the title and closes it back onto the title, with CLOSE, T or Esc', () => {
     boot();
     expect([...box().querySelectorAll('.row-btns .btn')].map((b) => b.textContent)).toEqual(['PLAY CAMPAIGN', 'OVERTIME', 'HOW TO PLAY', 'ARMORY', 'ES']);
@@ -253,12 +332,24 @@ describe('Overlays', () => {
     expect([app.screen, box().className]).toEqual(['title', 'ov show ov-title']);
   });
 
+  it('mutes from the Armory with M and leaves it as the player had it, the card under the mouse still in the detail', () => {
+    boot();
+    app.act('armory');
+    const cards = (): HTMLElement[] => [...box().querySelectorAll<HTMLElement>('.cx')];
+    const detail = (): string | null | undefined => box().querySelector('.ar-detail h6')?.textContent;
+    cards()[3].dispatchEvent(new MouseEvent('mouseenter'));
+    const hovered = detail();
+    expect(hovered).not.toBe(cards()[0].querySelector('.nm')?.textContent);
+    press('m');
+    expect([audio.settings.sound, audio.settings.music, app.screen, detail(), cards()[3].classList.contains('sel')]).toEqual([false, false, 'armory', hovered, true]);
+  });
+
   it('opens the Armory from the pause menu on the run in hand, and closes it back onto the pause', () => {
     boot();
     app.startRun('campaign');
     Object.assign(app.run!.state, { credits: 820, owned: ['lockdown', 'destrier', 'obs1', 'obs2'] });
     app.act('pause');
-    expect([...box().querySelectorAll('.row-btns .btn')].map((b) => b.textContent)).toEqual(['RESUME', 'QUIT TO TITLE', 'ARMORY · T', 'ES', 'REDUCED EFFECTS · OFF']);
+    expect([...box().querySelectorAll('.row-btns .btn')].map((b) => b.textContent)).toEqual(['RESUME', 'QUIT TO TITLE', 'ARMORY · T', 'ES', 'REDUCED EFFECTS · OFF', 'SOUND · ON', 'MUSIC · ON', 'VOLUME · 2/3']);
     named(/^ARMORY · T$/).click();
     expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
     expect([box().querySelector('.ar-head .n')?.textContent, box().querySelector('.ar-head .cr')?.textContent]).toEqual(['3 of 14 owned', 'CREDITS 820']);

@@ -15,6 +15,9 @@ import { fmtNum, loc, t } from '../i18n';
 import type { App } from '../app';
 import { button, el } from './dom';
 
+// A note struck through: ♪ and the combining long solidus.
+const MUTED_GLYPH = '\u266A\u0338';
+
 export class Hud implements View {
   private readonly waveEl: HTMLElement;
   private readonly score: HTMLElement;
@@ -23,6 +26,7 @@ export class Hud implements View {
   private readonly hints: HTMLButtonElement;
   private readonly pauseBtn: HTMLButtonElement;
   private readonly root: HTMLElement;
+  private readonly mute: HTMLElement;
   private readonly labels: HTMLElement[] = [];
   private last = '';
   private started: Run | null = null;
@@ -48,12 +52,23 @@ export class Hud implements View {
     this.pips = el('span', 'pips', rep);
     this.hints = button(r, 'toggle', '', () => app.act('hints'));
     this.pauseBtn = button(r, 'toggle', t('hud.pause'), () => app.act('pause'));
+    // Outside the bar's left and right groups (see .hud .mute): the Spanish HUD at its widest has no room left between them.
+    this.mute = el('span', 'mute', bar);
+    this.syncMute();
+  }
+
+  // Both switches off: a struck note and the key that brings the sound back.
+  private syncMute(): void {
+    const audio = this.app.audioSettings?.();
+    this.mute.style.display = audio && !audio.sound && !audio.music ? '' : 'none';
+    this.mute.textContent = `${MUTED_GLYPH} ${t('hud.muted')}`;
   }
 
   refresh(run: Run | null): void {
     this.labels.forEach((s) => { s.textContent = t((s.parentElement as HTMLElement).dataset.key ?? ''); });
     this.pauseBtn.textContent = t('hud.pause');
     this.root.textContent = t('hud.root');
+    this.syncMute();
     // On the title (no run) the Konami code can switch root mode under the idle field; the HUD behind it follows.
     if (!run) this.mode(this.app.root, !this.started || allowsHints(this.started.state.cfg.difficulty));
     this.last = '';
@@ -65,6 +80,7 @@ export class Hud implements View {
   // and the last run's numbers must not stay up behind it.
   start(run: Run): void {
     this.started = run;
+    this.syncMute();
     this.mode(run.state.cfg.root, allowsHints(run.state.cfg.difficulty));
     this.last = '';
     this.frame(run);

@@ -88,6 +88,20 @@ describe('routeKey', () => {
     expect(routeKey(k('t', { metaKey: true }), 'armory')).toBeNull();
   });
 
+  it('mutes with M on every screen but the console, once per press, never from a field and never with a shortcut held', () => {
+    for (const screen of ['title', 'howto', 'setup', 'playing', 'paused', 'recap', 'draft', 'armory', 'debrief'] as const) {
+      expect(routeKey(k('m'), screen), screen).toBe('mute');
+      expect(routeKey(k('M'), screen), screen).toBe('mute');
+      expect(routeKey(k('m', { repeat: true }), screen), screen).toBeNull();
+      expect(routeKey(k('m', { inField: true }), screen), screen).toBeNull();
+      expect(routeKey(k('m', { ctrlKey: true }), screen), screen).toBeNull();
+      expect(routeKey(k('m', { metaKey: true }), screen), screen).toBeNull();
+    }
+    // The console's prompt is a text field: an M typed there is a letter.
+    expect(routeKey(k('m'), 'console')).toBeNull();
+    expect(routeKey(k('m', { inField: true }), 'console')).toBeNull();
+  });
+
   it('finds the backtick by its physical key on layouts where it is a dead key', () => {
     const dead = (over: KeyOver = {}) => k('Dead', { code: 'Backquote', ...over });
     expect(routeKey(dead(), 'playing')).toBe('console');

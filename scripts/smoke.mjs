@@ -804,6 +804,122 @@ const CHECKS = {
     if (idle.run !== null || idle.paused || idle.cards || idle.score !== '0' || idle.coach !== 'none') throw new Error(`after quitting: ${JSON.stringify(idle)}`);
     await page.screenshot({ path: `${OUT}/quit-title.png` });
   },
+  async sound(page) {
+    // The sound waits for the first key or press; M mutes the sound and the music together and the HUD says so; the pause menu
+    // switches each. Headless Chromium has no output device, so this checks state (and that nothing throws on the real context),
+    // never what is heard.
+    const audio = () => page.evaluate(() => ({
+      unlocked: window.__nsp.audio.unlocked, looping: window.__nsp.audio.looping, settings: window.__nsp.audio.settings,
+      context: !!window.__nsp.audio.ctx, saved: JSON.parse(localStorage.getItem('nsp.v1') ?? '{}').prefs ?? {},
+    }));
+    const badge = () => page.isVisible('#ui .hud .mute');
+    // The pause menu's last three buttons are the sound switches; the five before them keep their places.
+    const switches = async () => (await page.$$eval('#ui .ov-pause button', (b) => b.map((e) => e.textContent))).slice(-3).join(' | ');
+    const expectAudio = (what, a, want) => {
+      const got = { sound: a.settings.sound, music: a.settings.music, volume: a.settings.volume, looping: a.looping, savedSound: a.saved.sound, savedMusic: a.saved.music, savedVolume: a.saved.volume };
+      if (JSON.stringify(got) !== JSON.stringify(want)) throw new Error(`${what}: ${JSON.stringify(got)}, expected ${JSON.stringify(want)}`);
+    };
+    const state = (sound, music, volume, looping, saved = true) => ({ sound, music, volume, looping, savedSound: saved ? sound : undefined, savedMusic: saved ? music : undefined, savedVolume: saved ? volume : undefined });
+
+    // Before any gesture nothing is built or running, and there is no badge.
+    await page.waitForSelector('#ui .ov-title .btn');
+    let a = await audio();
+    if (a.unlocked || a.context || a.looping || await badge()) throw new Error(`audio before a gesture: ${JSON.stringify(a)}`);
+    // The first key (a letter the title routes nowhere) builds it on the real AudioContext, and the loop starts under the title.
+    await page.keyboard.press('x');
+    a = await audio();
+    if (!a.unlocked || !a.context || !a.looping) throw new Error(`after the first key: ${JSON.stringify(a)}`);
+    // Every effect schedules on the real context without throwing, which the unit tests' fake context cannot show.
+    const failed = await page.evaluate(() => {
+      const errors = [];
+      for (const n of ['throw', 'hit', 'miss', 'swallow', 'breach', 'pick', 'levelUp', 'button', 'pause', 'waveStart', 'charge', 'recap']) {
+        try { window.__nsp.audio.synth.play(n); } catch (e) { errors.push(`${n}: ${e.message}`); }
+      }
+      return errors;
+    });
+    if (failed.length) throw new Error(`effects on the real context: ${failed.join('; ')}`);
+
+    // M puts both off (saved, the loop stopped, the badge up) and brings both back.
+    await play(page);
+    expectAudio('in play', await audio(), state(true, true, 2, true, false));
+    await page.keyboard.press('m');
+    expectAudio('after M', await audio(), state(false, false, 2, false));
+    if (!await badge()) throw new Error('no MUTED badge after M');
+    await page.screenshot({ path: `${OUT}/sound-muted.png` });
+    await page.keyboard.press('m');
+    expectAudio('after M again', await audio(), state(true, true, 2, true));
+    if (await badge()) throw new Error('the MUTED badge stayed after M again');
+
+    // The pause menu: the three switches, each saved, and M still works over it.
+    await page.keyboard.press('p');
+    await page.waitForSelector('#ui .ov-pause .btn');
+    if (await switches() !== 'SOUND · ON | MUSIC · ON | VOLUME · 2/3') throw new Error(`pause switches: ${await switches()}`);
+    await fits(page, 'pause with the sound switches');
+    await page.screenshot({ path: `${OUT}/sound-pause.png` });
+    const press = (word) => page.click(`#ui .ov-pause button:has-text("${word}")`);
+    await press('SOUND');
+    expectAudio('SOUND off', await audio(), state(false, true, 2, true));
+    if (await switches() !== 'SOUND · OFF | MUSIC · ON | VOLUME · 2/3') throw new Error(`after SOUND: ${await switches()}`);
+    await press('MUSIC');
+    expectAudio('MUSIC off', await audio(), state(false, false, 2, false));
+    if (!await badge()) throw new Error('both off from the pause menu, and no MUTED badge');
+    // The volume steps up to 3, wraps to 0 and climbs: the loop only runs while there is a volume and the music is on.
+    await press('SOUND');
+    await press('MUSIC');
+    const volumes = [];
+    for (let i = 0; i < 3; i++) { await press('VOLUME'); volumes.push((await audio()).settings.volume); }
+    if (volumes.join() !== '3,0,1') throw new Error(`the volume stepped ${volumes}`);
+    expectAudio('VOLUME 1', await audio(), state(true, true, 1, true));
+    await page.keyboard.press('m');
+    expectAudio('M over the pause', await audio(), state(false, false, 1, false));
+    if (await switches() !== 'SOUND · OFF | MUSIC · OFF | VOLUME · 1/3') throw new Error(`after M in the pause: ${await switches()}`);
+    await page.keyboard.press('m');
+    await press('VOLUME');
+    expectAudio('VOLUME back to 2', await audio(), state(true, true, 2, true));
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+
+    // The console's prompt keeps its letters: M typed there is a letter, not the mute key.
+    await page.keyboard.press('`');
+    await page.waitForSelector('#ui .term.show input');
+    await page.waitForFunction(() => document.activeElement?.tagName === 'INPUT');
+    await page.keyboard.type('mmm');
+    if (await page.inputValue('#ui .term input') !== 'mmm') throw new Error('the console did not get its letters');
+    expectAudio('M in the console', await audio(), state(true, true, 2, true));
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+
+    // Saved muted, in Spanish: the badge is up from the start, the widest HUD still fits with it, and the pause menu reads in Spanish.
+    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true, sound: false, music: false } })));
+    await page.reload({ waitUntil: 'networkidle' });
+    await play(page);
+    if (!await badge()) throw new Error('a muted save came up with no badge');
+    // The badge hangs under the bar's left end, so the bar keeps the room it had at its widest (wave 5, hints on, a five-digit
+    // score); it stays short of the coach tip at x 130 and clear of the lane labels.
+    const hud = await page.evaluate(() => {
+      const app = window.__nsp.app;
+      Object.assign(app.run.state, { wave: 5, score: 88888, credits: 8888, hints: true });
+      app.refresh();
+      const bar = document.querySelector('#ui .hud'), b = bar.getBoundingClientRect(), k = b.width / 1280;
+      const l = bar.querySelector('.hud-l').getBoundingClientRect(), r = bar.querySelector('.hud-r').getBoundingClientRect();
+      const tab = bar.querySelector('.mute'), t = tab.getBoundingClientRect();
+      const tall = [...bar.querySelectorAll('.hud-l > *, .hud-r > *')].filter((e) => e.getBoundingClientRect().height / k > 32).length;
+      const hits = [...document.querySelectorAll('#ui .glabel *')].filter((e) => {
+        const x = e.getBoundingClientRect();
+        return x.width > 0 && x.left < t.right && x.right > t.left && x.top < t.bottom && x.bottom > t.top;
+      }).length;
+      return { text: tab.textContent, tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - b.right) / k), under: Math.round((t.top - b.bottom) / k), right: Math.round((t.right - b.left) / k), size: parseFloat(getComputedStyle(tab).fontSize), hits };
+    });
+    if (!/SILENCIO · M$/.test(hud.text)) throw new Error(`the badge says ${JSON.stringify(hud.text)}`);
+    if (hud.tall || hud.room < 8 || hud.over > 0) throw new Error(`Spanish HUD does not fit while muted: ${JSON.stringify(hud)}`);
+    if (hud.under < 0 || hud.right > 129 || hud.size < 13 || hud.hits) throw new Error(`the badge is misplaced: ${JSON.stringify(hud)}`);
+    await page.screenshot({ path: `${OUT}/sound-es.png` });
+    await page.keyboard.press('p');
+    await page.waitForSelector('#ui .ov-pause .btn');
+    if (await switches() !== 'SONIDO · NO | MÚSICA · NO | VOLUMEN · 2/3') throw new Error(`Spanish pause switches: ${await switches()}`);
+    await fits(page, 'Spanish pause with the sound switches');
+    await page.screenshot({ path: `${OUT}/sound-pause-es.png` });
+  },
   async armory(page) {
     // The Armory is read only: three branches, fourteen cards, CLOSE focused, the detail open on the first card. From the title
     // it shows the loadout a run starts with; T and Esc, the ARMORY button and CLOSE all put it away.

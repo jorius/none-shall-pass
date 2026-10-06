@@ -1,3 +1,6 @@
+// audio
+import type { AudioPrefs, AudioView } from '../audio';
+
 // core
 import { STARTING_LOADOUT } from '../core/content/cards';
 import type { RunEvent } from '../core/events';
@@ -39,7 +42,7 @@ export class Overlays implements View {
   private armoryFrom: Kind = 'none';
   private ended: { run: Run; newBest: boolean; prev: PrevBest } | null = null;
 
-  constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView }) {
+  constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView; audio: Pick<AudioView, 'settings' | 'set'> }) {
     this.box = el('div', 'ov', ui);
     app.onScreen = (s) => this.onScreen(s);
     // Saved the moment the run ends, once; the debrief comes up later with the best it had to beat.
@@ -131,8 +134,17 @@ export class Overlays implements View {
     setLang(next);
   };
 
+  // A sound switch moves: every view refreshes, so the pause menu redraws in place (a keyboard player keeps the button) and the
+  // HUD's MUTED badge follows.
+  private tune(p: Partial<AudioPrefs>): void {
+    this.opts.audio.set(p);
+    this.app.refresh();
+  }
+
   refresh(): void {
-    if (this.kind !== 'none') this.redraw();
+    // The Armory is read-only, frozen under the field, and nothing a refresh brings (a language, a sound switch) can reach it:
+    // redrawing it would only drop the card under the mouse from its detail.
+    if (this.kind !== 'none' && this.kind !== 'armory') this.redraw();
   }
 
   event(ev: RunEvent): void {
@@ -173,6 +185,7 @@ export class Overlays implements View {
       case 'pause':
         renderPause(this.box, {
           reduced: this.opts.effects.reduced,
+          audio: this.opts.audio.settings,
           resume: () => a.setScreen('playing'),
           quit: () => a.quit(),
           armory: () => a.act('armory'),
@@ -183,6 +196,10 @@ export class Overlays implements View {
             this.ui.classList.toggle('reduced', this.opts.effects.reduced);
             this.redraw();
           },
+          toggleSound: () => this.tune({ sound: !this.opts.audio.settings.sound }),
+          toggleMusic: () => this.tune({ music: !this.opts.audio.settings.music }),
+          // 0 to 3 and round again.
+          cycleVolume: () => this.tune({ volume: ((this.opts.audio.settings.volume + 1) % 4) as AudioPrefs['volume'] }),
         });
         break;
       case 'debrief':

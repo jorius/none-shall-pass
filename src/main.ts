@@ -10,6 +10,7 @@ import '@fontsource/atkinson-hyperlegible-next/700.css';
 // local
 import './styles.css';
 import { App } from './app';
+import { AudioView } from './audio';
 import { FieldScene } from './game/FieldScene';
 import { ActorsView } from './game/views/actors';
 import { EffectsView } from './game/views/effects';
@@ -88,6 +89,12 @@ const boot = async (): Promise<void> => {
   });
   packets.effects = effects;
   app.add(packets, effects);
+  // The sound waits for the first key or press (browsers start none before one), and the saved switches are its starting point.
+  const audio = new AudioView(() => (typeof AudioContext === 'function' ? new AudioContext() : null), store.prefs(), (p) => store.setPrefs(p));
+  audio.attach(window);
+  app.add(audio);
+  app.onMute = () => audio.toggleMute();
+  app.audioSettings = () => audio.settings;
   const ui = createUiLayer(document.getElementById('stage')!, game.canvas);
   app.add(new Hud(ui, app), new Gutter(ui), new UptimeStrip(ui), new Bubble(ui), new Floats(ui), new Coach(ui, store));
   const bottom = el('div', 'bottom', ui);
@@ -95,12 +102,12 @@ const boot = async (): Promise<void> => {
   app.add(inspector, new EventLog(bottom, inspector), new LoadoutTiles(ui, inspector));
   el('div', 'scanlines', ui);
   app.add({ pause: (p) => ui.classList.toggle('paused', p) });
-  app.add(new Overlays(ui, app, { effects }));
+  app.add(new Overlays(ui, app, { effects, audio }));
   app.add(new ConsoleView(ui, app), new RootModeView(scene, ui, fireWall, app));
   app.add(new AnalyticsView(app));
   ui.classList.toggle('reduced', effects.reduced);
   onLang(() => app.refresh());
-  (window as unknown as { __nsp: unknown }).__nsp = { game, app, effects, packets };
+  (window as unknown as { __nsp: unknown }).__nsp = { game, app, effects, packets, audio };
   app.quit();
 };
 

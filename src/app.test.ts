@@ -326,6 +326,48 @@ describe('App', () => {
     expect(seen.at(-1)!.time).toBeGreaterThan(seen[0].time);
   });
 
+  it('mutes on M from every screen, with a run or without, once per press, and refreshes the views for the badge', () => {
+    const muted = vi.fn(), refreshed = vi.fn();
+    app.onMute = muted;
+    app.add({ refresh: refreshed });
+    const press = (key: string, repeat = false): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key, repeat })); };
+    const count = (): number[] => [muted.mock.calls.length, refreshed.mock.calls.length];
+    // On the title, with no run.
+    press('m');
+    expect(count()).toEqual([1, 1]);
+    app.openSetup('campaign');
+    press('M');
+    expect(count()).toEqual([2, 2]);
+    app.startRun('campaign');
+    for (const step of [() => undefined, () => app.act('pause'), () => app.act('pause'), () => app.act('armory'), () => app.act('armory'), () => app.act('console')]) {
+      step();
+      const before = muted.mock.calls.length;
+      press('m');
+      // Not in the console: its prompt takes the letter (the key is routed to nothing there).
+      expect(muted.mock.calls.length, app.screen).toBe(app.screen === 'console' ? before : before + 1);
+    }
+    app.act('closeConsole');
+    app.dispatch(app.run!.cheat('skip'));
+    const draft = muted.mock.calls.length;
+    press('m');
+    expect([app.screen, muted.mock.calls.length]).toEqual(['draft', draft + 1]);
+    // A held key is one press.
+    press('m', true);
+    expect(muted.mock.calls.length).toBe(draft + 1);
+  });
+
+  it('leaves M to a text field, and does nothing when no audio is wired', () => {
+    const muted = vi.fn();
+    app.onMute = muted;
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', bubbles: true }));
+    expect(muted).not.toHaveBeenCalled();
+    input.remove();
+    app.onMute = null;
+    expect(() => app.act('mute')).not.toThrow();
+  });
+
   describe('auto-pause', () => {
     const blur = (): void => { window.dispatchEvent(new Event('blur')); };
     const hidden = (on: boolean): void => {

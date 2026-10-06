@@ -1,5 +1,5 @@
 {
-  "hud": { "score": "SCORE", "credits": "CREDITS", "reputation": "REPUTATION", "wave": "WAVE", "hintsOn": "HINTS ON ×0.75", "hintsOff": "HINTS OFF", "pause": "PAUSE · P", "root": "ROOT", "clearing": "CLEARING" },
+  "hud": { "score": "SCORE", "credits": "CREDITS", "reputation": "REPUTATION", "wave": "WAVE", "hintsOn": "HINTS ON ×0.75", "hintsOff": "HINTS OFF", "pause": "PAUSE · P", "root": "ROOT", "clearing": "CLEARING", "muted": "MUTED · M" },
   "lane": { "0": "ssh", "1": "auth", "2": "query", "3": "user posts", "4": "other ports" },
   "uptime": "UPTIME",
   "actor": { "you": "YOU", "squire": "SQUIRE", "target": "TARGET · SPACE" },
@@ -27,7 +27,8 @@
     "rarity": { "COMMON": "COMMON", "RARE": "RARE", "LEGENDARY": "LEGENDARY" }, "clean": "Clean wave", "armoryHint": "T · see every upgrade in the Armory"
   },
   "recap": { "title": "WAVE {n} CLEARED", "breach": "1 breach", "breaches": "{n} breaches", "fp": "1 false alarm", "fps": "{n} false alarms", "what": "WHAT GOT THROUGH", "clean": "Clean wave. Nothing got past you.", "more": "+{n} more", "continue": "CONTINUE ▸" },
-  "pause": { "title": "PAUSED", "hint": "P to resume", "resume": "RESUME", "quit": "QUIT TO TITLE", "armory": "ARMORY · T", "reducedOn": "REDUCED EFFECTS · ON", "reducedOff": "REDUCED EFFECTS · OFF" },
+  "pause": { "title": "PAUSED", "hint": "P to resume", "resume": "RESUME", "quit": "QUIT TO TITLE", "armory": "ARMORY · T", "reducedOn": "REDUCED EFFECTS · ON", "reducedOff": "REDUCED EFFECTS · OFF",
+    "sound": "SOUND · {s}", "music": "MUSIC · {s}", "volume": "VOLUME · {n}/3", "on": "ON", "off": "OFF" },
   "title": {
     "tagline": "Guard the server. Read the packets. Let the real users through.", "play": "PLAY CAMPAIGN", "overtime": "OVERTIME",
     "overtimeLocked": "win the campaign to unlock", "howto": "HOW TO PLAY", "armory": "ARMORY", "best": "BEST", "bestCampaign": "Campaign · grade {g} · {s} pts",

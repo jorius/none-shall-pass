@@ -1,9 +1,9 @@
 export type Screen = 'title' | 'howto' | 'setup' | 'playing' | 'paused' | 'recap' | 'draft' | 'armory' | 'console' | 'debrief';
-export type Action = 'laneUp' | 'laneDown' | 'next' | 'prev' | 'throw' | 'release' | 'charge' | 'hints' | 'pause' | 'console' | 'closeConsole' | 'continue' | 'back' | 'armory' | null;
+export type Action = 'laneUp' | 'laneDown' | 'next' | 'prev' | 'throw' | 'release' | 'charge' | 'hints' | 'pause' | 'console' | 'closeConsole' | 'continue' | 'back' | 'armory' | 'mute' | null;
 export type KeyInput = { key: string; code?: string; shiftKey: boolean; ctrlKey?: boolean; metaKey?: boolean; repeat?: boolean; inField: boolean };
 
 // A held key may keep moving lanes or cycling targets, but must not toggle a screen, throw, charge, go on or go back again.
-const NO_REPEAT: ReadonlySet<Action> = new Set<Action>(['console', 'closeConsole', 'pause', 'hints', 'throw', 'charge', 'continue', 'back', 'armory']);
+const NO_REPEAT: ReadonlySet<Action> = new Set<Action>(['console', 'closeConsole', 'pause', 'hints', 'throw', 'charge', 'continue', 'back', 'armory', 'mute']);
 
 // Spanish and Latin American layouts report the backtick as a 'Dead' key, so the physical key counts then,
 // but not for the other characters on it (~, |, °, º), which must stay typeable in the console.
@@ -14,6 +14,8 @@ const route = (k: KeyInput, screen: Screen): Action => {
   if (screen === 'console') return k.key === 'Escape' || isBacktick(k) ? 'closeConsole' : null;
   if (k.inField) return null;
   if (isBacktick(k)) return screen === 'playing' || screen === 'paused' ? 'console' : null;
+  // M mutes on every screen (the Armory and the how-to included); the console's prompt and any other field keep the letter.
+  if (k.key === 'm' || k.key === 'M') return 'mute';
   // The Armory opens on T from the title, the pause, a draft and play, and T or Esc close it (every other key stays with the focus).
   if (screen === 'armory') return k.key === 'Escape' || isT(k) ? 'armory' : null;
   if (isT(k) && (screen === 'title' || screen === 'paused' || screen === 'draft' || screen === 'playing')) return 'armory';

@@ -41,6 +41,10 @@ Every packet carries a short explanation of what it is, and every upgrade states
 
 Every IP address, network and host in the packets comes from the ranges reserved for documentation: RFC 5737 addresses, RFC 5398 AS numbers and `.example` names (RFC 2606).
 
+## Sound
+
+Every effect is synthesized in the browser with the Web Audio API, and the music is a built-in 16-step loop played by a small sequencer: there are no audio files, so there are no licences to carry. Nothing plays until your first key press or click (browsers start no audio before one). M mutes the sound and the music together; the pause menu switches each one on its own and steps the volume.
+
 ## Privacy
 
 On jorius.github.io the game uses cookieless [Umami](https://umami.is) analytics. Every page load counts as a page view, which records the page path, the referrer, your browser, OS, device type, screen size and language, and a rough location (country, region and city) that Umami derives from your IP address; the address itself is not stored.
@@ -67,6 +71,7 @@ Architecture: `src/core` is a deterministic, Phaser-free simulation (`Run.step` 
 
 - The name and the knight's lines quote Monty Python and the Holy Grail; no imagery from the film is used. All pixel art is original.
 - Fonts: Space Mono, IBM Plex Mono and Atkinson Hyperlegible Next (SIL Open Font License), via Fontsource.
+- Sound: every effect and the music loop are synthesized in the browser with the Web Audio API; no audio files are used.
 - Built with [Phaser](https://phaser.io).
 
 ## License

@@ -29,6 +29,9 @@ export class App {
   pendingMode: Mode = 'campaign';
   onScreen: ((s: Screen) => void) | null = null;
   onEnd: ((run: Run) => void) | null = null;
+  // M: the sound's switch, and what the HUD's badge reads once the views are refreshed.
+  onMute: (() => void) | null = null;
+  audioSettings: (() => { sound: boolean; music: boolean }) | null = null;
   private readonly views: View[] = [];
   private acc = 0;
   private time = 0;
@@ -175,9 +178,10 @@ export class App {
 
   act(a: Action): void {
     // The actions without a run: BACK (Esc) on the setup goes to the title, and the Armory opens from the title (and closes back
-    // to it); nowhere else does either do anything.
+    // to it); nowhere else does either do anything. MUTE works anywhere, and the views refresh for the HUD's badge.
     if (a === 'back') { if (this.screen === 'setup') this.quit(); return; }
     if (a === 'armory') { this.toggleArmory(); return; }
+    if (a === 'mute') { this.onMute?.(); this.refresh(); return; }
     const run = this.run;
     if (!run || !a) return;
     switch (a) {

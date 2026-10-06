@@ -1,5 +1,5 @@
 {
-  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0,75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT", "clearing": "DESPEJANDO" },
+  "hud": { "score": "PUNTAJE", "credits": "CRÉDITOS", "reputation": "REPUTACIÓN", "wave": "OLEADA", "hintsOn": "PISTAS ON ×0,75", "hintsOff": "PISTAS OFF", "pause": "PAUSA · P", "root": "ROOT", "clearing": "DESPEJANDO", "muted": "SILENCIO · M" },
   "lane": { "0": "ssh", "1": "acceso", "2": "búsqueda", "3": "comentarios", "4": "otros" },
   "uptime": "DISPONIBILIDAD",
   "actor": { "you": "TÚ", "squire": "ESCUDERO", "target": "OBJETIVO · ESPACIO" },
@@ -27,7 +27,8 @@
     "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }, "clean": "Oleada limpia", "armoryHint": "T · mira todas las mejoras en la Armería"
   },
   "recap": { "title": "OLEADA {n} SUPERADA", "breach": "1 brecha", "breaches": "{n} brechas", "fp": "1 falsa alarma", "fps": "{n} falsas alarmas", "what": "LO QUE PASÓ", "clean": "Oleada limpia. No se te escapó nada.", "more": "+{n} más", "continue": "CONTINUAR ▸" },
-  "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "armory": "ARMERÍA · T", "reducedOn": "EFECTOS REDUCIDOS · ON", "reducedOff": "EFECTOS REDUCIDOS · OFF" },
+  "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "armory": "ARMERÍA · T", "reducedOn": "EFECTOS REDUCIDOS · ON", "reducedOff": "EFECTOS REDUCIDOS · OFF",
+    "sound": "SONIDO · {s}", "music": "MÚSICA · {s}", "volume": "VOLUMEN · {n}/3", "on": "SÍ", "off": "NO" },
   "title": {
     "tagline": "Protege el servidor. Lee los paquetes. Deja pasar a los usuarios reales.", "play": "JUGAR CAMPAÑA", "overtime": "TIEMPO EXTRA",
     "overtimeLocked": "gana la campaña para desbloquearlo", "howto": "CÓMO JUGAR", "armory": "ARMERÍA", "best": "MEJOR", "bestCampaign": "Campaña · nota {g} · {s} pts",
