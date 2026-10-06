@@ -5,7 +5,7 @@ import { allowsHints } from './difficulty';
 import { deal, PRICE, REROLL_COST } from './draft';
 import type { RunEvent } from './events';
 import { spawn, stepPackets, stepPending } from './field';
-import { cycleTarget, setLane, startCharge, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
+import { cycleTarget, endCharge, setLane, startCharge, stepKnight, stepSpears, stepSquire, target, throwSpear } from './knight';
 import { endRun, untarget } from './outcomes';
 import { mulberry32, type Rng } from './rng';
 import { createState, multiplier, type RunConfig, type RunState } from './state';
@@ -63,6 +63,8 @@ export class Run {
   private clearWave(ev: RunEvent[]): void {
     const s = this.state;
     untarget(s, ev);
+    // A gallop still under way comes home before the wave is called, so no draft opens on a knight mid-lane.
+    if (s.knight.charge.t > 0) endCharge(s, ev);
     s.stats.wavesCleared++;
     ev.push({ type: 'waveCleared', wave: s.wave });
     if (s.cfg.mode === 'campaign' && s.wave >= CAMPAIGN.length) { endRun(s, 'won', ev); return; }
@@ -126,7 +128,6 @@ export class Run {
     if (kind === 'skip' && s.phase === 'playing') {
       untarget(s, ev);
       s.packets = []; s.pending = []; s.spears = [];
-      s.knight.charge = { t: 0, used: false };
       s.timeLeft = 0;
       this.clearWave(ev);
     }

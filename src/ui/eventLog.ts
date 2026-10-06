@@ -58,7 +58,9 @@ export class EventLog implements View {
 
   private pts(e: LogEntry): string {
     switch (e.outcome) {
-      case 'hit': case 'charge': return e.packet.t.tier && e.packet.t.tier > 1 ? `+${e.points} · ${t(`tier.${e.packet.t.tier}`)}` : `+${e.points}`;
+      case 'hit': return e.packet.t.tier && e.packet.t.tier > 1 ? `+${e.points} · ${t(`tier.${e.packet.t.tier}`)}` : `+${e.points}`;
+      // The charge pays the flat rule rate whatever the tier, so the tier label would only mislead.
+      case 'charge': return `+${e.points}`;
       case 'rule': return `+${e.points} · ${loc(cardById(e.ruleId!).name)}`;
       case 'neutralized': return `+${e.points} · ${loc(cardById(e.ruleId!).name)}`;
       case 'served': return e.packet.t.decoy ? `+${e.points} · ${t('log.notFooled')}` : `+${e.points}`;

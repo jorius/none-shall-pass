@@ -255,11 +255,11 @@ const CHECKS = {
     await stepUntil(page, (s) => s.packets.filter((p) => !p.entering && !p.doomed).length >= 2);
     const [a, lane] = await page.evaluate(() => {
       const app = window.__nsp.app;
-      const [held, hidden] = app.run.state.packets.filter((p) => !p.entering && !p.doomed);
-      held.x = 300;
+      const [locked, hidden] = app.run.state.packets.filter((p) => !p.entering && !p.doomed);
+      locked.x = 300;
       hidden.x = -150;
-      app.dispatch(app.run.target(held.id));
-      return [held.id, hidden.lane];
+      app.dispatch(app.run.target(locked.id));
+      return [locked.id, hidden.lane];
     });
     const clickAt = async (x, y) => {
       const pt = await page.evaluate(([lx, ly]) => {

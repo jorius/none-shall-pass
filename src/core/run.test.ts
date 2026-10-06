@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { LOCK_X, PKT_W, STEP } from './constants';
+import { KN_X, LOCK_X, PKT_W, STEP } from './constants';
 import type { RunEvent } from './events';
 import { Run } from './run';
 import { cfg, place } from './testkit';
@@ -210,6 +210,35 @@ describe('Run', () => {
     run.state.owned.push('squire');
     playWave(run);
     expect(run.state.stats.squireHits).toBeGreaterThan(0);
+  });
+
+  it('ends a charge still galloping when the wave clears, with the knight back at his post', () => {
+    const run = new Run(cfg());
+    run.start();
+    const s = run.state;
+    s.owned.push('destrier', 'destrier2', 'destrier3');
+    run.charge();
+    s.timeLeft = 0;
+    const ev = run.step(STEP);
+    expect(ev.filter((e) => e.type === 'chargeEnded')).toHaveLength(1);
+    expect(ev.findIndex((e) => e.type === 'chargeEnded')).toBeLessThan(ev.findIndex((e) => e.type === 'waveCleared'));
+    expect(s.knight).toMatchObject({ x: KN_X, moving: false, facing: 'left', charge: { t: 0, used: true } });
+    expect(s.phase).toBe('draft');
+  });
+
+  it('ends a charge still galloping on a skip too', () => {
+    const run = new Run(cfg());
+    run.start();
+    const s = run.state;
+    s.owned.push('destrier', 'destrier2', 'destrier3');
+    run.charge();
+    run.step(STEP);
+    expect(s.knight.x).toBeLessThan(KN_X);
+    const ev = run.cheat('skip');
+    expect(ev.filter((e) => e.type === 'chargeEnded')).toHaveLength(1);
+    expect(ev.findIndex((e) => e.type === 'chargeEnded')).toBeLessThan(ev.findIndex((e) => e.type === 'waveCleared'));
+    expect(s.knight).toMatchObject({ x: KN_X, moving: false, facing: 'left' });
+    expect(s.knight.charge.t).toBe(0);
   });
 
   it('keeps this wave\'s mistakes apart from the run\'s, and clears them with the next wave', () => {

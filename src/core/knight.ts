@@ -76,7 +76,15 @@ export const startCharge = (s: RunState, ev: RunEvent[]): void => {
   ev.push({ type: 'chargeStarted', lane: k.lane });
 };
 
-// Out to the lane head and back; every attack the knight's x crosses on the way is speared.
+// Home from the gallop, at once: the post, facing the lane, the view told. Also how a wave that ends mid-charge cuts it short.
+export const endCharge = (s: RunState, ev: RunEvent[]): void => {
+  const k = s.knight;
+  k.charge.t = 0; k.x = KN_X; k.moving = false; k.facing = 'left';
+  ev.push({ type: 'chargeEnded' });
+};
+
+// Out to the lane head and back; every attack the knight's x crosses on the way is speared,
+// except one a spear is already flying at: that spear owns its target.
 const stepCharge = (s: RunState, dt: number, ev: RunEvent[]): void => {
   const k = s.knight;
   const u0 = 1 - k.charge.t / CHARGE_SECS;
@@ -87,11 +95,11 @@ const stepCharge = (s: RunState, dt: number, ev: RunEvent[]): void => {
   k.x = x1; k.y = knightY(k.lane, true); k.moving = k.charge.t > 0; k.facing = u < 0.5 ? 'left' : 'right';
   const lo = Math.min(x0, x1), hi = Math.max(x0, x1);
   for (const p of s.packets) {
-    if (p.dead || p.entering || p.lane !== k.lane || p.t.kind === 'legit') continue;
+    if (p.dead || p.doomed || p.entering || p.lane !== k.lane || p.t.kind === 'legit') continue;
     if (p.x + PKT_W >= lo && p.x <= hi) kill(s, p, 'charge', ev);
     if (s.phase !== 'playing') return;
   }
-  if (k.charge.t === 0) { k.x = KN_X; k.moving = false; k.facing = 'left'; ev.push({ type: 'chargeEnded' }); }
+  if (k.charge.t === 0) endCharge(s, ev);
 };
 
 export const stepKnight = (s: RunState, dt: number, ev: RunEvent[]): void => {

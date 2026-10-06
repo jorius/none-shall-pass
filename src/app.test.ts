@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // core
+import type { RunEvent } from './core/events';
 import { KONAMI, type Screen } from './core/keys';
 import type { Run } from './core/run';
 
@@ -133,6 +134,24 @@ describe('App', () => {
     app.nextWave();
     expect(app.screen).toBe('playing');
     expect(run.state.wave).toBe(2);
+  });
+
+  it('charges down the lane on C once Destrier III is owned, and does nothing before', () => {
+    const events: RunEvent[] = [];
+    app.add({ event: (ev) => events.push(ev) });
+    app.startRun('campaign');
+    const run = app.run!;
+    const started = (): RunEvent[] => events.filter((e) => e.type === 'chargeStarted');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c' }));
+    expect(started()).toEqual([]);
+    expect(run.state.knight.charge).toEqual({ t: 0, used: false });
+    run.state.owned.push('destrier', 'destrier2', 'destrier3');
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'C' }));
+    expect(started()).toEqual([{ type: 'chargeStarted', lane: 2 }]);
+    expect(run.state.knight.charge.t).toBeGreaterThan(0);
+    // A held key is one press, and the gallop is spent for the wave anyway.
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', repeat: true }));
+    expect(started()).toHaveLength(1);
   });
 
   it('ignores draft actions without a run', () => {

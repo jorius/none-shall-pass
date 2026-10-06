@@ -153,6 +153,7 @@ export class App {
       case 'prev': this.dispatch(run.cycleTarget(-1)); break;
       case 'throw': this.dispatch(run.throwSpear()); break;
       case 'release': this.dispatch(run.target(null)); break;
+      case 'charge': this.dispatch(run.charge()); break;
       case 'hints':
         if (run.state.cfg.root || !allowsHints(run.state.cfg.difficulty)) break;
         run.setHints(!run.state.hints);

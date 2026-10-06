@@ -219,6 +219,21 @@ describe('charge', () => {
     expect(s.knight.lane).toBe(2);
   });
 
+  it('leaves a doomed attack to the spear already flying at it', () => {
+    const s = ready(), ev: RunEvent[] = [];
+    const a = place(s, 'sqli-tautology', 400);
+    target(s, a.id, ev); throwSpear(s, ev);
+    startCharge(s, ev);
+    for (let i = 0; i < 80; i++) stepKnight(s, 1 / 60, ev);
+    expect(s.knight.charge.t).toBe(0);
+    expect(a.dead).toBe(false);
+    stepSpears(s, 10, ev);
+    expect(a.dead).toBe(true);
+    expect(ev).toContainEqual(expect.objectContaining({ type: 'shattered', packet: a, by: 'knight' }));
+    expect(ev.some((e) => e.type === 'missed')).toBe(false);
+    expect(s.stats).toMatchObject({ chargeHits: 0, hits: { 1: 1, 2: 0, 3: 0 } });
+  });
+
   it('refuses a target in another lane while galloping, since that would move the charge', () => {
     const s = ready(), ev: RunEvent[] = [];
     const other = place(s, 'brute-admin', 500), own = place(s, 'legit-socks', 700);

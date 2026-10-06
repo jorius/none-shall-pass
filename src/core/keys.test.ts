@@ -17,11 +17,13 @@ describe('routeKey', () => {
     expect(routeKey(k('Escape'), 'playing')).toBe('release');
     expect(routeKey(k('H'), 'playing')).toBe('hints');
     expect(routeKey(k('p'), 'playing')).toBe('pause');
+    expect(routeKey(k('c'), 'playing')).toBe('charge');
+    expect(routeKey(k('C'), 'playing')).toBe('charge');
     expect(routeKey(k('`'), 'playing')).toBe('console');
   });
 
   it('keeps the game deaf while the console is open or an input has focus', () => {
-    for (const key of ['h', 'p', ' ', 'ArrowUp', 'Tab', 'a']) expect(routeKey(k(key), 'console')).toBeNull();
+    for (const key of ['h', 'p', 'c', ' ', 'ArrowUp', 'Tab', 'a']) expect(routeKey(k(key), 'console')).toBeNull();
     expect(routeKey(k('Escape'), 'console')).toBe('closeConsole');
     expect(routeKey(k('`'), 'console')).toBe('closeConsole');
     expect(routeKey(k('h', { inField: true }), 'playing')).toBeNull();
@@ -29,7 +31,7 @@ describe('routeKey', () => {
     expect(routeKey(k('Escape', { inField: true }), 'console')).toBe('closeConsole');
     expect(routeKey(k('`', { inField: true }), 'console')).toBe('closeConsole');
     for (const screen of ['playing', 'paused'] as const) {
-      for (const key of ['`', ' ', 'Escape', 'Tab', 'p']) expect(routeKey(k(key, { inField: true }), screen), `${screen} ${key}`).toBeNull();
+      for (const key of ['`', ' ', 'Escape', 'Tab', 'p', 'c']) expect(routeKey(k(key, { inField: true }), screen), `${screen} ${key}`).toBeNull();
     }
   });
 
@@ -40,6 +42,7 @@ describe('routeKey', () => {
     expect(routeKey(k('`'), 'paused')).toBe('console');
     expect(routeKey(k(' '), 'draft')).toBeNull();
     expect(routeKey(k('`'), 'title')).toBeNull();
+    for (const screen of ['paused', 'draft', 'title', 'howto', 'debrief'] as const) expect(routeKey(k('c'), screen), screen).toBeNull();
   });
 
   it('finds the backtick by its physical key on layouts where it is a dead key', () => {
@@ -78,7 +81,7 @@ describe('routeKey', () => {
     expect(routeKey(held('ArrowDown'), 'playing')).toBe('laneDown');
     expect(routeKey(held('Tab'), 'playing')).toBe('next');
     expect(routeKey(held('Tab', { shiftKey: true }), 'playing')).toBe('prev');
-    for (const key of [' ', 'h', 'p', '`']) expect(routeKey(held(key), 'playing'), key).toBeNull();
+    for (const key of [' ', 'h', 'p', 'c', '`']) expect(routeKey(held(key), 'playing'), key).toBeNull();
     for (const key of ['p', 'Escape', '`']) expect(routeKey(held(key), 'paused'), key).toBeNull();
     for (const key of ['Escape', '`']) expect(routeKey(held(key), 'console'), key).toBeNull();
   });
