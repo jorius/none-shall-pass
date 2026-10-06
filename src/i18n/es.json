@@ -24,19 +24,24 @@
     "waveClear": "OLEADA {n} SUPERADA", "stats": "Disponibilidad {u}% · reputación {r}/{cap} · {c} créditos", "choose": "ELIGE UNA MEJORA", "freeNote": "la primera es gratis",
     "buyNote": "compra más con créditos, o sigue", "take": "TOMAR · GRATIS", "buy": "COMPRAR · {n} cr", "taken": "TOMADA ✓", "reroll": "BARAJAR · {n} cr", "next": "SIGUIENTE OLEADA ▸",
     "cat": { "KNIGHT": "CABALLERO", "FIREWALL": "FIREWALL", "SERVER": "SERVIDOR" },
-    "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }, "clean": "Oleada limpia"
+    "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }, "clean": "Oleada limpia", "armoryHint": "T · mira todas las mejoras en la Armería"
   },
   "recap": { "title": "OLEADA {n} SUPERADA", "breach": "1 brecha", "breaches": "{n} brechas", "fp": "1 falsa alarma", "fps": "{n} falsas alarmas", "what": "LO QUE PASÓ", "clean": "Oleada limpia. No se te escapó nada.", "more": "+{n} más", "continue": "CONTINUAR ▸" },
-  "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "reducedOn": "EFECTOS REDUCIDOS · ON", "reducedOff": "EFECTOS REDUCIDOS · OFF" },
+  "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "armory": "ARMERÍA · T", "reducedOn": "EFECTOS REDUCIDOS · ON", "reducedOff": "EFECTOS REDUCIDOS · OFF" },
   "title": {
     "tagline": "Protege el servidor. Lee los paquetes. Deja pasar a los usuarios reales.", "play": "JUGAR CAMPAÑA", "overtime": "TIEMPO EXTRA",
-    "overtimeLocked": "gana la campaña para desbloquearlo", "howto": "CÓMO JUGAR", "best": "MEJOR", "bestCampaign": "Campaña · nota {g} · {s} pts",
+    "overtimeLocked": "gana la campaña para desbloquearlo", "howto": "CÓMO JUGAR", "armory": "ARMERÍA", "best": "MEJOR", "bestCampaign": "Campaña · nota {g} · {s} pts",
     "bestOvertime": "Tiempo extra · oleada {w} · {s} pts", "rootOn": "MODO ROOT · paquetes más rápidos, sin pistas, puntaje ×1,5", "site": "jorius.github.io ↗",
     "asKnight": "Jugando como {k} · {d}"
   },
   "setup": {
     "title": "ELIGE A TU CABALLERO", "sub": "Todos sostienen la misma puerta. Solo que cada uno a su manera.", "knights": "CABALLEROS", "difficulty": "DIFICULTAD",
     "start": "EMPEZAR · ESPACIO", "back": "VOLVER · ESC"
+  },
+  "armory": {
+    "title": "ARMERÍA", "owned": "{n} de {total} en tu poder", "stOwned": "TUYO", "stStart": "TUYO · INICIO", "stDraft": "EN EL SORTEO · {n}",
+    "stLocked": "BLOQUEADO · requiere {name}", "stOneShot": "UN SOLO USO · {n}", "level": "NIVEL {l} DE {n}",
+    "knightIntro": "leer y actuar", "firewallIntro": "reglas en la puerta", "serverIntro": "arreglar el código", "close": "CERRAR · T"
   },
   "howto": {
     "title": "CÓMO JUGAR", "back": "VOLVER", "space": "Espacio", "click": "clic",

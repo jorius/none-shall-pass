@@ -48,7 +48,10 @@ export const renderDraft = (box: HTMLElement, run: Run, act: { pick(i: number): 
       taken ? t('draft.taken') : d.free ? t('draft.take') : t('draft.buy', { n: fmtNum(price) }), () => act.pick(i));
     btn.disabled = taken || (!d.free && s.credits < price);
   });
-  const foot = el('div', 'row-btns', box);
-  button(foot, 'btn ghost', t('draft.reroll', { n: REROLL_COST }), act.reroll).disabled = s.credits < REROLL_COST;
-  button(foot, 'btn', t('draft.next'), act.next);
+  const foot = el('div', 'foot', box);
+  const row = el('div', 'row-btns', foot);
+  button(row, 'btn ghost', t('draft.reroll', { n: REROLL_COST }), act.reroll).disabled = s.credits < REROLL_COST;
+  button(row, 'btn', t('draft.next'), act.next);
+  // The Armory's key hangs off the end of the buttons (styles.css): the tallest Spanish hand leaves this screen 3px to spare, so it takes no row.
+  el('p', 'note', foot, t('draft.armoryHint'));
 };

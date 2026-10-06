@@ -62,6 +62,31 @@ describe('routeKey', () => {
     for (const screen of ['playing', 'paused', 'recap', 'draft', 'title', 'howto', 'debrief', 'console'] as const) expect(routeKey(k('Escape'), screen), screen).not.toBe('back');
   });
 
+  it('opens the Armory with T from the title, the pause, the draft and play, and closes it with T or Esc', () => {
+    for (const screen of ['title', 'paused', 'draft', 'playing'] as const) {
+      expect(routeKey(k('t'), screen), screen).toBe('armory');
+      expect(routeKey(k('T'), screen), screen).toBe('armory');
+    }
+    for (const key of ['t', 'T', 'Escape']) expect(routeKey(k(key), 'armory'), key).toBe('armory');
+    // The rest of the keyboard stays with the focus: Tab walks the cards, Space and Enter click the button that has it.
+    for (const key of [' ', 'Enter', 'Tab', 'p', 'c', 'h', '`', 'ArrowUp', 'ArrowDown']) expect(routeKey(k(key), 'armory'), key).toBeNull();
+    // Anywhere else T is just a letter: the how-to, the setup, the recap, the debrief and the console.
+    for (const screen of ['howto', 'setup', 'recap', 'debrief', 'console'] as const) expect(routeKey(k('t'), screen), screen).toBeNull();
+    // Esc keeps its other meanings: it releases the target in play and resumes the pause.
+    expect(routeKey(k('Escape'), 'playing')).toBe('release');
+    expect(routeKey(k('Escape'), 'paused')).toBe('pause');
+  });
+
+  it('takes the Armory keys once per press, never from a field and never with a shortcut held', () => {
+    for (const screen of ['title', 'paused', 'draft', 'playing', 'armory'] as const) expect(routeKey(k('t', { repeat: true }), screen), screen).toBeNull();
+    expect(routeKey(k('Escape', { repeat: true }), 'armory')).toBeNull();
+    expect(routeKey(k('t', { inField: true }), 'playing')).toBeNull();
+    expect(routeKey(k('Escape', { inField: true }), 'armory')).toBeNull();
+    // Ctrl+T and Cmd+T open a browser tab.
+    expect(routeKey(k('t', { ctrlKey: true }), 'playing')).toBeNull();
+    expect(routeKey(k('t', { metaKey: true }), 'armory')).toBeNull();
+  });
+
   it('finds the backtick by its physical key on layouts where it is a dead key', () => {
     const dead = (over: KeyOver = {}) => k('Dead', { code: 'Backquote', ...over });
     expect(routeKey(dead(), 'playing')).toBe('console');

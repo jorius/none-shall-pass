@@ -18,6 +18,9 @@ import type { Store } from './storage';
 // What the setup screen hands in: the knight to play and the difficulty to play at.
 export interface Choice { knight: KnightId; difficulty: Difficulty }
 
+// The screens that stop the field: under the pause menu, the console and the Armory the views, the view clock and the CSS freeze.
+const stopsField = (s: Screen): boolean => s === 'paused' || s === 'console' || s === 'armory';
+
 export class App {
   run: Run | null = null;
   screen: Screen = 'title';
@@ -30,6 +33,7 @@ export class App {
   private acc = 0;
   private time = 0;
   private beforeConsole: Screen = 'playing';
+  private beforeArmory: Screen = 'title';
   private endTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly konami = konamiMatcher();
 
@@ -119,9 +123,19 @@ export class App {
   setScreen(s: Screen): void {
     if (s === 'console') this.beforeConsole = this.screen;
     this.screen = s;
-    const paused = s === 'paused' || s === 'console';
+    const paused = stopsField(s);
     for (const v of this.views) { v.pause?.(paused); v.screen?.(s); }
     this.onScreen?.(s);
+  }
+
+  // T or Esc. The title, the pause, a draft and play open the Armory (the field stops under it, a draft and a pause stay as they
+  // were); closing it lands on the screen it came from.
+  private toggleArmory(): void {
+    if (this.screen === 'armory') { this.setScreen(this.beforeArmory); return; }
+    if (this.screen === 'title' || this.screen === 'paused' || this.screen === 'draft' || this.screen === 'playing') {
+      this.beforeArmory = this.screen;
+      this.setScreen('armory');
+    }
   }
 
   refresh(): void {
@@ -129,7 +143,7 @@ export class App {
   }
 
   private frame(ms: number): void {
-    const paused = this.screen === 'paused' || this.screen === 'console';
+    const paused = stopsField(this.screen);
     const playing = this.screen === 'playing' && !!this.run && this.run.state.phase === 'playing';
     const dt = playing ? Math.min(Math.max(ms, 0), 50) / 1000 : 0;
     if (!paused) this.time += Math.min(Math.max(ms, 0), 50) / 1000;
@@ -160,8 +174,10 @@ export class App {
   }
 
   act(a: Action): void {
-    // The one action without a run: BACK (Esc) on the setup goes to the title, and nowhere else does anything.
+    // The actions without a run: BACK (Esc) on the setup goes to the title, and the Armory opens from the title (and closes back
+    // to it); nowhere else does either do anything.
     if (a === 'back') { if (this.screen === 'setup') this.quit(); return; }
+    if (a === 'armory') { this.toggleArmory(); return; }
     const run = this.run;
     if (!run || !a) return;
     switch (a) {

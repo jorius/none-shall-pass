@@ -17,6 +17,7 @@ export interface TitleDeps {
   play(): void;
   overtime(): void;
   howto(): void;
+  armory(): void;
   toggleLang(): void;
 }
 
@@ -29,6 +30,7 @@ export const renderTitle = (box: HTMLElement, d: TitleDeps): void => {
   button(btns, 'btn', t('title.play'), d.play);
   button(btns, 'btn ghost', t('title.overtime'), d.overtime).disabled = !d.bests.won;
   button(btns, 'btn ghost', t('title.howto'), d.howto);
+  button(btns, 'btn ghost', t('title.armory'), d.armory);
   button(btns, 'btn ghost', t('lang.toggle'), d.toggleLang);
   if (!d.bests.won) el('div', 'note', box, `${t('title.overtime')}: ${t('title.overtimeLocked')}`);
   // The pair last played (the setup opens on it), and the bests of that difficulty in this mode.

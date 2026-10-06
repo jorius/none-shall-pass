@@ -1,4 +1,5 @@
 // core
+import { STARTING_LOADOUT } from '../core/content/cards';
 import type { RunEvent } from '../core/events';
 import type { Screen } from '../core/keys';
 import type { Run } from '../core/run';
@@ -14,6 +15,7 @@ import { lang, setLang } from '../i18n';
 // local
 import type { App, Choice } from '../app';
 import { slotOf, type Prefs } from '../storage';
+import { renderArmory } from './armory';
 import { renderDebrief, type PrevBest } from './debrief';
 import { el } from './dom';
 import { renderDraft } from './draftPanel';
@@ -22,7 +24,7 @@ import { renderRecap } from './recap';
 import { renderSetup } from './setup';
 import { renderHowto, renderTitle } from './title';
 
-type Kind = 'none' | 'title' | 'howto' | 'setup' | 'recap' | 'draft' | 'pause' | 'debrief';
+type Kind = 'none' | 'title' | 'howto' | 'setup' | 'recap' | 'draft' | 'armory' | 'pause' | 'debrief';
 
 // The pair last played, or the Analyst on the Black Knight before any was: what the title and the setup show.
 const chosen = (p: Prefs): Choice => ({ knight: p.knight ?? 'black', difficulty: p.difficulty ?? 'analyst' });
@@ -31,6 +33,8 @@ const chosen = (p: Prefs): Choice => ({ knight: p.knight ?? 'black', difficulty:
 export class Overlays implements View {
   private readonly box: HTMLElement;
   private kind: Kind = 'none';
+  // Whether a button had the focus when the Armory opened (see show).
+  private armoryKeyboard = false;
   private ended: { run: Run; newBest: boolean; prev: PrevBest } | null = null;
 
   constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView }) {
@@ -57,6 +61,7 @@ export class Overlays implements View {
     else if (s === 'setup') this.show('setup');
     else if (s === 'recap') this.show('recap');
     else if (s === 'draft') this.show('draft');
+    else if (s === 'armory') this.show('armory');
     else if (s === 'paused') this.show('pause');
     else if (s === 'debrief') this.show('debrief');
     else if (s === 'playing' || s === 'console') this.hide();
@@ -87,13 +92,16 @@ export class Overlays implements View {
   }
 
   private show(kind: Kind): void {
-    const keyboard = this.focused() >= 0;
+    // The Armory gives CLOSE the focus to everyone, so a screen it hands back to asks what the player did on the way in:
+    // a draft that opened on T with no button focused must not come back with a card under Space.
+    const keyboard = this.kind === 'armory' ? this.armoryKeyboard : this.focused() >= 0;
+    if (kind === 'armory') this.armoryKeyboard = keyboard;
     this.kind = kind;
     this.box.className = `ov show ov-${kind}`;
     this.inert(true);
     this.render();
-    // The recap puts the focus on its own CONTINUE, and the setup on its START, for every player.
-    if (keyboard && kind !== 'recap' && kind !== 'setup') this.focusFrom(0);
+    // The recap puts the focus on its own CONTINUE, the setup on its START and the Armory on its CLOSE, for every player.
+    if (keyboard && kind !== 'recap' && kind !== 'setup' && kind !== 'armory') this.focusFrom(0);
   }
 
   private hide(): void {
@@ -129,7 +137,7 @@ export class Overlays implements View {
     switch (this.kind) {
       case 'title':
         // The title shows the pair last played and the bests of its difficulty; PLAY and OVERTIME go through the setup.
-        renderTitle(this.box, { bests: a.store.bests(), root: a.root, ...chosen(a.store.prefs()), play: () => a.openSetup('campaign'), overtime: () => a.openSetup('overtime'), howto: () => this.show('howto'), toggleLang: this.toggleLang });
+        renderTitle(this.box, { bests: a.store.bests(), root: a.root, ...chosen(a.store.prefs()), play: () => a.openSetup('campaign'), overtime: () => a.openSetup('overtime'), howto: () => this.show('howto'), armory: () => a.act('armory'), toggleLang: this.toggleLang });
         break;
       case 'howto':
         renderHowto(this.box, () => this.show('title'));
@@ -151,11 +159,16 @@ export class Overlays implements View {
       case 'draft':
         if (a.run) renderDraft(this.box, a.run, { pick: (i) => a.pick(i), reroll: () => a.reroll(), next: () => a.nextWave() });
         break;
+      case 'armory':
+        // Read only: what the run in hand owns and holds, or the loadout a run starts with when there is none (from the title).
+        renderArmory(this.box, { owned: a.run?.state.owned ?? [...STARTING_LOADOUT], credits: a.run?.state.credits ?? 0, close: () => a.act('armory') });
+        break;
       case 'pause':
         renderPause(this.box, {
           reduced: this.opts.effects.reduced,
           resume: () => a.setScreen('playing'),
           quit: () => a.quit(),
+          armory: () => a.act('armory'),
           toggleLang: this.toggleLang,
           toggleReduced: () => {
             this.opts.effects.reduced = !this.opts.effects.reduced;

@@ -231,6 +231,101 @@ describe('Overlays', () => {
     expect(box().className).toBe('ov show ov-title');
   });
 
+  it('opens the Armory from the title and closes it back onto the title, with CLOSE, T or Esc', () => {
+    boot();
+    expect([...box().querySelectorAll('.row-btns .btn')].map((b) => b.textContent)).toEqual(['PLAY CAMPAIGN', 'OVERTIME', 'HOW TO PLAY', 'ARMORY', 'ES']);
+    named(/^ARMORY$/).click();
+    expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
+    // No run yet: the loadout a run starts with, and no credits.
+    expect([box().querySelector('.ar-head .n')?.textContent, box().querySelector('.ar-head .cr')?.textContent]).toEqual(['1 of 14 owned', 'CREDITS 0']);
+    expect(box().querySelector('.cx[data-id="lockdown"] .st')?.textContent).toBe('OWNED · START');
+    expect(document.activeElement).toBe(named(/^CLOSE · T$/));
+    expect(hud.hasAttribute('inert')).toBe(true);
+    named(/^CLOSE/).click();
+    expect([app.screen, box().className]).toEqual(['title', 'ov show ov-title']);
+    const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
+    press('t');
+    expect(box().className).toBe('ov show ov-armory');
+    press('t');
+    expect(box().className).toBe('ov show ov-title');
+    press('T');
+    press('Escape');
+    expect([app.screen, box().className]).toEqual(['title', 'ov show ov-title']);
+  });
+
+  it('opens the Armory from the pause menu on the run in hand, and closes it back onto the pause', () => {
+    boot();
+    app.startRun('campaign');
+    Object.assign(app.run!.state, { credits: 820, owned: ['lockdown', 'destrier', 'obs1', 'obs2'] });
+    app.act('pause');
+    expect([...box().querySelectorAll('.row-btns .btn')].map((b) => b.textContent)).toEqual(['RESUME', 'QUIT TO TITLE', 'ARMORY · T', 'ES', 'REDUCED EFFECTS · OFF']);
+    named(/^ARMORY · T$/).click();
+    expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
+    expect([box().querySelector('.ar-head .n')?.textContent, box().querySelector('.ar-head .cr')?.textContent]).toEqual(['3 of 14 owned', 'CREDITS 820']);
+    expect([box().querySelector('.cx[data-id="obs1"] .st')?.textContent, box().querySelector('.cx[data-id="destrier"] .st')?.textContent]).toEqual(['OWNED · LEVEL 2 OF 3', 'OWNED · LEVEL 1 OF 3']);
+    named(/^CLOSE/).click();
+    expect([app.screen, box().className]).toEqual(['paused', 'ov show ov-pause']);
+    // The pause is still the pause: RESUME goes on with the run.
+    named(/RESUME/).click();
+    expect(app.screen).toBe('playing');
+  });
+
+  it('opens the Armory over the field with T during play, and T or Esc goes back to play with nothing left focused', () => {
+    boot();
+    app.startRun('campaign');
+    app.run!.state.credits = 820;
+    const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
+    press('t');
+    expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
+    expect(box().querySelector('.ar-head .cr')?.textContent).toBe('CREDITS 820');
+    press('T');
+    expect([app.screen, box().className]).toEqual(['playing', 'ov']);
+    expect(document.activeElement).toBe(document.body);
+    expect(hud.hasAttribute('inert')).toBe(false);
+    press('t');
+    press('Escape');
+    expect([app.screen, box().className]).toEqual(['playing', 'ov']);
+  });
+
+  it('hints at the Armory on the draft, opens it over the draft and lands back on it with no card under Space', () => {
+    boot();
+    app.startRun('campaign');
+    app.dispatch(app.run!.cheat('skip'));
+    expect(box().className).toBe('ov show ov-draft');
+    expect([...box().querySelectorAll('p.note')].map((p) => p.textContent)).toEqual(['Clean wave', 'T · see every upgrade in the Armory']);
+    const press = (key: string): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
+    press('t');
+    expect([app.screen, box().className]).toEqual(['armory', 'ov show ov-armory']);
+    // The Armory shows and does not sell: nothing on the draft moved.
+    expect(app.run!.state.draft!.taken).toEqual([]);
+    press('t');
+    expect([app.screen, box().className]).toEqual(['draft', 'ov show ov-draft']);
+    expect(document.activeElement).toBe(document.body);
+    expect(app.run!.state.draft!.taken).toEqual([]);
+    expect(app.run!.state.draft!.free).toBe(true);
+  });
+
+  it('puts a keyboard player back on a button when the Armory closes', () => {
+    boot();
+    // Tabbed onto ARMORY, then Enter: CLOSE takes the focus, and closing hands it to a button of the title again.
+    named(/^ARMORY$/).focus();
+    named(/^ARMORY$/).click();
+    expect(document.activeElement).toBe(named(/^CLOSE/));
+    named(/^CLOSE/).click();
+    expect(box().className).toBe('ov show ov-title');
+    expect(document.activeElement).toBe(named(/PLAY CAMPAIGN/));
+  });
+
+  it('leaves a player who never focused a button with none when the Armory closes: CLOSE is not a keyboard tell', () => {
+    boot();
+    // A click never focuses a button (dom.ts), so nothing here was a keyboard press; the draft in particular must not
+    // come back with a card under Space.
+    named(/^ARMORY$/).click();
+    expect(document.activeElement).toBe(named(/^CLOSE/));
+    named(/^CLOSE/).click();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('keeps a win that is quit before its debrief opens: recorded once, Overtime unlocked', () => {
     boot();
     const record = vi.spyOn(store, 'recordResult');

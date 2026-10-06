@@ -173,7 +173,7 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ov { position: absolute; left: 0; top: 56px; width: 1280px; height: 664px; z-index: 40; background: rgba(22,22,22,.95); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; pointer-events: auto; }
 .ov.show { display: flex; }
 .ov.ov-title { top: 0; height: 720px; background: rgba(22,22,22,.82); }
-.ov.ov-howto, .ov.ov-setup, .ov.ov-recap, .ov.ov-debrief { top: 0; height: 720px; background: rgba(22,22,22,.97); }
+.ov.ov-howto, .ov.ov-setup, .ov.ov-recap, .ov.ov-debrief, .ov.ov-armory { top: 0; height: 720px; background: rgba(22,22,22,.97); }
 .ov h1 { font-size: 64px; letter-spacing: .12em; margin: 0; text-shadow: -4px 0 var(--r), 4px 0 var(--b); animation: jitter 4s infinite steps(1); }
 .ov h2 { font-size: 30px; letter-spacing: .12em; margin: 0; text-shadow: -3px 0 var(--r), 3px 0 var(--b); }
 .ov p { font-family: var(--body); font-size: 16px; color: var(--dim); margin: 0; max-width: 700px; line-height: 1.45; }
@@ -227,6 +227,62 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ov-setup .kn:focus-visible, .ov-setup .dl:focus-visible { outline: 2px solid var(--b); outline-offset: 3px; }
 .ov-setup .foot { display: flex; align-items: center; gap: 14px; margin-top: 6px; }
 
+/* ---------- the Armory: every upgrade, read only ---------- */
+/* The mock's panel, 1060px wide: a head (the count, the credits, CLOSE), three branch columns of codex cards and a detail panel
+   that follows the hovered or focused card. Every card is a button, its text set left, so Tab walks them. Text is 13px and up. */
+.ov-armory { --own-b: #2f5a3d; --own-bg: #22352a; }
+.ov-armory .ar { width: 1060px; text-align: left; font-family: var(--mono); }
+.ov-armory .ar-head { display: flex; align-items: center; gap: 16px; margin-bottom: 10px; }
+.ov-armory .ar-head h4 { margin: 0; font-size: 22px; letter-spacing: .14em; text-shadow: -2px 0 var(--r), 2px 0 var(--b); }
+.ov-armory .ar-head .n { font-size: 13px; color: var(--dim); }
+.ov-armory .ar-head .cr { margin-left: auto; font-size: 13px; font-weight: 700; color: var(--green); }
+.ov-armory .ar-body { display: flex; gap: 14px; align-items: flex-start; }
+.ov-armory .ar-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.ov-armory .ar-col h5 { margin: 0 0 2px; font-size: 13px; text-wrap: balance; color: var(--dim); padding-bottom: 5px; border-bottom: 3px solid var(--gold); }
+.ov-armory .ar-col.FIREWALL h5 { border-bottom-color: var(--b); } .ov-armory .ar-col.SERVER h5 { border-bottom-color: var(--ink); }
+.ov-armory .ar-col h5 b { color: var(--ink); letter-spacing: .16em; }
+.ov-armory .cx { display: grid; grid-template-columns: 40px 1fr; gap: 2px 9px; align-content: start; padding: 6px 9px; background: var(--paper); border: 1px solid var(--mute); color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.ov-armory .cx:hover, .ov-armory .cx.sel { border-color: var(--ink); background: #333; }
+.ov-armory .cx:focus-visible { outline: 2px solid var(--b); outline-offset: 2px; }
+.ov-armory .cx .ic { grid-row: span 3; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; background: var(--soft); border: 1px solid var(--mute); }
+.ov-armory .cx.RARE .ic { border-color: var(--b); }
+.ov-armory .cx.LEGENDARY .ic { border-color: var(--r); box-shadow: -2px 0 0 var(--r), 2px 0 0 var(--b); }
+.ov-armory .cx .ic img { max-width: 34px; max-height: 34px; }
+.ov-armory .cx .nm { display: flex; flex-wrap: wrap; align-items: center; gap: 0 6px; font-size: 13px; font-weight: 700; }
+/* A line of the card's own text keeps to two lines: the detail panel has the rest. */
+.ov-armory .cx .ds, .ov-armory .cx .tx { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; font-family: var(--body); line-height: 1.28; color: var(--dim); }
+.ov-armory .cx .ds { font-size: 14px; }
+/* A chain's levels tell the rest, so its own line is the one. */
+.ov-armory .cx .ds.short { -webkit-line-clamp: 1; }
+.ov-armory .cx .st { font-size: 13px; font-weight: 700; color: var(--dim); }
+.ov-armory .cx.owned, .ov-armory .cx.start { border-color: var(--own-b); }
+.ov-armory .cx.owned .ic, .ov-armory .cx.start .ic { background: var(--own-bg); }
+.ov-armory .cx.owned .st, .ov-armory .cx.start .st { color: var(--green); }
+.ov-armory .cx.owned:hover, .ov-armory .cx.owned.sel, .ov-armory .cx.start:hover, .ov-armory .cx.start.sel { border-color: var(--green); }
+.ov-armory .cx.locked { opacity: .6; }
+.ov-armory .lvl { display: inline-flex; gap: 3px; }
+.ov-armory .lvl i { display: block; width: 8px; height: 8px; border: 1px solid var(--gold); }
+.ov-armory .lvl i.on { background: var(--gold); }
+/* The levels of a chain: owned in green, the next one in ink, the rest dim; the price of every level not yet owned sits at the right. */
+.ov-armory .tiers { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 2px; margin-top: 3px; }
+.ov-armory .tiers > span { display: flex; align-items: baseline; gap: 6px; }
+.ov-armory .tiers b { flex: none; width: 24px; font-size: 13px; color: var(--dim); }
+.ov-armory .tiers .tx { flex: 1; min-width: 0; font-size: 13px; }
+.ov-armory .tiers .pr { flex: none; font-size: 13px; font-weight: 700; color: var(--dim); }
+.ov-armory .tiers .on b, .ov-armory .tiers .on .tx { color: var(--green); }
+.ov-armory .tiers .next b, .ov-armory .tiers .next .tx, .ov-armory .tiers .next .pr { color: var(--ink); }
+.ov-armory .ar-detail { width: 260px; flex: none; position: sticky; top: 0; padding: 12px 14px; background: var(--paper); border-left: 3px solid var(--gold); font-family: var(--body); }
+.ov-armory .ar-detail .k { font-family: var(--mono); font-size: 13px; text-wrap: balance; color: var(--dim); }
+/* The dots stay with the word before them, so a wrapped line never starts on one. */
+.ov-armory .ar-detail .k span { white-space: nowrap; }
+.ov-armory .ar-detail h6 { margin: 4px 0 8px; font: 700 17px var(--mono); color: var(--ink); }
+.ov-armory .ar-detail p { margin: 0 0 8px; font-size: 15px; line-height: 1.38; color: var(--ink); }
+.ov-armory .ar-detail p.dim { color: var(--dim); }
+.ov-armory .ar-detail b.irl, .ov-armory .ar-detail b.catch { font: 13px var(--mono); }
+.ov-armory .ar-detail b.irl { color: var(--b); } .ov-armory .ar-detail b.catch { color: var(--r); }
+.ov-armory .ar-detail .stat { margin-top: 10px; font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--dim); }
+.ov-armory .ar-detail .stat.owned { color: var(--green); }
+
 .draft-h { font-size: 14px; letter-spacing: .14em; }
 .draft-h span { color: var(--gold); }
 .cards { display: flex; gap: 16px; align-items: stretch; }
@@ -245,6 +301,9 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .uirl, .ucatch { font-family: var(--body); font-size: 13px; line-height: 1.38; margin: 0; color: var(--dim); }
 .uirl b { color: var(--b); font-family: var(--mono); font-size: 13px; } .ucatch b { color: var(--r); font-family: var(--mono); font-size: 13px; }
 .ucard .btn { margin-top: auto; align-self: flex-start; }
+/* The draft's Armory hint hangs off the end of its buttons, out of the flow: the screen is full for the tallest hands. */
+.ov-draft .foot { position: relative; }
+.ov-draft .foot .note { position: absolute; left: 100%; top: 50%; transform: translateY(-50%); margin-left: 18px; white-space: nowrap; }
 
 /* The stats column takes the longest Spanish label beside three-digit hit counts, and the Spanish breach families on one row. */
 .debrief { width: 1180px; display: grid; grid-template-columns: 480px 1fr; gap: 28px; text-align: left; }
@@ -296,9 +355,11 @@ body.root, #ui.root {
 /* The backdrops and the dark text on light chips are fixed colours, not variables: they go amber here too. */
 #ui.root .ov { background: rgba(18,13,5,.95); }
 #ui.root .ov.ov-title { background: rgba(18,13,5,.82); }
-#ui.root .ov.ov-howto, #ui.root .ov.ov-setup, #ui.root .ov.ov-recap, #ui.root .ov.ov-debrief { background: rgba(18,13,5,.97); }
+#ui.root .ov.ov-howto, #ui.root .ov.ov-setup, #ui.root .ov.ov-recap, #ui.root .ov.ov-debrief, #ui.root .ov.ov-armory { background: rgba(18,13,5,.97); }
 #ui.root .ov-setup .kn.sel, #ui.root .ov-setup .dl.sel { background: #2a2010; }
 #ui.root .ov-setup .dl.sel .rad { box-shadow: inset 0 0 0 2px #2a2010; }
+#ui.root .ov-armory { --own-b: #6a4a00; --own-bg: #2a2010; }
+#ui.root .ov-armory .cx:hover, #ui.root .ov-armory .cx.sel { background: #2a2010; }
 #ui.root .glabel.cur .name, #ui.root .bubble small { color: #5c3d00; }
 #ui.root .segs i.lost { background: repeating-linear-gradient(135deg, #7a5200 0 2px, transparent 2px 4px); }
 /* The pixel-art icons (loadout, draft) carry their own colours, like the canvas they go through an amber tint. */

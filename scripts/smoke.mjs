@@ -575,7 +575,7 @@ const CHECKS = {
     await page.waitForSelector('#ui .ov-title .best');
     if (await page.$eval('#ui .ov-title .row-btns .btn:nth-child(2)', (b) => b.disabled)) throw new Error('Overtime still locked after a win');
     await fits(page, 'title with bests');
-    await page.click('#ui .ov-title .row-btns .btn:nth-child(4)');
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(5)');
     await page.waitForFunction(() => document.documentElement.lang === 'es' && /JUGAR CAMPAÑA/.test(document.querySelector('#ui .ov-title').textContent));
     await fits(page, 'Spanish title');
     // The idle field behind it follows the language too.
@@ -686,9 +686,9 @@ const CHECKS = {
     await page.keyboard.press('Space');
     await page.waitForFunction(() => window.__nsp.app.screen === 'draft');
     const draft = await page.evaluate(() => ({
-      taken: window.__nsp.app.run.state.draft.taken, body: document.activeElement === document.body, note: document.querySelector('#ui .ov-draft p.note')?.textContent ?? null,
+      taken: window.__nsp.app.run.state.draft.taken, body: document.activeElement === document.body, notes: [...document.querySelectorAll('#ui .ov-draft p.note')].map((e) => e.textContent),
     }));
-    if (draft.taken.length || !draft.body || draft.note !== null) throw new Error(`after CONTINUE: ${JSON.stringify(draft)}`);
+    if (draft.taken.length || !draft.body || draft.notes.length !== 1 || draft.notes[0] !== 'T · see every upgrade in the Armory') throw new Error(`after CONTINUE: ${JSON.stringify(draft)}`);
     await page.keyboard.press('Space');
     if ((await page.evaluate(() => window.__nsp.app.run.state.draft.taken)).length) throw new Error('Space on the draft took a card');
     // In Spanish, the same wave.
@@ -706,9 +706,9 @@ const CHECKS = {
     await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
     const clean = await toDraft(page);
     await page.waitForSelector('#ui .ov-draft .ucard');
-    // A clean wave says so under the stats line; one with mistakes had its recap instead.
-    const note = await page.evaluate(() => document.querySelector('#ui .ov-draft p.note')?.textContent ?? null);
-    if (note !== (clean ? 'Clean wave' : null)) throw new Error(`the clean-wave note: ${JSON.stringify({ clean, note })}`);
+    // A clean wave says so under the stats line (one with mistakes had its recap instead); every draft ends on the Armory's key.
+    const notes = await page.evaluate(() => [...document.querySelectorAll('#ui .ov-draft p.note')].map((e) => e.textContent));
+    if (JSON.stringify(notes) !== JSON.stringify([...(clean ? ['Clean wave'] : []), 'T · see every upgrade in the Armory'])) throw new Error(`the draft's notes: ${JSON.stringify({ clean, notes })}`);
     await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));
     await page.screenshot({ path: `${OUT}/draft.png` });
     const free = await page.$$eval('#ui .ucard .btn', (b) => b.map((x) => x.textContent));
@@ -753,8 +753,8 @@ const CHECKS = {
     await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
     const cleanEs = await toDraft(page);
     await page.waitForSelector('#ui .ov-draft .ucard');
-    const noteEs = await page.evaluate(() => document.querySelector('#ui .ov-draft p.note')?.textContent ?? null);
-    if (noteEs !== (cleanEs ? 'Oleada limpia' : null)) throw new Error(`the Spanish clean-wave note: ${JSON.stringify({ cleanEs, noteEs })}`);
+    const notesEs = await page.evaluate(() => [...document.querySelectorAll('#ui .ov-draft p.note')].map((e) => e.textContent));
+    if (JSON.stringify(notesEs) !== JSON.stringify([...(cleanEs ? ['Oleada limpia'] : []), 'T · mira todas las mejoras en la Armería'])) throw new Error(`the Spanish draft's notes: ${JSON.stringify({ cleanEs, notesEs })}`);
     await everyCardFits(page, 'Spanish draft');
     await page.evaluate(() => { const a = window.__nsp.app; a.pick(0); });
     await page.waitForFunction(() => [...document.querySelectorAll('#ui .ucard img')].every((i) => i.complete && i.naturalWidth > 0));
@@ -773,13 +773,13 @@ const CHECKS = {
     await fits(page, 'pause');
     await page.screenshot({ path: `${OUT}/pause.png` });
     // Reduced effects switch live (the particles, the CSS glitches) and are remembered.
-    await page.click('#ui .ov-pause .btn:nth-child(4)');
+    await page.click('#ui .ov-pause .btn:nth-child(5)');
     const fx = await page.evaluate(() => ({
       effects: window.__nsp.effects.reduced, css: document.querySelector('#ui').classList.contains('reduced'),
-      saved: JSON.parse(localStorage.getItem('nsp.v1')).prefs.reducedFx, label: document.querySelector('#ui .ov-pause .btn:nth-child(4)').textContent,
+      saved: JSON.parse(localStorage.getItem('nsp.v1')).prefs.reducedFx, label: document.querySelector('#ui .ov-pause .btn:nth-child(5)').textContent,
     }));
     if (!fx.effects || !fx.css || fx.saved !== true || !/· ON$/.test(fx.label)) throw new Error(`reduced effects: ${JSON.stringify(fx)}`);
-    await page.click('#ui .ov-pause .btn:nth-child(3)');
+    await page.click('#ui .ov-pause .btn:nth-child(4)');
     await page.waitForFunction(() => document.documentElement.lang === 'es' && /EN PAUSA/.test(document.querySelector('#ui .ov-pause').textContent));
     await fits(page, 'Spanish pause');
     await page.screenshot({ path: `${OUT}/pause-es.png` });
@@ -803,6 +803,107 @@ const CHECKS = {
     }));
     if (idle.run !== null || idle.paused || idle.cards || idle.score !== '0' || idle.coach !== 'none') throw new Error(`after quitting: ${JSON.stringify(idle)}`);
     await page.screenshot({ path: `${OUT}/quit-title.png` });
+  },
+  async armory(page) {
+    // The Armory is read only: three branches, fourteen cards, CLOSE focused, the detail open on the first card. From the title
+    // it shows the loadout a run starts with; T and Esc, the ARMORY button and CLOSE all put it away.
+    const shown = () => page.evaluate(() => ({
+      screen: window.__nsp.app.screen, cols: document.querySelectorAll('#ui .ov-armory .ar-col').length, cards: document.querySelectorAll('#ui .ov-armory .cx').length,
+      focused: document.activeElement?.textContent, name: document.querySelector('#ui .ov-armory .ar-detail h6')?.textContent, id: document.activeElement?.dataset?.id,
+      count: document.querySelector('#ui .ov-armory .ar-head .n')?.textContent, credits: document.querySelector('#ui .ov-armory .ar-head .cr')?.textContent,
+    }));
+    const timeLeft = () => page.evaluate(() => window.__nsp.app.run.state.timeLeft);
+    // The 13 px floor of the global constraints: no text on the screen is set smaller (computed sizes are in the 1280x720 space).
+    const floor = async (p, what) => {
+      const small = await p.evaluate(() => [...document.querySelectorAll('#ui .ov-armory *')].filter((e) => [...e.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim()))
+        .map((e) => [`${e.tagName.toLowerCase()}.${e.className} "${e.textContent.slice(0, 24)}"`, parseFloat(getComputedStyle(e).fontSize)]).filter(([, px]) => px < 13).map(([name, px]) => `${name} ${px}px`));
+      if (small.length) throw new Error(`${what} sets text under 13px:\n${small.join('\n')}`);
+    };
+    await page.waitForSelector('#ui .ov-title .btn');
+    await page.keyboard.press('t');
+    await page.waitForSelector('#ui .ov-armory .cx');
+    await page.waitForFunction(() => [...document.querySelectorAll('#ui .ov-armory .cx img')].every((i) => i.complete && i.naturalWidth > 0));
+    const first = await shown();
+    if (first.screen !== 'armory' || first.cols !== 3 || first.cards !== 14 || first.focused !== 'CLOSE · T' || first.name !== 'Destrier I' || first.count !== '1 of 14 owned' || first.credits !== 'CREDITS 0') throw new Error(`the title's Armory: ${JSON.stringify(first)}`);
+    await fits(page, 'armory');
+    await floor(page, 'armory');
+    await page.screenshot({ path: `${OUT}/armory.png` });
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#ui .ov-title .btn');
+    if (await page.evaluate(() => window.__nsp.app.screen) !== 'title') throw new Error('Esc did not close the Armory onto the title');
+    // The title's ARMORY button and CLOSE, by the mouse: nothing is left focused behind them.
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(4)');
+    await page.waitForSelector('#ui .ov-armory .cx');
+    await page.click('#ui .ov-armory .ar-head .btn');
+    await page.waitForSelector('#ui .ov-title .btn');
+    if (await page.evaluate(() => window.__nsp.app.screen !== 'title' || document.activeElement !== document.body)) throw new Error('CLOSE did not leave the Armory for the title');
+    // In play, T stops the field: the Armory over a run in its wave, what it owns lit, the clock holding still.
+    await play(page);
+    await page.evaluate(() => {
+      const s = window.__nsp.app.run.state;
+      s.owned = ['lockdown', 'destrier', 'destrier2', 'obs1', 'f2b', 'prepared'];
+      s.credits = 820;
+    });
+    await page.keyboard.press('t');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'armory');
+    await page.waitForFunction(() => [...document.querySelectorAll('#ui .ov-armory .cx img')].every((i) => i.complete && i.naturalWidth > 0));
+    const run = await shown();
+    if (run.count !== '5 of 14 owned' || run.credits !== 'CREDITS 820' || run.name !== 'Destrier II' || run.focused !== 'CLOSE · T') throw new Error(`the Armory over a run: ${JSON.stringify(run)}`);
+    const held = await page.evaluate(() => ({ phase: window.__nsp.app.run.state.phase, left: window.__nsp.app.run.state.timeLeft, frozen: document.querySelector('#ui').classList.contains('paused') }));
+    await page.waitForTimeout(300);
+    const later = await timeLeft();
+    if (held.phase !== 'playing' || !held.frozen || later !== held.left) throw new Error(`the field under the Armory: ${JSON.stringify({ held, later })}`);
+    await fits(page, 'armory over a run');
+    await page.screenshot({ path: `${OUT}/armory-run.png` });
+    // Tab walks the cards from CLOSE, and the detail follows the focus: the third card is the Squire.
+    for (let i = 0; i < 3; i++) await page.keyboard.press('Tab');
+    const third = await shown();
+    if (third.id !== 'squire' || third.name !== 'Squire' || third.name === run.name) throw new Error(`Tab went to ${JSON.stringify(third)}`);
+    await page.keyboard.press('t');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing' && !document.querySelector('#ui .ov.show'));
+    const resumed = await timeLeft();
+    await page.waitForTimeout(300);
+    if (!((await timeLeft()) < resumed)) throw new Error('the clock did not run again after the Armory');
+    // From the pause menu it comes back to the pause, and the pause is still the pause.
+    await page.keyboard.press('p');
+    await page.click('#ui .ov-pause .btn:nth-child(3)');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'armory');
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('#ui .ov-pause .btn');
+    if (await page.evaluate(() => window.__nsp.app.screen) !== 'paused') throw new Error('the Armory did not return to the pause');
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    // Over a draft it shows and does not sell: back on the draft, no card is taken and none is under Space.
+    await page.evaluate(() => { const a = window.__nsp.app; a.dispatch(a.run.cheat('skip')); });
+    await toDraft(page);
+    await page.keyboard.press('t');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'armory');
+    await page.keyboard.press('t');
+    await page.waitForSelector('#ui .ov-draft .ucard');
+    const draft = await page.evaluate(() => ({ screen: window.__nsp.app.screen, taken: window.__nsp.app.run.state.draft.taken, body: document.activeElement === document.body }));
+    if (draft.screen !== 'draft' || draft.taken.length || !draft.body) throw new Error(`back on the draft: ${JSON.stringify(draft)}`);
+    // In Spanish, over a run: the longest names, the state lines and the levels fit.
+    await spanish(page);
+    await page.reload({ waitUntil: 'networkidle' });
+    await page.waitForSelector('#ui .ov-title .btn');
+    await page.keyboard.press('t');
+    await page.waitForSelector('#ui .ov-armory .cx');
+    const es = await shown();
+    if (es.count !== '1 de 14 en tu poder' || es.credits !== 'CRÉDITOS 0' || es.focused !== 'CERRAR · T') throw new Error(`the Spanish Armory: ${JSON.stringify(es)}`);
+    await fits(page, 'Spanish armory');
+    await floor(page, 'Spanish armory');
+    await page.screenshot({ path: `${OUT}/armory-es.png` });
+    await page.keyboard.press('t');
+    await play(page);
+    await page.evaluate(() => {
+      const s = window.__nsp.app.run.state;
+      s.owned = ['lockdown', 'destrier', 'obs1', 'obs2', 'obs3', 'quote', 'prepared'];
+      s.credits = 12345;
+    });
+    await page.keyboard.press('t');
+    await page.waitForSelector('#ui .ov-armory .cx');
+    await fits(page, 'Spanish armory over a run');
+    await page.screenshot({ path: `${OUT}/armory-run-es.png` });
   },
   async webgl(page) {
     // A browser without WebGL gets the card instead of a blank page, and Phaser never starts.
@@ -846,7 +947,7 @@ const CHECKS = {
     await page.screenshot({ path: `${OUT}/fx.png` });
     // Reduced from the pause menu, then back in play; once the first bounce is over, the next breach asks for none.
     await page.keyboard.press('p');
-    await page.click('#ui .ov-pause .btn:nth-child(4)');
+    await page.click('#ui .ov-pause .btn:nth-child(5)');
     await page.keyboard.press('p');
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
     await page.waitForFunction(() => window.__nsp.game.scene.getScene('field').tweens.getTweensOf(window.__smokeRack).length === 0);
@@ -917,7 +1018,7 @@ const CHECKS = {
     if (kept.screen !== 'playing' || kept.shown) throw new Error(`a stale debrief: ${JSON.stringify(kept)}`);
     // In Spanish (switched from the pause menu), then back to the title.
     await page.keyboard.press('p');
-    await page.click('#ui .ov-pause .btn:nth-child(3)');
+    await page.click('#ui .ov-pause .btn:nth-child(4)');
     await page.keyboard.press('p');
     await stepUntil(page, (s) => s.log.length >= 3);
     await widest(page);

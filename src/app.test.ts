@@ -224,6 +224,108 @@ describe('App', () => {
     expect(app.screen).toBe('draft');
   });
 
+  it('toggles the armory from the title, the pause and play, pausing play, and returns where it came from', () => {
+    const paused: boolean[] = [];
+    app.add({ pause: (p) => paused.push(p) });
+    app.act('armory');
+    expect([app.screen, app.run]).toEqual(['armory', null]);
+    expect([screens.at(-1), paused.at(-1)]).toEqual(['armory', true]);
+    app.act('armory');
+    expect([app.screen, paused.at(-1)]).toEqual(['title', false]);
+    app.startRun('campaign', { knight: 'black', difficulty: 'analyst' });
+    app.act('armory');
+    expect([app.screen, paused.at(-1)]).toEqual(['armory', true]);
+    app.act('armory');
+    expect([app.screen, paused.at(-1)]).toEqual(['playing', false]);
+    app.act('pause');
+    app.act('armory');
+    expect(app.screen).toBe('armory');
+    app.act('armory');
+    expect([app.screen, paused.at(-1)]).toEqual(['paused', true]);
+    // The pause is still the pause: P resumes the run.
+    app.act('pause');
+    expect([app.screen, paused.at(-1)]).toEqual(['playing', false]);
+  });
+
+  it('opens the armory over a draft and lands back on it, the draft untouched', () => {
+    app.startRun('campaign');
+    const run = app.run!;
+    app.dispatch(run.cheat('skip'));
+    const draft = run.state.draft;
+    expect(app.screen).toBe('draft');
+    app.act('armory');
+    expect([app.screen, run.state.phase]).toEqual(['armory', 'draft']);
+    app.act('armory');
+    expect([app.screen, run.state.phase]).toEqual(['draft', 'draft']);
+    expect(run.state.draft).toBe(draft);
+  });
+
+  it('opens the armory only from the title, the pause, a draft and play', () => {
+    app.openSetup('campaign');
+    app.act('armory');
+    expect(app.screen).toBe('setup');
+    app.startRun('campaign');
+    app.act('console');
+    app.act('armory');
+    expect(app.screen).toBe('console');
+    app.act('closeConsole');
+    app.run!.state.waveMistakes = [fakeEntry('fp')];
+    app.dispatch([{ type: 'draftOpened', draft: { picks: [], free: true, taken: [] } }]);
+    expect(app.screen).toBe('recap');
+    app.act('armory');
+    expect(app.screen).toBe('recap');
+    end();
+    vi.advanceTimersByTime(1200);
+    expect(app.screen).toBe('debrief');
+    app.act('armory');
+    expect(app.screen).toBe('debrief');
+  });
+
+  it('opens and closes the armory on T and Esc, once per press, and takes no other key while it is open', () => {
+    const press = (key: string, repeat = false): void => { window.dispatchEvent(new KeyboardEvent('keydown', { key, repeat })); };
+    press('t');
+    expect(app.screen).toBe('armory');
+    press('t', true);
+    expect(app.screen).toBe('armory');
+    press('Escape');
+    expect(app.screen).toBe('title');
+    app.startRun('campaign');
+    const lane = app.run!.state.knight.lane;
+    press('T');
+    expect(app.screen).toBe('armory');
+    // The play keys are not the Armory's: no lane change, no spear, no pause, no charge.
+    for (const key of ['ArrowUp', 'ArrowDown', ' ', 'p', 'c', 'h']) press(key);
+    expect([app.screen, app.run!.state.knight.lane]).toEqual(['armory', lane]);
+    press('T');
+    expect(app.screen).toBe('playing');
+    // Esc closes it too, back on the pause it came from.
+    press('p');
+    press('t');
+    press('Escape');
+    expect(app.screen).toBe('paused');
+  });
+
+  it('freezes the run and the view clock while the armory is open, and thaws them when it closes', () => {
+    const seen: { dt: number; time: number }[] = [];
+    app.add({ frame: (_run, dt, time) => seen.push({ dt, time }) });
+    app.startRun('campaign');
+    const run = app.run!, tick = (): void => app.scene.onFrame!(50);
+    tick();
+    const left = run.state.timeLeft;
+    expect(seen.at(-1)!.dt).toBeGreaterThan(0);
+    app.act('armory');
+    seen.length = 0;
+    tick();
+    tick();
+    expect(run.state.timeLeft).toBe(left);
+    expect(seen.map((f) => f.dt)).toEqual([0, 0]);
+    expect(seen[1].time).toBe(seen[0].time);
+    app.act('armory');
+    tick();
+    expect(run.state.timeLeft).toBeLessThan(left);
+    expect(seen.at(-1)!.time).toBeGreaterThan(seen[0].time);
+  });
+
   describe('auto-pause', () => {
     const blur = (): void => { window.dispatchEvent(new Event('blur')); };
     const hidden = (on: boolean): void => {
