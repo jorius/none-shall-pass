@@ -546,6 +546,23 @@ const CHECKS = {
     if (idle.run !== null || idle.paused || idle.cards || idle.score !== '0' || idle.coach !== 'none') throw new Error(`after quitting: ${JSON.stringify(idle)}`);
     await page.screenshot({ path: `${OUT}/quit-title.png` });
   },
+  async autopause(page) {
+    // The window losing the focus mid-run pauses it, menu up; the focus coming back resumes nothing, the player does.
+    await play(page);
+    await stepUntil(page, (s) => s.packets.length > 0);
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    await page.waitForSelector('#ui .ov-pause.show .btn');
+    const paused = await page.evaluate(() => ({
+      screen: window.__nsp.app.screen, menu: getComputedStyle(document.querySelector('#ui .ov-pause')).display, frozen: document.querySelector('#ui').classList.contains('paused'),
+    }));
+    if (paused.screen !== 'paused' || paused.menu !== 'flex' || !paused.frozen) throw new Error(`after a blur: ${JSON.stringify(paused)}`);
+    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await page.waitForTimeout(100);
+    if (await page.evaluate(() => window.__nsp.app.screen) !== 'paused') throw new Error('the focus coming back resumed the run');
+    await page.screenshot({ path: `${OUT}/autopause.png` });
+    await page.keyboard.press('p');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+  },
   async debrief(page) {
     // Without port lockdown the recon scans breach, and at 1% uptime the first breach ends the run.
     const lose = (p) => p.evaluate(() => { const a = window.__nsp.app; a.run.state.owned = []; a.run.state.uptime = 1; });

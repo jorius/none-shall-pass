@@ -29,6 +29,15 @@ export class App {
   constructor(readonly scene: FieldScene, readonly store: Store) {
     scene.onFrame = (ms) => this.frame(ms);
     window.addEventListener('keydown', (e) => this.key(e));
+    // A window that loses the focus or a tab that goes hidden pauses the run; the player resumes it (P, Esc, RESUME).
+    // Only the window's own blur counts: the console's prompt taking or dropping the focus leaves the window focused.
+    window.addEventListener('blur', () => this.autoPause());
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') this.autoPause(); });
+  }
+
+  // Only from play: the title, a draft, the debrief and an open console have nothing running, and a pause stays one.
+  private autoPause(): void {
+    if (this.screen === 'playing') this.setScreen('paused');
   }
 
   add(...views: View[]): void {

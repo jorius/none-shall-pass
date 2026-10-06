@@ -82,6 +82,28 @@ describe('store', () => {
     expect(createStore(m).bests()).toEqual({ campaign: { normal: { score: 1200, grade: 'S' } }, overtime: { normal: { wave: 3, score: 50 } }, won: true });
   });
 
+  it('ranks a campaign win above any loss, then by score, and a tie keeps the best it has', () => {
+    const st = createStore(memory());
+    const lost = (score: number): RunResult => result({ won: false, reason: 'serverDown', uptime: 0, score });
+    // An S grade needs a clean, healthy win; a C only a win.
+    const won = (score: number, uptime = 95): RunResult => result({ score, uptime });
+    expect(st.recordResult(won(15000)).newBest).toBe(true);
+    expect(st.recordResult(lost(16000)).newBest).toBe(false);
+    expect(st.bests().campaign.normal).toEqual({ score: 15000, grade: 'S' });
+    expect(st.recordResult(won(15000)).newBest).toBe(false);
+    expect(st.recordResult(won(15001)).newBest).toBe(true);
+    expect(st.recordResult(won(9000, 30)).newBest).toBe(false);
+    expect(st.bests().campaign.normal).toEqual({ score: 15001, grade: 'S' });
+    // The root slot starts with a loss: a higher-scoring loss replaces it, then a lower-scoring win replaces that.
+    expect(st.recordResult({ ...lost(16000), root: true }).newBest).toBe(true);
+    expect(st.recordResult({ ...lost(12000), root: true }).newBest).toBe(false);
+    expect(st.recordResult({ ...lost(17000), root: true }).newBest).toBe(true);
+    expect(st.bests().campaign.root).toEqual({ score: 17000, grade: 'F' });
+    expect(st.recordResult({ ...won(9000, 30), root: true }).newBest).toBe(true);
+    expect(st.bests().campaign.root).toEqual({ score: 9000, grade: 'C' });
+    expect(st.bests().won).toBe(true);
+  });
+
   it('breaks an overtime wave tie on score', () => {
     const st = createStore(memory());
     const ot = (wave: number, score: number): RunResult => result({ mode: 'overtime', wave, score, won: false, reason: 'serverDown' });

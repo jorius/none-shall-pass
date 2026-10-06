@@ -59,6 +59,8 @@ export const drawCard = (ctx: CanvasRenderingContext2D, o: { src: string; port: 
   ctx.strokeStyle = CSS.red;
   ctx.lineWidth = 2;
   for (const h of o.hints) {
+    // An empty hint matches at every position and would never advance.
+    if (!h) continue;
     let from = 0, i: number;
     while ((i = shown.indexOf(h, from)) >= 0) {
       const x0 = x + ctx.measureText(shown.slice(0, i)).width;

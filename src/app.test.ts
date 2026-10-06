@@ -150,4 +150,62 @@ describe('App', () => {
     app.act('pause');
     expect(app.screen).toBe('draft');
   });
+
+  describe('auto-pause', () => {
+    const blur = (): void => { window.dispatchEvent(new Event('blur')); };
+    const hidden = (on: boolean): void => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (on ? 'hidden' : 'visible') });
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+    afterEach(() => { Reflect.deleteProperty(document, 'visibilityState'); });
+
+    it('pauses a run when the window loses focus, and does not resume when it comes back', () => {
+      app.startRun('campaign');
+      blur();
+      expect(app.screen).toBe('paused');
+      window.dispatchEvent(new Event('focus'));
+      expect(app.screen).toBe('paused');
+      app.act('pause');
+      expect(app.screen).toBe('playing');
+    });
+
+    it('pauses a run when the tab goes hidden, and leaves it paused when it shows again', () => {
+      app.startRun('campaign');
+      hidden(true);
+      expect(app.screen).toBe('paused');
+      hidden(false);
+      expect(app.screen).toBe('paused');
+    });
+
+    it('leaves the title, a draft, the console and the debrief alone', () => {
+      blur();
+      expect(app.screen).toBe('title');
+      app.startRun('campaign');
+      app.dispatch(app.run!.cheat('skip'));
+      blur();
+      expect(app.screen).toBe('draft');
+      app.nextWave();
+      app.act('console');
+      blur();
+      expect(app.screen).toBe('console');
+      app.act('closeConsole');
+      end();
+      vi.advanceTimersByTime(1200);
+      blur();
+      hidden(true);
+      expect(app.screen).toBe('debrief');
+    });
+
+    it('ignores an element losing the focus, which leaves the window focused', () => {
+      // The console's prompt blurs when the console closes; only the window's own blur means the player left.
+      app.startRun('campaign');
+      const input = document.createElement('input');
+      document.body.appendChild(input);
+      input.focus();
+      input.blur();
+      input.dispatchEvent(new Event('blur'));
+      expect(app.screen).toBe('playing');
+      input.remove();
+    });
+  });
 });

@@ -136,6 +136,18 @@ describe('Inspector', () => {
     expect(box().textContent).toContain("DECODED · GET /search?q=' OR 1=1--");
   });
 
+  it('skips an empty hint instead of hanging on it', () => {
+    const p = place(run.state, 'sqli-tautology', 300);
+    p.t = { ...p.t, hints: ['', "' OR 1=1--"] };
+    run.setHints(true);
+    ins.hover(p);
+    expect([...box().querySelectorAll('.req mark')].map((m) => m.textContent)).toEqual(["' OR 1=1--"]);
+    p.t = { ...p.t, hints: [''] };
+    ins.refresh();
+    expect(box().querySelectorAll('mark')).toHaveLength(0);
+    expect(text(box(), '.req')).toBe(p.t.request.join('\n'));
+  });
+
   it('drops a hovered packet once it is gone', () => {
     const p = place(run.state, 'sqli-tautology', 300);
     ins.hover(p);

@@ -64,7 +64,10 @@ export const createStore = (backend: Storage | null = browserStorage()) => {
       if (r.mode === 'campaign') {
         if (r.won) data.bests.won = true;
         const prev = data.bests.campaign[slot];
-        if (!prev || r.score > prev.score) {
+        // A win outranks any loss (only a loss grades F, so the saved grade tells which the best was);
+        // between the same outcome the higher score wins, and a tie keeps what is there.
+        const prevWon = !!prev && prev.grade !== 'F';
+        if (!prev || (r.won !== prevWon ? r.won : r.score > prev.score)) {
           data.bests.campaign[slot] = { score: r.score, grade: gradeOf(r) ?? 'F' };
           newBest = true;
         }

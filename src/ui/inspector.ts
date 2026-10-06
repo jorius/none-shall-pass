@@ -24,12 +24,14 @@ const ENTITY: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;',
 // Packets carry attack strings by design: every string that is not our own markup goes through here before innerHTML.
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ENTITY[c]);
 // With hints on, wraps each tell in a <mark>; the text inside and between the marks is escaped like any other.
+// An empty tell is found at every position and would stop the search, so only the real ones take part.
 const mark = (text: string, hints: string[] | undefined, on: boolean): string => {
-  if (!on || !hints?.length) return esc(text);
+  const tells = on ? hints?.filter((h) => h.length) : undefined;
+  if (!tells?.length) return esc(text);
   let out = '', i = 0;
   while (i < text.length) {
     let best: string | null = null, at = Infinity;
-    for (const h of hints) { const j = text.indexOf(h, i); if (j >= 0 && j < at) { at = j; best = h; } }
+    for (const h of tells) { const j = text.indexOf(h, i); if (j >= 0 && j < at) { at = j; best = h; } }
     if (!best) { out += esc(text.slice(i)); break; }
     out += `${esc(text.slice(i, at))}<mark>${esc(best)}</mark>`;
     i = at + best.length;

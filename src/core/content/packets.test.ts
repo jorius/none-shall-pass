@@ -49,6 +49,8 @@ describe('packet catalogue', () => {
   it('anchors every hint in the text the player can see, in both languages', () => {
     for (const t of TEMPLATES) {
       const shown = [t.card, ...t.request].join('\n');
+      // An empty hint is found everywhere and underlines nothing; the renderers skip it, the catalogue must not have one.
+      for (const h of [...(t.hints ?? []), ...(t.decodedHints ?? [])]) expect(h.length, `${t.id} empty hint`).toBeGreaterThan(0);
       for (const h of t.hints ?? []) {
         const inBothContexts = !!t.context && t.context.en.includes(h) && t.context.es.includes(h);
         expect(shown.includes(h) || inBothContexts, `${t.id} hint ${h}`).toBe(true);
