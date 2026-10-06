@@ -276,6 +276,41 @@ const CHECKS = {
     if (fit.width !== 760 || fit.over > 0 || fit.tall || fit.wide > 0 || fit.head > 22 || fit.tags !== 2) throw new Error(`Spanish panels do not fit: ${JSON.stringify(fit)}`);
     await page.screenshot({ path: `${OUT}/log-es.png` });
   },
+  async loadout(page) {
+    // The longest loadout a run can own: every card but the one-shot backup, the three observability tiers on one tile.
+    await page.waitForFunction(() => window.__nsp?.app?.screen === 'playing');
+    await page.keyboard.press('p');
+    const names = await page.evaluate(() => {
+      const app = window.__nsp.app;
+      app.run.state.owned.push('destrier', 'squire', 'lens', 'obs1', 'obs2', 'obs3', 'quote', 'f2b', 'tarpit', 'cdn', 'prepared', 'sortlist', 'mfa', 'csp');
+      app.dispatch([{ type: 'owned', owned: [...app.run.state.owned] }]);
+      return [...document.querySelectorAll('#ui .loadout .ltile')].map((t) => t.title);
+    });
+    if (names.length !== 13) throw new Error(`${names.length} tiles, expected 13`);
+    await page.waitForFunction(() => [...document.querySelectorAll('#ui .loadout .ltile img')].every((i) => i.complete && i.naturalWidth > 0));
+    const box = await page.evaluate(() => {
+      const k = document.querySelector('#ui .bottom').getBoundingClientRect().width / 1280, top = document.querySelector('#stage canvas').getBoundingClientRect().top;
+      const tiles = [...document.querySelectorAll('#ui .loadout .ltile')].map((t) => t.getBoundingClientRect());
+      const strip = document.querySelector('#ui .hpstrip').getBoundingClientRect();
+      const icons = [...document.querySelectorAll('#ui .loadout .ltile img')].map((i) => i.getBoundingClientRect());
+      return {
+        bottom: (tiles.at(-1).bottom - top) / k, strip: (strip.top - top) / k,
+        left: Math.min(...tiles.map((t) => t.left)) / k, right: Math.max(...tiles.map((t) => t.right)) / k,
+        // Each icon stays whole inside its tile, above the 3px category underline.
+        clipped: icons.filter((i, n) => i.top < tiles[n].top || i.bottom > tiles[n].bottom - 3 * k || i.width < 1).length,
+      };
+    });
+    const offsetX = await page.evaluate(() => document.querySelector('#stage canvas').getBoundingClientRect().left / (document.querySelector('#ui .bottom').getBoundingClientRect().width / 1280));
+    box.left -= offsetX;
+    box.right -= offsetX;
+    if (box.bottom > box.strip - 2) throw new Error(`the last tile ends at y ${box.bottom}, the uptime strip starts at ${box.strip}`);
+    if (box.left < 1070 || box.right > 1124) throw new Error(`the column spans x ${box.left}-${box.right}, into the knight's post or the rack`);
+    if (box.clipped) throw new Error(`${box.clipped} tile icons are cut off`);
+    await page.hover('#ui .loadout .ltile:last-child');
+    const shown = await page.textContent('#ui .ins .cname');
+    if (shown !== names.at(-1)) throw new Error(`hovering the last tile shows ${shown}, expected ${names.at(-1)}`);
+    await page.screenshot({ path: `${OUT}/loadout.png` });
+  },
 };
 
 // Whatever already listens on the port is not this build: smoke would test a stale server and report on it.
