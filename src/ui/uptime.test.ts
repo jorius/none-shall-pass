@@ -22,7 +22,7 @@ describe('UptimeStrip', () => {
 
   it('tears on a breach, scrambles the number, then settles', () => {
     strip.event({ type: 'uptime', before: 100, after: 64 });
-    expect(box().classList.contains('hit')).toBe(true);
+    expect(box().classList.contains('tear')).toBe(true);
     expect(count('.fresh')).toBe(18);
     at(1.1);
     expect(num()).not.toBe('64%');
@@ -46,7 +46,7 @@ describe('UptimeStrip', () => {
   it('heals in blue without tearing, and glitches when low', () => {
     strip.event({ type: 'uptime', before: 20, after: 30 });
     expect(count('.healed')).toBe(5);
-    expect(box().classList.contains('hit')).toBe(false);
+    expect(box().classList.contains('tear')).toBe(false);
     expect(box().classList.contains('low')).toBe(true);
     at(2);
     expect(count('.healed')).toBe(0);
@@ -73,7 +73,7 @@ describe('UptimeStrip', () => {
     strip.start();
     at(1.1);
     expect(num()).toBe('100%');
-    expect(box().classList.contains('hit')).toBe(false);
+    expect(box().classList.contains('tear')).toBe(false);
     expect(box().classList.contains('low')).toBe(false);
     expect(count('.lost')).toBe(0);
   });

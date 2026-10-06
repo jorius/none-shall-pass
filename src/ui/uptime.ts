@@ -48,7 +48,7 @@ export class UptimeStrip implements View {
   // A new run must not inherit the last run's scramble or a pending settle.
   start(): void {
     this.scrambleEnd = null;
-    this.box.classList.remove('hit');
+    this.box.classList.remove('tear');
     this.uptime = 100;
     this.render();
   }
@@ -70,9 +70,9 @@ export class UptimeStrip implements View {
     const before = ev.before;
     this.uptime = ev.after;
     if (ev.after > before) { this.render(before, true); return; }
-    this.box.classList.remove('hit');
+    this.box.classList.remove('tear');
     void this.box.offsetWidth;
-    this.box.classList.add('hit');
+    this.box.classList.add('tear');
     this.scrambleEnd = this.now + SCRAMBLE_SECS;
     this.nextGlitch = this.now + GLITCH_SECS;
     this.num.textContent = garbage(this.uptime);
