@@ -110,6 +110,20 @@ describe('Hud', () => {
       expect(shown()).toBe(false);
     });
 
+    it('draws a plain note and leaves the striking through to the CSS, with no combining solidus', () => {
+      audio.sound = false;
+      audio.music = false;
+      hud.refresh(run);
+      const note = badge().querySelector('.note');
+      expect(note?.textContent).toBe('\u266A');
+      expect(badge().textContent).toBe('\u266A MUTED · M');
+      expect(badge().textContent).not.toContain('\u0338');
+      setLang('es');
+      hud.refresh(run);
+      expect(badge().querySelector('.note')).toBe(note);
+      expect(badge().textContent).toBe('\u266A SILENCIO · M');
+    });
+
     it('is up from the start when the last session ended muted, and behind the title as well', () => {
       audio.sound = false;
       audio.music = false;

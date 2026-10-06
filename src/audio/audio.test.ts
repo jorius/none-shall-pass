@@ -14,7 +14,7 @@ import { play, studio } from './testkit';
 
 const fakeCtx = () => {
   const started: string[] = [];
-  const node = () => ({ connect: vi.fn().mockReturnThis(), disconnect: vi.fn(), start: vi.fn((t) => started.push(String(t))), stop: vi.fn(), frequency: { value: 440, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() }, gain: { value: 1, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, type: 'square', buffer: null });
+  const node = () => ({ connect: vi.fn((to) => to), disconnect: vi.fn(), start: vi.fn((t) => started.push(String(t))), stop: vi.fn(), frequency: { value: 440, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() }, gain: { value: 1, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, type: 'square', buffer: null });
   const ctx = { currentTime: 0, state: 'suspended', destination: {}, createOscillator: node, createGain: node, createBufferSource: node, createBuffer: () => ({ getChannelData: () => new Float32Array(2205) }), resume: vi.fn().mockResolvedValue(undefined) };
   return { ctx: ctx as unknown as AudioContext, started };
 };
@@ -46,6 +46,27 @@ describe('audio', () => {
       s.play(n);
       expect(started.length).toBeGreaterThan(before);
     }
+  });
+
+  it('routes every voice of every effect to the output it was given, not just somewhere', () => {
+    const { ctx, voices, reaches } = studio();
+    const out = ctx.createGain();
+    const s = createSynth(ctx, out);
+    const names = ['throw', 'hit', 'miss', 'swallow', 'breach', 'pick', 'levelUp', 'button', 'pause', 'waveStart', 'charge', 'recap'] as const;
+    for (const n of names) s.play(n);
+    expect(voices.length).toBeGreaterThan(names.length);
+    for (const v of voices) expect(reaches(v.node, out), v.id).toBe(true);
+    // A voice wired to a gain that goes nowhere would not pass.
+    expect(reaches(voices[0].node, ctx.createGain())).toBe(false);
+  });
+
+  it('starts every envelope at its own level, so the first sample of a burst does not get through at full gain as a click', () => {
+    const { ctx, voices, envelopeOf } = studio();
+    const s = createSynth(ctx, ctx.createGain());
+    for (const n of ['throw', 'hit', 'miss', 'swallow', 'breach', 'pick', 'levelUp', 'button', 'pause', 'waveStart', 'charge', 'recap'] as const) s.play(n);
+    // A fresh gain is at 1 until the first scheduled value takes over, and a noise burst's first sample is full scale: it is the level
+    // each effect asks for (0.3 at the most) from the start.
+    for (const v of voices) expect(envelopeOf(v.node).gain.value, v.id).toBeLessThanOrEqual(0.3);
   });
 
   it('loops a 16-step pattern of bass, lead and hat within the chiptune range', () => {
@@ -91,6 +112,27 @@ describe('the loop', () => {
     expect(voices).toHaveLength(BAR);
     expect(atStart(voices, 0.05)).toEqual(STEP_ZERO);
     expect(Math.max(...voices.map((v) => v.at))).toBeLessThan(2);
+    m.stop();
+  });
+
+  it('sends every note and hat through the bar\'s bus and the loop\'s level to the output', () => {
+    const { ctx, voices, gains, reaches } = studio();
+    const out = ctx.createGain();
+    const m = createMusic(ctx, out);
+    m.start();
+    expect(voices).toHaveLength(BAR);
+    for (const v of voices) expect(reaches(v.node, out), v.id).toBe(true);
+    const [bus] = busesOf(gains);
+    expect(reaches(bus, out)).toBe(true);
+    m.stop();
+  });
+
+  it('starts the loop\'s envelopes at their own level too, hats included', () => {
+    const { ctx, voices, envelopeOf } = studio();
+    const m = createMusic(ctx, ctx.createGain());
+    m.start();
+    expect(voices).toHaveLength(BAR);
+    for (const v of voices) expect(envelopeOf(v.node).gain.value, v.id).toBeLessThanOrEqual(0.08);
     m.stop();
   });
 
@@ -224,11 +266,12 @@ describe('AudioView', () => {
     expect(heard()).toEqual([]);
   });
 
-  it('adds the level-up fanfare when Destrier or Observability rises a level, not for other cards, and starts over with each run', () => {
+  it('plays the level-up fanfare instead of the pick when Destrier or Observability rises a level, not for other cards, and starts over with each run', () => {
     const { view, heard } = effects();
     const hear = (owned: ('lockdown' | 'squire' | 'destrier' | 'destrier2' | 'obs1' | 'obs2' | 'cdn')[]): string[] => { view.event({ type: 'owned', owned }); return heard(); };
     view.start(new Run(cfg()));
-    const PICK = [...SOUND.pick], UP = [...SOUND.pick, ...SOUND.levelUp];
+    // Both start a 523 Hz square on the same instant, so together they would only double in phase: one or the other.
+    const PICK = [...SOUND.pick], UP = [...SOUND.levelUp];
     expect(hear(['lockdown', 'squire'])).toEqual(PICK);
     expect(hear(['lockdown', 'squire', 'cdn'])).toEqual(PICK);
     expect(hear(['lockdown', 'squire', 'cdn', 'destrier'])).toEqual(UP);
@@ -271,21 +314,66 @@ describe('AudioView', () => {
     expect(levels()).toEqual([0.65, 1, 0.5]);
     view.set({ volume: 3, sound: false });
     expect(levels()).toEqual([1, 0, 0.5]);
-    view.set({ music: false, volume: 0 });
-    expect(levels()).toEqual([0, 0, 0]);
+    view.set({ music: false });
+    expect(levels()).toEqual([1, 0, 0]);
   });
 
-  it('mutes both when either is on and brings both back when both are off, reporting each change', () => {
+  it('mutes both when either is on, reporting each change, and hands out a copy of its settings', () => {
     const seen: AudioPrefs[] = [];
     const view = new AudioView(() => null, { sound: true, music: false, volume: 3 }, (p) => seen.push(p));
     view.toggleMute();
     expect(view.settings).toEqual({ sound: false, music: false, volume: 3 });
     view.toggleMute();
-    expect(view.settings).toEqual({ sound: true, music: true, volume: 3 });
-    expect(seen).toEqual([{ sound: false, music: false, volume: 3 }, { sound: true, music: true, volume: 3 }]);
+    expect(view.settings).toEqual({ sound: true, music: false, volume: 3 });
+    expect(seen).toEqual([{ sound: false, music: false, volume: 3 }, { sound: true, music: false, volume: 3 }]);
     // What it hands out is a copy.
-    view.settings.volume = 0;
+    view.settings.volume = 1;
     expect(view.settings.volume).toBe(3);
+  });
+
+  it('gives back the pair M took away, whatever it was, and turns both on when nothing was on to take', () => {
+    const seen: AudioPrefs[] = [];
+    const view = new AudioView(() => null, { sound: true, music: false, volume: 3 }, (p) => seen.push(p));
+    const pair = (): [boolean, boolean] => [view.settings.sound, view.settings.music];
+    // SOUND on and MUSIC off: M, M and it is SOUND on and MUSIC off again, not both on.
+    view.toggleMute();
+    expect(pair()).toEqual([false, false]);
+    view.toggleMute();
+    expect(pair()).toEqual([true, false]);
+    view.toggleMute();
+    view.toggleMute();
+    expect(pair()).toEqual([true, false]);
+    expect(seen.map((p) => [p.sound, p.music])).toEqual([[false, false], [true, false], [false, false], [true, false]]);
+    // MUSIC alone.
+    view.set({ sound: false, music: true });
+    view.toggleMute();
+    view.toggleMute();
+    expect(pair()).toEqual([false, true]);
+    // Both on.
+    view.set({ sound: true, music: true });
+    view.toggleMute();
+    expect(pair()).toEqual([false, false]);
+    view.toggleMute();
+    expect(pair()).toEqual([true, true]);
+    // Switches moved by hand while it was muted: what was on at the last M is what comes back.
+    view.toggleMute();
+    view.set({ sound: true });
+    view.toggleMute();
+    expect(pair()).toEqual([false, false]);
+    view.toggleMute();
+    expect(pair()).toEqual([true, false]);
+    // Once it has given them back it has nothing to give: both switched off by hand, M turns both on, not the pair of a while ago.
+    view.set({ sound: false, music: false });
+    view.toggleMute();
+    expect(pair()).toEqual([true, true]);
+    // Nothing on and nothing taken (a session saved muted, or both switched off by hand): M turns both on.
+    const saved = new AudioView(() => null, { sound: false, music: false });
+    saved.toggleMute();
+    expect([saved.settings.sound, saved.settings.music]).toEqual([true, true]);
+    const hand = new AudioView(() => null, ON);
+    hand.set({ sound: false, music: false });
+    hand.toggleMute();
+    expect([hand.settings.sound, hand.settings.music]).toEqual([true, true]);
   });
 
   it('starts from sound on, music on and volume 2 for whatever the save leaves out', () => {
@@ -313,7 +401,7 @@ describe('AudioView', () => {
     expect(voices.filter((v) => v.at === voices[0].at).map((v) => v.id).sort()).toEqual(STEP_ZERO);
   });
 
-  it('runs the loop only while MUSIC is on and VOLUME is above 0', () => {
+  it('runs the loop only while MUSIC is on, at any volume', () => {
     const { ctx } = studio();
     const view = new AudioView(() => ctx, { ...ON, music: false });
     view.screen('playing');
@@ -321,10 +409,7 @@ describe('AudioView', () => {
     expect(view.looping).toBe(false);
     view.set({ music: true });
     expect(view.looping).toBe(true);
-    view.set({ volume: 0 });
-    expect(view.looping).toBe(false);
-    view.set({ volume: 1 });
-    expect(view.looping).toBe(true);
+    for (const volume of [1, 2, 3] as const) { view.set({ volume }); expect(view.looping, `volume ${volume}`).toBe(true); }
     view.set({ music: false });
     expect(view.looping).toBe(false);
     expect(vi.getTimerCount()).toBe(0);
@@ -357,6 +442,59 @@ describe('AudioView', () => {
     vi.advanceTimersByTime(600);
     c.unlock();
     expect(running.resume).not.toHaveBeenCalled();
+  });
+
+  it('puts a limiter between the master and the destination, set as a limiter and not as the node\'s defaults', () => {
+    const { ctx, compressors, gains, voices, heard, reaches } = studio('suspended', { limiter: true });
+    const view = new AudioView(() => ctx, { ...ON, music: false });
+    view.unlock();
+    expect(compressors).toHaveLength(1);
+    const [limiter] = compressors;
+    // Threshold -3 dB, no knee, 20:1, a 3 ms attack and a 250 ms release (the defaults would be -24, 30, 12, .003 and .25).
+    expect([limiter.threshold.value, limiter.knee.value, limiter.ratio.value, limiter.attack.value, limiter.release.value]).toEqual([-3, 0, 20, 0.003, 0.25]);
+    const [master] = gains;
+    expect(master.connect).toHaveBeenCalledWith(limiter);
+    expect(master.connect).not.toHaveBeenCalledWith(ctx.destination);
+    expect(limiter.connect).toHaveBeenCalledWith(ctx.destination);
+    // Everything that plays goes through it.
+    view.event(thrown);
+    expect(voices.length).toBeGreaterThan(0);
+    for (const v of voices) expect(reaches(v.node, limiter), v.id).toBe(true);
+    expect(heard()).toEqual(SOUND.throw);
+  });
+
+  it('takes the limiter\'s makeup gain out of the master level, so the mix is as loud as it is without one', () => {
+    const limited = studio('suspended', { limiter: true });
+    const view = new AudioView(() => limited.ctx, { ...ON, music: false, volume: 3 });
+    view.unlock();
+    const [master] = limited.gains;
+    // The node's own makeup gain at these settings is about +1.7 dB (x1.22).
+    expect(master.gain.value).toBeCloseTo(1 / 1.22, 3);
+    view.set({ volume: 1 });
+    expect(master.gain.value).toBeCloseTo(0.35 / 1.22, 3);
+    view.set({ volume: 2 });
+    expect(master.gain.value).toBeCloseTo(0.65 / 1.22, 3);
+    // Without a limiter there is no makeup to take out.
+    const plain = studio();
+    const bare = new AudioView(() => plain.ctx, { ...ON, music: false, volume: 3 });
+    bare.unlock();
+    expect(plain.gains[0].gain.value).toBe(1);
+  });
+
+  it('goes without a limiter where the browser has no compressor: the master feeds the destination and everything still plays', () => {
+    const { ctx, gains, voices, heard, reaches } = studio();
+    expect('createDynamicsCompressor' in ctx).toBe(false);
+    const view = new AudioView(() => ctx, { ...ON, music: false });
+    view.unlock();
+    const [master] = gains;
+    expect(master.connect).toHaveBeenCalledWith(ctx.destination);
+    expect(view.unlocked).toBe(true);
+    view.event(thrown);
+    for (const v of voices) expect(reaches(v.node, master), v.id).toBe(true);
+    expect(heard()).toEqual(SOUND.throw);
+    // And a loop is not lost with it.
+    view.set({ music: true });
+    expect(view.looping).toBe(true);
   });
 
   it('keeps the game running, silent, when the context cannot be built or breaks while playing', () => {

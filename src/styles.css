@@ -40,10 +40,11 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .toggle { font-family: var(--mono); font-size: 13px; color: var(--dim); background: transparent; border: 1px solid var(--mute); padding: 3px 8px; cursor: pointer; }
 .toggle.on { color: var(--paper); background: var(--b); border-color: var(--b); }
 .badge-root { font-size: 13px; font-weight: 700; color: var(--paper); background: var(--r); padding: 1px 6px; }
-/* Sound and music both off: a tab hung under the bar's left end, over the gutter's empty top. It cannot join the bar's left or
-   right group, between which the Spanish HUD at its widest has 30 px to spare, and it is kept narrow enough to stop short of the
-   coach tip (x 130). */
-.hud .mute { position: absolute; left: 0; top: 100%; margin-top: 1px; padding: 2px 4px 3px 6px; font-size: 13px; line-height: 16px; word-spacing: -3px; color: var(--dim); background: var(--paper); border: 1px solid var(--mute); border-width: 0 1px 1px 0; }
+/* Sound and music both off: a tab hung under the bar's left end, over the gutter's empty top, its note struck through. It cannot
+   join the bar's left or right group, between which the Spanish HUD at its widest has 30 px to spare, and at 127 px in Spanish it
+   stops short of the coach tip (x 130). */
+.hud .mute { position: absolute; left: 0; top: 100%; margin-top: 1px; padding: 2px 6px 3px 8px; font-size: 13px; line-height: 16px; color: var(--dim); background: var(--paper); border: 1px solid var(--mute); border-width: 0 1px 1px 0; }
+.hud .mute .note { text-decoration: line-through; text-decoration-thickness: 2px; text-decoration-color: var(--r); }
 /* Spanish labels run about 110px longer, so the Spanish HUD packs tighter to stay on one line. */
 :lang(es) .hud { padding: 0 16px; }
 :lang(es) .hud-l { gap: 16px; }

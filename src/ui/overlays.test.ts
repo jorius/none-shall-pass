@@ -258,10 +258,10 @@ describe('Overlays', () => {
     expect(document.activeElement).toBe(named(/^MUSIC/));
     named(/^SOUND/).click();
     expect([audio.settings.sound, store.prefs().sound]).toEqual([true, true]);
-    // The volume steps up to 3, wraps to 0 and climbs back to where it began.
+    // Three steps, 1 to 3 and round again, never 0.
     const volumes: string[] = [];
-    for (let i = 0; i < 4; i++) { named(/^VOLUME/).click(); volumes.push(named(/^VOLUME/).textContent!); }
-    expect(volumes).toEqual(['VOLUME · 3/3', 'VOLUME · 0/3', 'VOLUME · 1/3', 'VOLUME · 2/3']);
+    for (let i = 0; i < 6; i++) { named(/^VOLUME/).click(); volumes.push(named(/^VOLUME/).textContent!); }
+    expect(volumes).toEqual(['VOLUME · 3/3', 'VOLUME · 1/3', 'VOLUME · 2/3', 'VOLUME · 3/3', 'VOLUME · 1/3', 'VOLUME · 2/3']);
     expect([audio.settings.volume, store.prefs().volume]).toEqual([2, 2]);
     // The pause is still the pause.
     expect(app.screen).toBe('paused');
@@ -304,11 +304,23 @@ describe('Overlays', () => {
   });
 
   it('starts the pause menu on what the last session saved', () => {
-    store.setPrefs({ sound: false, music: true, volume: 0 });
+    store.setPrefs({ sound: false, music: true, volume: 3 });
     boot();
     app.startRun('campaign');
     app.act('pause');
-    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SOUND · OFF', 'MUSIC · ON', 'VOLUME · 0/3']);
+    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SOUND · OFF', 'MUSIC · ON', 'VOLUME · 3/3']);
+  });
+
+  it('starts the pause menu on VOLUME 2 when the save has a volume of 0, which cannot be chosen', () => {
+    const prefs = { sound: false, music: true, volume: 0 };
+    store = createStore({ getItem: () => JSON.stringify({ version: 2, bests: { campaign: {}, overtime: {}, won: false }, prefs }), setItem: () => undefined } as unknown as Storage);
+    boot();
+    app.startRun('campaign');
+    app.act('pause');
+    expect(buttons().map((b) => b.textContent).slice(-3)).toEqual(['SOUND · OFF', 'MUSIC · ON', 'VOLUME · 2/3']);
+    // From there the first step is 3.
+    named(/^VOLUME/).click();
+    expect(named(/^VOLUME/).textContent).toBe('VOLUME · 3/3');
   });
 
   it('opens the Armory from the title and closes it back onto the title, with CLOSE, T or Esc', () => {

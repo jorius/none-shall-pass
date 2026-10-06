@@ -5,7 +5,7 @@ export type SfxName = 'throw' | 'hit' | 'miss' | 'swallow' | 'breach' | 'pick' |
 export const tone = (ctx: AudioContext, out: AudioNode, type: OscillatorType, f0: number, f1: number, dur: number, gain = 0.25, at = 0): void => {
   const t = ctx.currentTime + at, o = ctx.createOscillator(), g = ctx.createGain();
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), t + dur);
-  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  g.gain.value = gain; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   o.connect(g).connect(out); o.start(t); o.stop(t + dur + 0.02);
 };
 
@@ -14,7 +14,7 @@ export const noise = (ctx: AudioContext, out: AudioNode, dur: number, gain = 0.2
   const t = ctx.currentTime + at, n = Math.ceil(ctx.sampleRate * dur) || 2205, buf = ctx.createBuffer(1, n, ctx.sampleRate || 44100), d = buf.getChannelData(0);
   for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
   const s = ctx.createBufferSource(), g = ctx.createGain();
-  s.buffer = buf; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  s.buffer = buf; g.gain.value = gain; g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
   s.connect(g).connect(out); s.start(t);
 };
 

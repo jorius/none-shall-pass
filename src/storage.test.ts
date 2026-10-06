@@ -206,6 +206,18 @@ describe('v2 bests', () => {
     expect(createStore(backend).prefs()).toMatchObject({ volume: 2, difficulty: 'intern' });
   });
 
+  it('keeps a saved volume of 1 to 3, and drops 0 (the pause menu steps 1 to 3 only) so the default applies', () => {
+    const save = (prefs: object): Storage => {
+      const backend = fakeStorage();
+      backend.setItem('nsp.v1', JSON.stringify({ version: 2, bests: { campaign: {}, overtime: {}, won: false }, prefs }));
+      return backend;
+    };
+    for (const volume of [1, 2, 3]) expect(createStore(save({ volume })).prefs(), String(volume)).toEqual({ volume });
+    expect(createStore(save({ volume: 0, sound: false })).prefs()).toEqual({ sound: false });
+    expect(createStore(save({ volume: 4 })).prefs()).toEqual({});
+    expect(createStore(save({ volume: 1.5 })).prefs()).toEqual({});
+  });
+
   it('reads a save from a later version through the v1 path and writes it back as v2', () => {
     const backend = fakeStorage();
     backend.setItem('nsp.v1', JSON.stringify({ version: 3, bests: { campaign: { normal: { score: 10, grade: 'B' }, 'intern-root': { score: 20, grade: 'C' } } } }));

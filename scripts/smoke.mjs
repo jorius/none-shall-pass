@@ -839,6 +839,26 @@ const CHECKS = {
     });
     if (failed.length) throw new Error(`effects on the real context: ${failed.join('; ')}`);
 
+    // The limiter on the real engine, with no output device (an offline render of the real view): four breaches at once at the top volume
+    // are past full scale without a limiter and under it with one (the first 45 ms, before the breach's noise: nothing random in it),
+    // and one breach plays as loud with the limiter as without, its makeup gain taken back out. The node fades in over its first quarter
+    // second, so everything plays at half a second.
+    const stacks = await page.evaluate(async () => {
+      const View = window.__nsp.audio.constructor, RATE = 44100;
+      const render = async (n, limiter) => {
+        const off = new OfflineAudioContext(1, RATE, RATE);
+        const ctx = limiter ? off : new Proxy(off, { get: (t, k) => (k === 'createDynamicsCompressor' ? undefined : typeof t[k] === 'function' ? t[k].bind(t) : t[k]) });
+        const view = new View(() => ctx, { sound: true, music: false, volume: 3 });
+        view.unlock();
+        off.suspend(0.5).then(() => { for (let i = 0; i < n; i++) view.event({ type: 'resolved', packet: {}, outcome: 'breach', damage: 1 }); return off.resume(); });
+        const out = (await off.startRendering()).getChannelData(0).slice(RATE / 2, RATE / 2 + Math.round(RATE * 0.045));
+        return out.reduce((m, x) => Math.max(m, Math.abs(x)), 0);
+      };
+      return { four: [await render(4, false), await render(4, true)], one: [await render(1, false), await render(1, true)] };
+    });
+    if (!(stacks.four[0] > 1 && stacks.four[1] <= 1)) throw new Error(`four breaches at volume 3, without and with the limiter: ${JSON.stringify(stacks.four)}`);
+    if (stacks.one[1] < 0.1 || Math.abs(stacks.one[0] - stacks.one[1]) > 0.02) throw new Error(`one breach, without and with the limiter: ${JSON.stringify(stacks.one)}`);
+
     // M puts both off (saved, the loop stopped, the badge up) and brings both back.
     await play(page);
     expectAudio('in play', await audio(), state(true, true, 2, true, false));
@@ -863,19 +883,29 @@ const CHECKS = {
     await press('MUSIC');
     expectAudio('MUSIC off', await audio(), state(false, false, 2, false));
     if (!await badge()) throw new Error('both off from the pause menu, and no MUTED badge');
-    // The volume steps up to 3, wraps to 0 and climbs: the loop only runs while there is a volume and the music is on.
+    // The volume has three steps, 1 to 3 and round again, never 0 (where nothing would play with both switches on and no badge to say why).
     await press('SOUND');
     await press('MUSIC');
     const volumes = [];
-    for (let i = 0; i < 3; i++) { await press('VOLUME'); volumes.push((await audio()).settings.volume); }
-    if (volumes.join() !== '3,0,1') throw new Error(`the volume stepped ${volumes}`);
-    expectAudio('VOLUME 1', await audio(), state(true, true, 1, true));
+    for (let i = 0; i < 4; i++) { await press('VOLUME'); volumes.push((await audio()).settings.volume); }
+    if (volumes.join() !== '3,1,2,3') throw new Error(`the volume stepped ${volumes}`);
+    expectAudio('VOLUME 3', await audio(), state(true, true, 3, true));
     await page.keyboard.press('m');
-    expectAudio('M over the pause', await audio(), state(false, false, 1, false));
-    if (await switches() !== 'SOUND · OFF | MUSIC · OFF | VOLUME · 1/3') throw new Error(`after M in the pause: ${await switches()}`);
+    expectAudio('M over the pause', await audio(), state(false, false, 3, false));
+    if (await switches() !== 'SOUND · OFF | MUSIC · OFF | VOLUME · 3/3') throw new Error(`after M in the pause: ${await switches()}`);
     await page.keyboard.press('m');
+    expectAudio('M back over the pause', await audio(), state(true, true, 3, true));
+    // M gives back the pair it took: SOUND on and MUSIC off is SOUND on and MUSIC off again, not both on.
+    await press('MUSIC');
+    expectAudio('MUSIC off by hand', await audio(), state(true, false, 3, false));
+    await page.keyboard.press('m');
+    expectAudio('M with MUSIC off', await audio(), state(false, false, 3, false));
+    await page.keyboard.press('m');
+    expectAudio('M gives back SOUND on, MUSIC off', await audio(), state(true, false, 3, false));
+    await press('MUSIC');
     await press('VOLUME');
-    expectAudio('VOLUME back to 2', await audio(), state(true, true, 2, true));
+    await press('VOLUME');
+    expectAudio('back to the defaults', await audio(), state(true, true, 2, true));
     await page.keyboard.press('p');
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
 
@@ -890,7 +920,8 @@ const CHECKS = {
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
 
     // Saved muted, in Spanish: the badge is up from the start, the widest HUD still fits with it, and the pause menu reads in Spanish.
-    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true, sound: false, music: false } })));
+    // The save also has a volume of 0, which the pause menu cannot set: it is dropped and the default 2 applies.
+    await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true, sound: false, music: false, volume: 0 } })));
     await page.reload({ waitUntil: 'networkidle' });
     await play(page);
     if (!await badge()) throw new Error('a muted save came up with no badge');
@@ -908,9 +939,12 @@ const CHECKS = {
         const x = e.getBoundingClientRect();
         return x.width > 0 && x.left < t.right && x.right > t.left && x.top < t.bottom && x.bottom > t.top;
       }).length;
-      return { text: tab.textContent, tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - b.right) / k), under: Math.round((t.top - b.bottom) / k), right: Math.round((t.right - b.left) / k), size: parseFloat(getComputedStyle(tab).fontSize), hits };
+      const note = tab.querySelector('.note');
+      return { text: tab.textContent, note: note.textContent, struck: getComputedStyle(note).textDecorationLine, tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - b.right) / k), under: Math.round((t.top - b.bottom) / k), right: Math.round((t.right - b.left) / k), size: parseFloat(getComputedStyle(tab).fontSize), hits };
     });
-    if (!/SILENCIO · M$/.test(hud.text)) throw new Error(`the badge says ${JSON.stringify(hud.text)}`);
+    if (hud.text !== '\u266A SILENCIO · M') throw new Error(`the badge says ${JSON.stringify(hud.text)}`);
+    // A plain note struck through by the CSS, not a combining solidus the pixel font cannot draw.
+    if (hud.note !== '\u266A' || !/line-through/.test(hud.struck)) throw new Error(`the badge's note: ${JSON.stringify([hud.note, hud.struck])}`);
     if (hud.tall || hud.room < 8 || hud.over > 0) throw new Error(`Spanish HUD does not fit while muted: ${JSON.stringify(hud)}`);
     if (hud.under < 0 || hud.right > 129 || hud.size < 13 || hud.hits) throw new Error(`the badge is misplaced: ${JSON.stringify(hud)}`);
     await page.screenshot({ path: `${OUT}/sound-es.png` });

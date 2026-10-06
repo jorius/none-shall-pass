@@ -12,12 +12,16 @@ import type { View } from '../game/view';
 import { createMusic } from './music';
 import { createSynth, type SfxName } from './synth';
 
-export interface AudioPrefs { sound: boolean; music: boolean; volume: 0 | 1 | 2 | 3 }
+export interface AudioPrefs { sound: boolean; music: boolean; volume: 1 | 2 | 3 }
 
-// The master level at each step of VOLUME; the music sits at half the effects, and the loop drops to 40% under a menu.
-const VOLUME = [0, 0.35, 0.65, 1] as const;
+// The master level at each step of VOLUME (1 to 3: SOUND and MUSIC are the ways to silence); the music sits at half the effects,
+// and the loop drops to 40% under a menu.
+const VOLUME = { 1: 0.35, 2: 0.65, 3: 1 } as const;
 const MUSIC_LEVEL = 0.5;
 const DUCKED = 0.4;
+// The limiter node adds makeup gain of its own at these settings (+1.7 dB, measured on Chromium's), which would put the whole mix
+// up and its peaks nearer full scale; the master level takes it back out, so the limiter only acts on the peaks.
+const MAKEUP = 1.22;
 
 // The game's sound, played from its events: short synthesized effects and a looping 16-step tune, with the switches the pause
 // menu and the M key work. Without an AudioContext, or before the first gesture, it does nothing at all.
@@ -33,6 +37,10 @@ export class AudioView implements View {
   private screenNow: Screen = 'title';
   // What the run owned at the last pick, to tell a level rising from any other card.
   private owned: CardId[] = [];
+  // The switches M took away, to give them back.
+  private muted: { sound: boolean; music: boolean } | null = null;
+  // Whether the master feeds a limiter (see build).
+  private limited = false;
   // When a suspended context was last asked to resume.
   private woke = -Infinity;
 
@@ -75,7 +83,18 @@ export class AudioView implements View {
       if (!ctx) return;
       this.ctx = ctx;
       this.master = ctx.createGain(); this.sfxGain = ctx.createGain(); this.musicGain = ctx.createGain();
-      this.sfxGain.connect(this.master); this.musicGain.connect(this.master); this.master.connect(ctx.destination);
+      this.sfxGain.connect(this.master); this.musicGain.connect(this.master);
+      // A limiter just under full scale, where the browser has one, so a charge's stack of hits cannot clip. Set as a brick wall
+      // (-3 dB, no knee, 20:1) and not as the node's defaults (-24 dB, a 30 dB knee, 12:1), which squash the whole mix. The node
+      // adds makeup gain of its own (see MAKEUP) and fades in over its first quarter second, so the first tick after the first
+      // gesture is softer.
+      const limiter = ctx.createDynamicsCompressor?.();
+      this.limited = !!limiter;
+      if (limiter) {
+        limiter.threshold.value = -3; limiter.knee.value = 0; limiter.ratio.value = 20; limiter.attack.value = 0.003; limiter.release.value = 0.25;
+        this.master.connect(limiter);
+        limiter.connect(ctx.destination);
+      } else this.master.connect(ctx.destination);
       this.synth = createSynth(ctx, this.sfxGain); this.music = createMusic(ctx, this.musicGain);
       this.apply();
       this.sync();
@@ -95,20 +114,20 @@ export class AudioView implements View {
   }
 
   private apply(): void {
-    if (this.master) this.master.gain.value = VOLUME[this.prefs.volume];
+    if (this.master) this.master.gain.value = VOLUME[this.prefs.volume] / (this.limited ? MAKEUP : 1);
     if (this.sfxGain) this.sfxGain.gain.value = this.prefs.sound ? 1 : 0;
     if (this.musicGain) this.musicGain.gain.value = this.prefs.music ? MUSIC_LEVEL : 0;
   }
 
   // The loop follows the screen and the switches: it plays on every screen but the debrief, softer under the pause, the Armory
-  // and the console, and not at all (so nothing is queued for nobody) while MUSIC is off or the VOLUME is 0.
+  // and the console, and not at all (so nothing is queued for nobody) while MUSIC is off.
   private sync(): void {
     const music = this.music;
     if (!music) return;
     try {
       const s = this.screenNow;
       music.setLevel(s === 'paused' || s === 'armory' || s === 'console' ? DUCKED : 1);
-      if (this.prefs.music && this.prefs.volume > 0 && s !== 'debrief') music.start();
+      if (this.prefs.music && s !== 'debrief') music.start();
       else music.stop();
     } catch { /* silent */ }
   }
@@ -125,10 +144,17 @@ export class AudioView implements View {
   // Whether the music loop is running.
   get looping(): boolean { return this.music?.running ?? false; }
 
-  // M: everything off, or, when nothing was on, everything back.
+  // M: everything off, remembering which of the two was on, or, when nothing is, what it took away (both, when it took nothing:
+  // a session saved muted, or both switched off by hand).
   toggleMute(): void {
-    const on = !(this.prefs.sound || this.prefs.music);
-    this.set({ sound: on, music: on });
+    const { sound, music } = this.prefs;
+    if (sound || music) {
+      this.muted = { sound, music };
+      this.set({ sound: false, music: false });
+    } else {
+      this.set(this.muted ?? { sound: true, music: true });
+      this.muted = null;
+    }
   }
 
   private sfx(n: SfxName): void {
@@ -150,9 +176,9 @@ export class AudioView implements View {
       case 'waveStarted': this.sfx('waveStart'); break;
       case 'chargeStarted': this.sfx('charge'); break;
       case 'owned':
-        this.sfx('pick');
-        // Destrier or Observability going up a level gets its fanfare on top of the pick.
-        if (destrierLevel(ev.owned) > destrierLevel(this.owned) || obsLevel(ev.owned) > obsLevel(this.owned)) this.sfx('levelUp');
+        // Destrier or Observability going up a level gets its fanfare in place of the pick: both start a 523 Hz square on the same
+        // instant, so together they would only double in phase.
+        this.sfx(destrierLevel(ev.owned) > destrierLevel(this.owned) || obsLevel(ev.owned) > obsLevel(this.owned) ? 'levelUp' : 'pick');
         this.owned = [...ev.owned];
         break;
     }

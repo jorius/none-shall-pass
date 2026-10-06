@@ -15,9 +15,6 @@ import { fmtNum, loc, t } from '../i18n';
 import type { App } from '../app';
 import { button, el } from './dom';
 
-// A note struck through: ♪ and the combining long solidus.
-const MUTED_GLYPH = '\u266A\u0338';
-
 export class Hud implements View {
   private readonly waveEl: HTMLElement;
   private readonly score: HTMLElement;
@@ -27,6 +24,7 @@ export class Hud implements View {
   private readonly pauseBtn: HTMLButtonElement;
   private readonly root: HTMLElement;
   private readonly mute: HTMLElement;
+  private readonly muteText: Text;
   private readonly labels: HTMLElement[] = [];
   private last = '';
   private started: Run | null = null;
@@ -54,6 +52,9 @@ export class Hud implements View {
     this.pauseBtn = button(r, 'toggle', t('hud.pause'), () => app.act('pause'));
     // Outside the bar's left and right groups (see .hud .mute): the Spanish HUD at its widest has no room left between them.
     this.mute = el('span', 'mute', bar);
+    // A plain note, struck through by the CSS (the pixel font has no glyph for one with a combining solidus), and the words.
+    el('span', 'note', this.mute, '\u266A');
+    this.muteText = this.mute.appendChild(document.createTextNode(''));
     this.syncMute();
   }
 
@@ -61,7 +62,7 @@ export class Hud implements View {
   private syncMute(): void {
     const audio = this.app.audioSettings?.();
     this.mute.style.display = audio && !audio.sound && !audio.music ? '' : 'none';
-    this.mute.textContent = `${MUTED_GLYPH} ${t('hud.muted')}`;
+    this.muteText.data = ` ${t('hud.muted')}`;
   }
 
   refresh(run: Run | null): void {

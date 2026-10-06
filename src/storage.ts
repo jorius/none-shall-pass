@@ -13,7 +13,7 @@ export interface Bests {
   overtime: Partial<Record<Slot, { wave: number; score: number }>>;
   won: boolean;
 }
-export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean; coached?: boolean; knight?: KnightId; difficulty?: Difficulty; sound?: boolean; music?: boolean; volume?: 0 | 1 | 2 | 3 }
+export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean; coached?: boolean; knight?: KnightId; difficulty?: Difficulty; sound?: boolean; music?: boolean; volume?: 1 | 2 | 3 }
 interface Saved { version: 2; bests: Bests; prefs: Prefs }
 
 // The key never changed: a v1 save (no version, one difficulty) reads into the Analyst's slots and is written back as v2.
@@ -28,7 +28,9 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isSlot = (k: string): k is Slot => (SLOTS as readonly string[]).includes(k);
 const oneOf = (ids: readonly string[], x: unknown): boolean => typeof x === 'string' && ids.includes(x);
-const isVolume = (x: unknown): x is 0 | 1 | 2 | 3 => Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 3;
+// The pause menu steps the volume 1 to 3, never to 0 (SOUND and MUSIC are the switches off), so a saved 0 is not a choice:
+// it drops out here and the default applies.
+const isVolume = (x: unknown): x is 1 | 2 | 3 => Number.isInteger(x) && (x as number) >= 1 && (x as number) <= 3;
 const isFlag = (x: unknown): boolean => typeof x === 'boolean';
 // The prefs with a shape of their own; every other pref is a flag, including ones added later.
 const PREF_SHAPE = new Map<string, (x: unknown) => boolean>([

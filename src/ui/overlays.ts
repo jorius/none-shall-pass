@@ -198,8 +198,8 @@ export class Overlays implements View {
           },
           toggleSound: () => this.tune({ sound: !this.opts.audio.settings.sound }),
           toggleMusic: () => this.tune({ music: !this.opts.audio.settings.music }),
-          // 0 to 3 and round again.
-          cycleVolume: () => this.tune({ volume: ((this.opts.audio.settings.volume + 1) % 4) as AudioPrefs['volume'] }),
+          // Three steps, 1 to 3 and round again: never 0, where nothing would play with the switches on and no badge to say why.
+          cycleVolume: () => this.tune({ volume: ((this.opts.audio.settings.volume % 3) + 1) as AudioPrefs['volume'] }),
         });
         break;
       case 'debrief':
