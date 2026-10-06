@@ -97,6 +97,11 @@ const CHECKS = {
   async boot(page) {
     await page.waitForSelector('#stage canvas');
     await page.waitForFunction(() => window.__nsp?.game?.isBooted === true);
+    // The link-preview tags ship in the built page (no og:image yet: there is no PNG to point at).
+    const og = await page.$$eval('meta[property^="og:"], meta[name="twitter:card"]', (m) => Object.fromEntries(m.map((e) => [e.getAttribute('property') ?? e.getAttribute('name'), e.content])));
+    const want = { 'og:title': 'None Shall Pass', 'og:type': 'website', 'og:url': 'https://jorius.github.io/none-shall-pass/', 'og:locale': 'en_US', 'twitter:card': 'summary' };
+    for (const [k, v] of Object.entries(want)) if (og[k] !== v) throw new Error(`${k} is ${JSON.stringify(og[k])}, expected ${v}`);
+    if (!og['og:description']) throw new Error('no og:description');
     await page.screenshot({ path: `${OUT}/boot.png` });
   },
   async loop(page) {
