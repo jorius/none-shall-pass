@@ -683,6 +683,28 @@ const CHECKS = {
     await page.keyboard.press('Escape');
     await page.waitForSelector('#ui .ov-title .btn');
     if (await page.evaluate(() => window.__nsp.app.screen !== 'title' || window.__nsp.app.run !== null)) throw new Error('Esc did not go back to the title');
+    // The language button on the foot switches the setup in place and keeps the pair; the picked cards are pressed buttons for a screen reader.
+    await page.click('#ui .ov-title .row-btns .btn:nth-child(1)');
+    await page.waitForSelector('#ui .ov-setup .foot .btn');
+    await page.click('#ui .ov-setup .foot .btn:nth-child(3)');
+    await page.waitForFunction(() => document.documentElement.lang === 'es' && /ELIGE A TU CABALLERO/.test(document.querySelector('#ui .ov-setup h2')?.textContent));
+    const toggled = await page.evaluate(() => ({ ...Object.fromEntries(['knight', 'level'].map((k) => [k, document.querySelector(`#ui .ov-setup .${k === 'knight' ? 'kn' : 'dl'}.sel`)?.dataset.id])), screen: window.__nsp.app.screen, pressed: [...document.querySelectorAll('#ui .ov-setup [aria-pressed="true"]')].map((b) => b.dataset.id) }));
+    if (toggled.screen !== 'setup' || toggled.knight !== 'warden' || toggled.level !== 'incident' || toggled.pressed.join() !== 'warden,incident') throw new Error(`after the language button: ${JSON.stringify(toggled)}`);
+    await page.click('#ui .ov-setup .foot .btn:nth-child(3)');
+    await page.waitForFunction(() => document.documentElement.lang === 'en' && /CHOOSE YOUR KNIGHT/.test(document.querySelector('#ui .ov-setup h2')?.textContent));
+    // Enter starts the run from wherever the focus is, once: on a knight's card that is not the marked one it starts on the pair marked,
+    // and the card is not picked (the browser's own click on Enter is cancelled).
+    await page.evaluate(() => {
+      const app = window.__nsp.app, real = app.startRun.bind(app);
+      window.__smokeStarts = [];
+      app.startRun = (...args) => { window.__smokeStarts.push(args[0]); return real(...args); };
+      document.querySelector('#ui .ov-setup .kn[data-id="raider"]').focus();
+    });
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
+    await page.waitForTimeout(100);
+    const entered = await page.evaluate(() => ({ starts: window.__smokeStarts, cfg: window.__nsp.app.run.state.cfg, saved: JSON.parse(localStorage.getItem('nsp.v1')).prefs }));
+    if (entered.starts.length !== 1 || entered.starts[0] !== 'campaign' || entered.cfg.knight !== 'warden' || entered.cfg.difficulty !== 'incident' || entered.saved.knight !== 'warden') throw new Error(`Enter on a card: ${JSON.stringify(entered)}`);
     // In Spanish, at its longest: Forge on Zero-day, every card and the foot on one screen.
     await spanish(page);
     await page.reload({ waitUntil: 'networkidle' });

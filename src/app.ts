@@ -63,7 +63,7 @@ export class App {
     this.setScreen('setup');
   }
 
-  // On the setup's choice, or without one (PLAY AGAIN) on the pair last played; either way the pair is remembered,
+  // On the setup's choice, or without one (Enter on the setup) on the pair last saved; either way the pair is remembered,
   // for the next run, the title's bests and the idle knight behind it. A first run is an Analyst on the Black Knight.
   startRun(mode: Mode, choice?: Choice): void {
     this.cancelEnd();
@@ -177,9 +177,11 @@ export class App {
   }
 
   act(a: Action): void {
-    // The actions without a run: BACK (Esc) on the setup goes to the title, and the Armory opens from the title (and closes back
-    // to it); nowhere else does either do anything. MUTE works anywhere, and the views refresh for the HUD's badge.
+    // The actions without a run: BACK (Esc) on the setup goes to the title, CONTINUE (Enter) there starts the run on the pair marked, and the
+    // Armory opens from the title (and closes back to it); nowhere else does any of them do anything. MUTE works anywhere, and the views
+    // refresh for the HUD's badge.
     if (a === 'back') { if (this.screen === 'setup') this.quit(); return; }
+    if (a === 'continue' && this.screen === 'setup') { this.startRun(this.pendingMode); return; }
     if (a === 'armory') { this.toggleArmory(); return; }
     if (a === 'mute') { this.onMute?.(); this.refresh(); return; }
     const run = this.run;

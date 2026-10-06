@@ -20,6 +20,7 @@ export interface SetupDeps {
   level(d: Difficulty): void;
   start(): void;
   back(): void;
+  toggleLang(): void;
 }
 
 // Each portrait (the knight on foot, spear up, in their own colours) is painted once and kept as a data URL.
@@ -36,8 +37,9 @@ const portrait = (id: KnightId): string => {
 // The score multiplier as the HUD writes it: a decimal comma in Spanish.
 const mult = (m: number): string => `×${lang() === 'es' ? String(m).replace('.', ',') : m}`;
 
-// The screen between the title and wave 1: six knights, four difficulties, the current pair marked. A pick calls back
-// and the caller redraws; START takes the focus for every player, so Space starts the run (the label says so).
+// The screen between the title and wave 1: six knights, four difficulties, the current pair marked (and pressed, for a screen reader).
+// A pick calls back and the caller redraws; START takes the focus for every player, so Space starts the run (the label says so), and
+// so does Enter, wherever the focus is (the App takes that key). The language button sits after START and BACK on the foot.
 export const renderSetup = (box: HTMLElement, d: SetupDeps): void => {
   box.innerHTML = '';
   el('h2', '', box, t('setup.title'));
@@ -51,6 +53,7 @@ export const renderSetup = (box: HTMLElement, d: SetupDeps): void => {
     const k = KNIGHTS[id];
     const card = button(knights, id === d.knight ? 'kn sel' : 'kn', '', () => d.pick(id));
     card.dataset.id = id;
+    card.setAttribute('aria-pressed', String(id === d.knight));
     const img = el('img', 'px', el('div', 'pic', card));
     img.src = portrait(id);
     img.alt = '';
@@ -65,6 +68,7 @@ export const renderSetup = (box: HTMLElement, d: SetupDeps): void => {
     const def = DIFFICULTIES[id];
     const row = button(diff, id === d.difficulty ? 'dl sel' : 'dl', '', () => d.level(id));
     row.dataset.id = id;
+    row.setAttribute('aria-pressed', String(id === d.difficulty));
     el('span', 'rad', row);
     el('span', 'nm', row, loc(def.name));
     el('span', 'x', row, mult(def.mult));
@@ -76,6 +80,7 @@ export const renderSetup = (box: HTMLElement, d: SetupDeps): void => {
   const foot = el('div', 'foot', box);
   button(foot, 'btn', t('setup.start'), d.start).focus();
   button(foot, 'btn ghost', t('setup.back'), d.back);
+  button(foot, 'btn ghost', t('lang.toggle'), d.toggleLang);
   const chosen = DIFFICULTIES[d.difficulty];
   el('span', 'note', foot, `${loc(KNIGHTS[d.knight].name)} · ${loc(chosen.name)} · ${mult(chosen.mult)}`);
 };

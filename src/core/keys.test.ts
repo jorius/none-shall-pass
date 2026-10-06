@@ -1,8 +1,8 @@
 // packages
-import { describe, expect, it } from 'vitest';
+import { describe, expect, expectTypeOf, it } from 'vitest';
 
 // core
-import { konamiMatcher, KONAMI, routeKey } from './keys';
+import { konamiMatcher, KONAMI, routeKey, type Screen } from './keys';
 
 type KeyOver = Partial<{ code: string; shiftKey: boolean; ctrlKey: boolean; metaKey: boolean; repeat: boolean; inField: boolean }>;
 const k = (key: string, over: KeyOver = {}) => ({ key, shiftKey: false, inField: false, ...over });
@@ -42,7 +42,7 @@ describe('routeKey', () => {
     expect(routeKey(k('`'), 'paused')).toBe('console');
     expect(routeKey(k(' '), 'draft')).toBeNull();
     expect(routeKey(k('`'), 'title')).toBeNull();
-    for (const screen of ['paused', 'draft', 'title', 'howto', 'debrief'] as const) expect(routeKey(k('c'), screen), screen).toBeNull();
+    for (const screen of ['paused', 'draft', 'title', 'debrief'] as const) expect(routeKey(k('c'), screen), screen).toBeNull();
   });
 
   it('goes on from the recap with Space or Enter, once per press, and nowhere else', () => {
@@ -51,15 +51,27 @@ describe('routeKey', () => {
     for (const key of ['Tab', 'Escape', 'p', 'c', 'h', '`', 'ArrowUp']) expect(routeKey(k(key), 'recap'), key).toBeNull();
     expect(routeKey(k(' ', { repeat: true }), 'recap')).toBeNull();
     expect(routeKey(k('Enter', { inField: true }), 'recap')).toBeNull();
-    for (const screen of ['playing', 'paused', 'draft', 'title', 'howto', 'debrief', 'console'] as const) expect(routeKey(k('Enter'), screen), screen).not.toBe('continue');
+    for (const screen of ['playing', 'paused', 'draft', 'title', 'debrief', 'console'] as const) expect(routeKey(k('Enter'), screen), screen).not.toBe('continue');
   });
 
-  it('leaves the setup with Esc, once per press, and takes no other key there', () => {
+  it('leaves the setup with Esc and starts it with Enter, once per press, and takes no other key there', () => {
     expect(routeKey(k('Escape'), 'setup')).toBe('back');
-    for (const key of [' ', 'Enter', 'Tab', 'p', 'c', 'h', '`', 'ArrowUp']) expect(routeKey(k(key), 'setup'), key).toBeNull();
-    expect(routeKey(k('Escape', { repeat: true }), 'setup')).toBeNull();
-    expect(routeKey(k('Escape', { inField: true }), 'setup')).toBeNull();
-    for (const screen of ['playing', 'paused', 'recap', 'draft', 'title', 'howto', 'debrief', 'console'] as const) expect(routeKey(k('Escape'), screen), screen).not.toBe('back');
+    // Enter starts the run whichever button has the focus; Space is left to the focused button (START starts, a card is picked).
+    expect(routeKey(k('Enter'), 'setup')).toBe('continue');
+    for (const key of [' ', 'Tab', 'p', 'c', 'h', '`', 'ArrowUp']) expect(routeKey(k(key), 'setup'), key).toBeNull();
+    for (const key of ['Escape', 'Enter']) {
+      expect(routeKey(k(key, { repeat: true }), 'setup'), `${key} held`).toBeNull();
+      expect(routeKey(k(key, { inField: true }), 'setup'), `${key} in a field`).toBeNull();
+      expect(routeKey(k(key, { ctrlKey: true }), 'setup'), `${key} with Ctrl`).toBeNull();
+    }
+    for (const screen of ['playing', 'paused', 'recap', 'draft', 'title', 'debrief', 'console'] as const) expect(routeKey(k('Escape'), screen), screen).not.toBe('back');
+  });
+
+  it('has no screen for the how-to: it is a view of the title, where its keys are the title\'s', () => {
+    // Type-level, checked by tsc in the build: a 'howto' screen would let a test cover a case the App never reaches.
+    expectTypeOf<'howto'>().not.toExtend<Screen>();
+    expect(routeKey(k('t'), 'title')).toBe('armory');
+    expect(routeKey(k('m'), 'title')).toBe('mute');
   });
 
   it('opens the Armory with T from the title, the pause, the draft and play, and closes it with T or Esc', () => {
@@ -89,7 +101,7 @@ describe('routeKey', () => {
   });
 
   it('mutes with M on every screen but the console, once per press, never from a field and never with a shortcut held', () => {
-    for (const screen of ['title', 'howto', 'setup', 'playing', 'paused', 'recap', 'draft', 'armory', 'debrief'] as const) {
+    for (const screen of ['title', 'setup', 'playing', 'paused', 'recap', 'draft', 'armory', 'debrief'] as const) {
       expect(routeKey(k('m'), screen), screen).toBe('mute');
       expect(routeKey(k('M'), screen), screen).toBe('mute');
       expect(routeKey(k('m', { repeat: true }), screen), screen).toBeNull();

@@ -1,4 +1,5 @@
-export type Screen = 'title' | 'howto' | 'setup' | 'playing' | 'paused' | 'recap' | 'draft' | 'armory' | 'console' | 'debrief';
+// The how-to is no screen of the App's: Overlays shows it over the title, which is the screen the App is on while it is up.
+export type Screen = 'title' | 'setup' | 'playing' | 'paused' | 'recap' | 'draft' | 'armory' | 'console' | 'debrief';
 export type Action = 'laneUp' | 'laneDown' | 'next' | 'prev' | 'throw' | 'release' | 'charge' | 'hints' | 'pause' | 'console' | 'closeConsole' | 'continue' | 'back' | 'armory' | 'mute' | null;
 export type KeyInput = { key: string; code?: string; shiftKey: boolean; ctrlKey?: boolean; metaKey?: boolean; repeat?: boolean; inField: boolean };
 
@@ -19,10 +20,10 @@ const route = (k: KeyInput, screen: Screen): Action => {
   // The Armory opens on T from the title, the pause, a draft and play, and T or Esc close it (every other key stays with the focus).
   if (screen === 'armory') return k.key === 'Escape' || isT(k) ? 'armory' : null;
   if (isT(k) && (screen === 'title' || screen === 'paused' || screen === 'draft' || screen === 'playing')) return 'armory';
-  // The recap has one key: Space or Enter goes on to the draft. The setup has one: Esc goes back to the title
-  // (Space starts it through its focused START button, like any button).
+  // The recap has one key: Space or Enter goes on to the draft. The setup has two: Esc goes back to the title, and Enter starts the run
+  // whichever button has the focus. Space is left to the focused button, as for any button: START starts, a card is picked.
   if (screen === 'recap') return k.key === ' ' || k.key === 'Enter' ? 'continue' : null;
-  if (screen === 'setup') return k.key === 'Escape' ? 'back' : null;
+  if (screen === 'setup') return k.key === 'Escape' ? 'back' : k.key === 'Enter' ? 'continue' : null;
   if (screen === 'paused') return k.key === 'p' || k.key === 'P' || k.key === 'Escape' ? 'pause' : null;
   if (screen !== 'playing') return null;
   switch (k.key) {

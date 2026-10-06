@@ -21,7 +21,7 @@ describe('renderSetup', () => {
     box = document.createElement('div');
     document.body.append(box);
     picked = [];
-    deps = { knight: 'ghost', difficulty: 'incident', root: false, pick: (k) => picked.push(k), level: (d) => picked.push(d), start: () => picked.push('start'), back: () => picked.push('back') };
+    deps = { knight: 'ghost', difficulty: 'incident', root: false, pick: (k) => picked.push(k), level: (d) => picked.push(d), start: () => picked.push('start'), back: () => picked.push('back'), toggleLang: () => picked.push('lang') };
   });
   afterEach(() => setLang('en'));
 
@@ -36,6 +36,32 @@ describe('renderSetup', () => {
     (box.querySelector('.dl[data-id="zeroday"]') as HTMLButtonElement).click();
     (document.activeElement as HTMLButtonElement).click();
     expect(picked).toEqual(['forge', 'zeroday', 'start']);
+  });
+
+  it('tells assistive technology which knight and which difficulty are picked', () => {
+    renderSetup(box, deps);
+    const pressed = (sel: string): (string | null)[][] => [...box.querySelectorAll<HTMLElement>(sel)].map((b) => [b.dataset.id ?? null, b.getAttribute('aria-pressed')]);
+    expect(pressed('.kn')).toEqual([['black', 'false'], ['sentinel', 'false'], ['raider', 'false'], ['warden', 'false'], ['ghost', 'true'], ['forge', 'false']]);
+    expect(pressed('.dl')).toEqual([['intern', 'false'], ['analyst', 'false'], ['incident', 'true'], ['zeroday', 'false']]);
+    // It follows the pick, and the ones that look picked are the ones that are pressed.
+    renderSetup(box, { ...deps, knight: 'black', difficulty: 'intern' });
+    expect(pressed('.kn').filter(([, v]) => v === 'true')).toEqual([['black', 'true']]);
+    expect(pressed('.dl').filter(([, v]) => v === 'true')).toEqual([['intern', 'true']]);
+    expect([...box.querySelectorAll('.kn.sel, .dl.sel')].every((b) => b.getAttribute('aria-pressed') === 'true')).toBe(true);
+    // Not on the foot's buttons, which are actions and not choices.
+    expect(box.querySelectorAll('.foot [aria-pressed]')).toHaveLength(0);
+  });
+
+  it('switches the language from the foot, after START and BACK, and START keeps the focus', () => {
+    renderSetup(box, deps);
+    const foot = [...box.querySelectorAll<HTMLButtonElement>('.foot button')];
+    expect(foot.map((b) => b.textContent)).toEqual(['START · SPACE', 'BACK · ESC', 'ES']);
+    foot[2].click();
+    expect(picked).toEqual(['lang']);
+    expect(document.activeElement).toBe(foot[0]);
+    setLang('es');
+    renderSetup(box, deps);
+    expect([...box.querySelectorAll('.foot button')].map((b) => b.textContent)).toEqual(['EMPEZAR · ESPACIO', 'VOLVER · ESC', 'EN']);
   });
 
   it('paints each knight on foot in their own colours, once for every render', () => {

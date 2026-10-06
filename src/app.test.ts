@@ -207,10 +207,42 @@ describe('App', () => {
     expect(screens.at(-1)).toBe('setup');
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect([app.screen, app.run, app.pendingMode]).toEqual(['title', null, 'overtime']);
-    // Nothing else moves the setup: the play keys belong to the field.
+    // Nothing else moves the setup but Enter: the play keys belong to the field.
     app.openSetup('campaign');
-    for (const key of [' ', 'Enter', 'p', 'c', 'ArrowUp']) window.dispatchEvent(new KeyboardEvent('keydown', { key }));
+    for (const key of [' ', 'p', 'c', 'ArrowUp']) window.dispatchEvent(new KeyboardEvent('keydown', { key }));
     expect(app.screen).toBe('setup');
+  });
+
+  it('starts the run on Enter at the setup, on the pair saved and the mode it was opened for, and takes the press so no second run starts', () => {
+    store.setPrefs({ knight: 'ghost', difficulty: 'incident' });
+    app.quit();
+    app.openSetup('overtime');
+    const start = vi.spyOn(app, 'startRun');
+    const enter = (over: KeyboardEventInit = {}): KeyboardEvent => {
+      const ev = new KeyboardEvent('keydown', { key: 'Enter', cancelable: true, ...over });
+      window.dispatchEvent(ev);
+      return ev;
+    };
+    // A held key repeats the keydown, and the repeats are nobody's.
+    expect(enter({ repeat: true }).defaultPrevented).toBe(false);
+    expect(start).not.toHaveBeenCalled();
+    // The press is taken: its default (a click on the button that has the focus) is cancelled, which would start a second run.
+    expect(enter().defaultPrevented).toBe(true);
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(start).toHaveBeenCalledWith('overtime');
+    expect([app.screen, app.run!.state.cfg]).toEqual(['playing', expect.objectContaining({ mode: 'overtime', knight: 'ghost', difficulty: 'incident' })]);
+    // The run is on, and Enter is nobody's key there.
+    expect(enter().defaultPrevented).toBe(false);
+    expect(start).toHaveBeenCalledTimes(1);
+  });
+
+  it('starts a first visit\'s run on the Black Knight and the Analyst when Enter is pressed at the setup, and only from the setup', () => {
+    app.act('continue');
+    expect([app.screen, app.run]).toEqual(['title', null]);
+    app.openSetup('campaign');
+    app.act('continue');
+    expect([app.screen, app.run!.state.cfg]).toEqual(['playing', expect.objectContaining({ mode: 'campaign', knight: 'black', difficulty: 'analyst' })]);
+    expect(store.prefs()).toMatchObject({ knight: 'black', difficulty: 'analyst' });
   });
 
   it('pauses only from play, so the pause button cannot leave a draft behind', () => {

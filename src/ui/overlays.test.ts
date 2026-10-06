@@ -124,6 +124,119 @@ describe('Overlays', () => {
     expect([app.screen, box().className]).toEqual(['title', 'ov show ov-title']);
   });
 
+  it('switches the language on the setup in place, keeping the pair picked, and START still starts it', () => {
+    boot();
+    named(/PLAY CAMPAIGN/).click();
+    box().querySelector<HTMLButtonElement>('.kn[data-id="ghost"]')!.click();
+    box().querySelector<HTMLButtonElement>('.dl[data-id="zeroday"]')!.click();
+    const pair = (): (string | undefined)[] => [box().querySelector<HTMLElement>('.kn.sel')?.dataset.id, box().querySelector<HTMLElement>('.dl.sel')?.dataset.id];
+    expect(buttons().slice(-3).map((b) => b.textContent)).toEqual(['START · SPACE', 'BACK · ESC', 'ES']);
+    named(/^ES$/).click();
+    expect([app.screen, box().className, store.prefs().lang, document.documentElement.lang]).toEqual(['setup', 'ov show ov-setup', 'es', 'es']);
+    expect(box().querySelector('h2')?.textContent).toBe('ELIGE A TU CABALLERO');
+    expect(pair()).toEqual(['ghost', 'zeroday']);
+    expect(box().querySelector('.foot .note')?.textContent).toBe('Fantasma · Día cero · ×2');
+    // A mouse player's START keeps the focus, so Space still starts the run.
+    expect(document.activeElement).toBe(named(/^EMPEZAR/));
+    named(/^EN$/).click();
+    expect([box().querySelector('h2')?.textContent, store.prefs().lang, ...pair()]).toEqual(['CHOOSE YOUR KNIGHT', 'en', 'ghost', 'zeroday']);
+    named(/^START/).click();
+    expect(app.run?.state.cfg).toMatchObject({ mode: 'campaign', knight: 'ghost', difficulty: 'zeroday' });
+  });
+
+  it('keeps a keyboard player on the language button when it switches the setup, and the title\'s pair after Esc', () => {
+    boot();
+    named(/PLAY CAMPAIGN/).click();
+    box().querySelector<HTMLButtonElement>('.kn[data-id="raider"]')!.click();
+    named(/^ES$/).focus();
+    named(/^ES$/).click();
+    expect(document.activeElement).toBe(named(/^EN$/));
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(box().textContent).toContain('Jugando como Asaltante · Analista');
+  });
+
+  describe('Enter on the setup', () => {
+    // What a browser does with an Enter keydown nobody cancelled: it clicks the button that has the focus (jsdom does not).
+    const enter = (target: HTMLElement): KeyboardEvent => {
+      const ev = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+      target.dispatchEvent(ev);
+      if (!ev.defaultPrevented) target.click();
+      return ev;
+    };
+    const open = () => {
+      boot();
+      const start = vi.spyOn(app, 'startRun');
+      named(/PLAY CAMPAIGN/).click();
+      box().querySelector<HTMLButtonElement>('.kn[data-id="forge"]')!.click();
+      box().querySelector<HTMLButtonElement>('.dl[data-id="incident"]')!.click();
+      return start;
+    };
+
+    it('starts one run on the pair marked when START has the focus: the press is taken, so the button\'s own click starts no second', () => {
+      const start = open();
+      expect(document.activeElement).toBe(named(/^START/));
+      expect(enter(named(/^START/)).defaultPrevented).toBe(true);
+      expect(start).toHaveBeenCalledTimes(1);
+      expect(app.run?.state.cfg).toMatchObject({ mode: 'campaign', knight: 'forge', difficulty: 'incident' });
+      expect(store.prefs()).toMatchObject({ knight: 'forge', difficulty: 'incident' });
+      expect([app.screen, box().className]).toEqual(['playing', 'ov']);
+    });
+
+    it('starts one run on the pair marked, not on the card focused, when a knight card has the focus, and does not pick that card', () => {
+      const start = open();
+      const raider = box().querySelector<HTMLButtonElement>('.kn[data-id="raider"]')!;
+      raider.focus();
+      expect(enter(raider).defaultPrevented).toBe(true);
+      expect(start).toHaveBeenCalledTimes(1);
+      expect(app.run?.state.cfg).toMatchObject({ knight: 'forge', difficulty: 'incident' });
+      expect(store.prefs().knight).toBe('forge');
+    });
+
+    // Enter is the key to go on wherever the focus is, and Space is the focused button's own: the setup's other buttons are pressed with Space.
+    for (const [name, find] of [
+      ['a difficulty row', (): HTMLElement => box().querySelector<HTMLElement>('.dl[data-id="intern"]')!],
+      ['BACK', (): HTMLElement => named(/^BACK/)],
+      ['the language button', (): HTMLElement => named(/^ES$/)],
+    ] as const) {
+      it(`starts one run on the pair marked when ${name} has the focus, and does not press it`, () => {
+        const start = open();
+        const target = find();
+        target.focus();
+        expect(enter(target).defaultPrevented).toBe(true);
+        expect(start).toHaveBeenCalledTimes(1);
+        expect([app.screen, app.run?.state.cfg.knight, app.run?.state.cfg.difficulty, store.prefs().lang]).toEqual(['playing', 'forge', 'incident', undefined]);
+      });
+    }
+
+    it('does nothing for the Enter that opens the setup from the title, and for a held Enter', () => {
+      boot();
+      const start = vi.spyOn(app, 'startRun');
+      const play = named(/PLAY CAMPAIGN/);
+      play.focus();
+      // The title's own Enter is no start: it clicks PLAY, which opens the setup (a keydown reaching the new screen does not start it).
+      expect(enter(play).defaultPrevented).toBe(false);
+      expect([app.screen, start.mock.calls.length]).toEqual(['setup', 0]);
+      // Its auto-repeat arrives on the setup now, with START under the focus: held, not pressed.
+      const held = new KeyboardEvent('keydown', { key: 'Enter', repeat: true, bubbles: true, cancelable: true });
+      named(/^START/).dispatchEvent(held);
+      expect([held.defaultPrevented, app.screen, start.mock.calls.length]).toEqual([true, 'setup', 0]);
+    });
+  });
+
+  it('falls back to the Black Knight when the saved knight is not one of the six: the title says so and the setup marks him', () => {
+    // A hand-edited or corrupted save: the knight it names does not exist.
+    const prefs = { knight: 'bogus' };
+    store = createStore({ getItem: () => JSON.stringify({ version: 2, bests: { campaign: {}, overtime: {}, won: false }, prefs }), setItem: () => undefined } as unknown as Storage);
+    boot();
+    expect(box().textContent).toContain('Playing as The Black Knight · Analyst');
+    named(/PLAY CAMPAIGN/).click();
+    expect(box().querySelector<HTMLElement>('.kn.sel')?.dataset.id).toBe('black');
+    expect(box().querySelectorAll('.kn.sel')).toHaveLength(1);
+    expect(box().querySelector('.foot .note')?.textContent).toBe('The Black Knight · Analyst · ×1');
+    named(/^START/).click();
+    expect(app.run?.state.cfg).toMatchObject({ knight: 'black', difficulty: 'analyst' });
+  });
+
   it('keeps a keyboard player on the card they picked, and START under Space for everyone else', () => {
     boot();
     named(/PLAY CAMPAIGN/).click();

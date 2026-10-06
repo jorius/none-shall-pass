@@ -115,6 +115,7 @@ export class Overlays implements View {
     const leaving = this.kind === 'armory';
     const at = leaving ? this.armoryAt : this.focused();
     if (kind === 'armory' && !leaving) { this.armoryAt = at; this.armoryFrom = this.kind; }
+    // The screen under the Armory comes back with the same buttons in the same order (nothing moves under it), so the remembered index is the same button.
     const back = leaving && kind === this.armoryFrom;
     this.kind = kind;
     this.box.className = `ov show ov-${kind}`;
@@ -238,6 +239,7 @@ export class Overlays implements View {
           level: (d) => { a.store.setPrefs({ difficulty: d }); this.redraw(); },
           start: () => a.startRun(a.pendingMode, chosen(a.store.prefs())),
           back: () => a.quit(),
+          toggleLang: this.toggleLang,
         });
         break;
       case 'recap':
