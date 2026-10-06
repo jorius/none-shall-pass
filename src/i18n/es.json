@@ -47,6 +47,6 @@
     "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "selected": "SELECCIONADO · {k}", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
   },
   "phone": { "title": "Este necesita un teclado.", "body": "None Shall Pass es un juego de escritorio que se juega con las flechas, Tab y Espacio. Envíate el enlace y juégalo en un computador.", "copy": "COPIAR ENLACE", "copied": "COPIADO ✓" },
-  "console": { "title": "root@firewall:~", "greeting": "Escribe help." },
+  "console": { "title": "root@firewall:~", "greeting": "Escribe help.", "ended": "La partida terminó: ya no hay en qué hacer trampa." },
   "lang": { "toggle": "EN" }
 }

@@ -18,11 +18,13 @@ import { FireWallView } from './game/views/fireWall';
 import { LanesView } from './game/views/lanes';
 import { PacketsView } from './game/views/packets';
 import { RackView } from './game/views/rack';
+import { RootModeView } from './game/views/rootMode';
 import { detectLang, onLang, setLang } from './i18n';
 import { RENDER_SCALE, SCREEN_H, SCREEN_W } from './stage';
 import { createStore } from './storage';
 import { Bubble } from './ui/bubble';
 import { Coach } from './ui/coach';
+import { ConsoleView } from './ui/consoleView';
 import { el } from './ui/dom';
 import { EventLog } from './ui/eventLog';
 import { Floats } from './ui/floats';
@@ -67,7 +69,8 @@ const boot = async (): Promise<void> => {
   });
   const scene = await FieldScene.ready;
   const app = new App(scene, store);
-  app.add(new LanesView(scene), new FireWallView(scene), new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene));
+  const fireWall = new FireWallView(scene);
+  app.add(new LanesView(scene), fireWall, new RackView(scene), new FieldObjectsView(scene), new ActorsView(scene));
   const effects = new EffectsView(scene);
   // The system setting is the default until the player picks one in the pause menu.
   effects.reduced = store.prefs().reducedFx ?? window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -89,6 +92,7 @@ const boot = async (): Promise<void> => {
   el('div', 'scanlines', ui);
   app.add({ pause: (p) => ui.classList.toggle('paused', p) });
   app.add(new Overlays(ui, app, { effects }));
+  app.add(new ConsoleView(ui, app), new RootModeView(scene, ui, fireWall, app));
   ui.classList.toggle('reduced', effects.reduced);
   onLang(() => app.refresh());
   (window as unknown as { __nsp: unknown }).__nsp = { game, app, effects };

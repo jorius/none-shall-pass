@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // core
+import { KONAMI } from '../core/keys';
 import { place } from '../core/testkit';
 
 // game
@@ -222,6 +223,19 @@ describe('Overlays', () => {
     named(/HOW TO PLAY/).click();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(box().className).toBe('ov show ov-title');
+  });
+
+  it('switches root mode on the screen it was typed on, the how-to included', () => {
+    const konami = (): void => { for (const key of KONAMI) window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
+    boot();
+    konami();
+    expect(box().className).toBe('ov show ov-title');
+    expect(box().querySelector('.badge-root')?.textContent).toBe('ROOT MODE · faster packets, no hints, ×1.5 score');
+    named(/HOW TO PLAY/).click();
+    konami();
+    expect([app.root, box().className]).toEqual([false, 'ov show ov-howto']);
+    named(/BACK/).click();
+    expect(box().querySelector('.badge-root')).toBeNull();
   });
 
   it('debriefs with the mistakes as text, then plays again in the same mode or goes to the title', () => {

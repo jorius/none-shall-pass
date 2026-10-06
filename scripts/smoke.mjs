@@ -603,6 +603,66 @@ const CHECKS = {
     await page.waitForSelector('#ui .ov-title');
     if (await page.evaluate(() => window.__nsp.app.run) !== null) throw new Error('TITLE kept the run');
   },
+  async console(page) {
+    await play(page);
+    await page.keyboard.press('`');
+    await page.waitForSelector('#ui .term.show input');
+    await page.waitForFunction(() => document.activeElement?.tagName === 'INPUT');
+    await page.keyboard.type('help');
+    await page.keyboard.press('Enter');
+    // Typed into the prompt, the game's own keys do nothing.
+    await page.keyboard.type('h p');
+    const typed = await page.evaluate(() => ({ hints: window.__nsp.app.run.state.hints, screen: window.__nsp.app.screen }));
+    if (typed.hints || typed.screen !== 'console') throw new Error(`typing in the console reached the game: ${JSON.stringify(typed)}`);
+    await page.keyboard.press('Control+A');
+    await page.keyboard.press('Backspace');
+    await page.keyboard.type('nmap shop.example');
+    await page.keyboard.press('Enter');
+    const out = await page.textContent('#ui .term pre');
+    if (!/filtered/.test(out) || !/man <attack>|man <ataque>/.test(out)) throw new Error(out);
+    await page.screenshot({ path: `${OUT}/console.png` });
+    await page.keyboard.press('Escape');
+    if (await page.evaluate(() => window.__nsp.app.screen) !== 'playing') throw new Error('console did not close');
+    // Closed, it lets the focus go: the arrows steer the knight again.
+    const lane = await page.evaluate(() => (document.activeElement === document.body ? window.__nsp.app.run.state.knight.lane : -1));
+    if (lane < 0) throw new Error('the closed console kept the focus');
+    await page.keyboard.press(lane > 0 ? 'ArrowUp' : 'ArrowDown');
+    await page.waitForFunction((l) => window.__nsp.app.run.state.knight.lane !== l, lane);
+    await page.keyboard.press('`');
+    await page.waitForSelector('#ui .term.show input');
+    await page.waitForFunction(() => document.activeElement?.tagName === 'INPUT');
+    await page.keyboard.type('skip');
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__nsp.app.screen === 'draft' && window.__nsp.app.run.state.tampered);
+  },
+  async konami(page) {
+    const code = async () => { for (const k of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'b', 'a']) await page.keyboard.press(k); };
+    const look = () => page.evaluate(() => ({
+      body: document.body.classList.contains('root'), ui: document.querySelector('#ui').classList.contains('root'),
+      filters: window.__nsp.game.scene.getScene('field').cameras.main.filters.internal.list.length,
+      badge: getComputedStyle(document.querySelector('#ui .hud .badge-root')).display, hints: getComputedStyle(document.querySelector('#ui .hud .toggle')).display,
+    }));
+    await page.waitForSelector('#ui .ov-title .btn');
+    await code();
+    await page.waitForSelector('#ui .ov-title .badge-root');
+    await fits(page, 'root title');
+    await play(page);
+    await stepUntil(page, (s) => s.packets.filter((p) => !p.entering).length >= 3);
+    // Any refresh (a language switch, the hints key) applies the mode again without stacking a second filter.
+    await page.evaluate(() => { window.__nsp.app.refresh(); window.__nsp.app.refresh(); });
+    await page.waitForTimeout(150);
+    await page.screenshot({ path: `${OUT}/root.png` });
+    const on = { ...(await look()), run: await page.evaluate(() => window.__nsp.app.run.state.cfg.root) };
+    if (!on.body || !on.ui || on.filters !== 1 || on.badge === 'none' || on.hints !== 'none' || !on.run) throw new Error(`root mode: ${JSON.stringify(on)}`);
+    // Back on the title, still root; the code again switches everything back.
+    await page.keyboard.press('p');
+    await page.click('#ui .ov-pause .btn:nth-child(2)');
+    await page.waitForSelector('#ui .ov-title .badge-root');
+    await code();
+    await page.waitForSelector('#ui .ov-title .badge-root', { state: 'detached' });
+    const off = await look();
+    if (off.body || off.ui || off.filters !== 0 || off.badge !== 'none' || off.hints === 'none') throw new Error(`root mode left on: ${JSON.stringify(off)}`);
+  },
   async phone(page) {
     // A real phone: a small touch screen with no fine pointer gets the card, and the game never boots.
     const browser = page.context().browser();

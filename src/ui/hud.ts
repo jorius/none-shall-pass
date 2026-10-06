@@ -26,7 +26,7 @@ export class Hud implements View {
   private last = '';
   private started: Run | null = null;
 
-  constructor(ui: HTMLElement, app: App) {
+  constructor(ui: HTMLElement, private readonly app: App) {
     const bar = el('div', 'hud', ui);
     const l = el('div', 'hud-l', bar);
     el('div', 'title', l, 'NONE SHALL PASS');
@@ -53,6 +53,8 @@ export class Hud implements View {
     this.labels.forEach((s) => { s.textContent = t((s.parentElement as HTMLElement).dataset.key ?? ''); });
     this.pauseBtn.textContent = t('hud.pause');
     this.root.textContent = t('hud.root');
+    // On the title (no run) the Konami code can switch root mode under the idle field; the HUD behind it follows.
+    if (!run) this.mode(this.app.root);
     this.last = '';
     const shown = run ?? this.started;
     if (shown) this.frame(shown);
@@ -62,10 +64,15 @@ export class Hud implements View {
   // and the last run's numbers must not stay up behind it.
   start(run: Run): void {
     this.started = run;
-    this.root.style.display = run.state.cfg.root ? '' : 'none';
-    this.hints.style.display = run.state.cfg.root ? 'none' : '';
+    this.mode(run.state.cfg.root);
     this.last = '';
     this.frame(run);
+  }
+
+  // Root mode shows its badge and has no hints to toggle.
+  private mode(root: boolean): void {
+    this.root.style.display = root ? '' : 'none';
+    this.hints.style.display = root ? 'none' : '';
   }
 
   event(ev: RunEvent, run: Run): void {

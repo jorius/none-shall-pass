@@ -13,6 +13,7 @@ import type { View } from '../view';
 const W = 8, H = 150;
 export type FirePalette = [number, number, number, number][];
 export const FIRE_BLUE: FirePalette = [[22, 96, 143, 190], [47, 182, 255, 230], [143, 220, 255, 245], [232, 248, 255, 255]];
+export const FIRE_AMBER: FirePalette = [[120, 60, 0, 190], [255, 150, 0, 230], [255, 200, 80, 245], [255, 240, 200, 255]];
 
 // A column of animated pixel fire: the firewall, literally.
 export class FireWallView implements View {

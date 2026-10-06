@@ -2,7 +2,7 @@
 import { STEP } from './core/constants';
 import type { Mode } from './core/content/waves';
 import type { RunEvent } from './core/events';
-import { routeKey, type Action, type Screen } from './core/keys';
+import { konamiMatcher, routeKey, type Action, type Screen } from './core/keys';
 import { frameSteps } from './core/loop';
 import { Run } from './core/run';
 
@@ -24,6 +24,7 @@ export class App {
   private time = 0;
   private beforeConsole: Screen = 'playing';
   private endTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly konami = konamiMatcher();
 
   constructor(readonly scene: FieldScene, readonly store: Store) {
     scene.onFrame = (ms) => this.frame(ms);
@@ -57,12 +58,15 @@ export class App {
 
   // The result is reported the moment the run ends (onEnd above), so quitting straight after a win still keeps it.
   // Only the debrief waits for the last shatter, and a quit or a new run in the meantime cancels it,
-  // so the ended run cannot take over the next one's screen.
+  // so the ended run cannot take over the next one's screen. A console opened meanwhile stays up,
+  // and closing it lands on the debrief instead of the finished field.
   private endLater(run: Run): void {
     this.cancelEnd();
     this.endTimer = setTimeout(() => {
       this.endTimer = null;
-      if (this.run === run) this.setScreen('debrief');
+      if (this.run !== run) return;
+      if (this.screen === 'console') this.beforeConsole = 'debrief';
+      else this.setScreen('debrief');
     }, 1200);
   }
 
@@ -111,6 +115,13 @@ export class App {
   }
 
   private key(e: KeyboardEvent): void {
+    // The Konami code on the title (the how-to is part of it) toggles root mode for the runs that follow.
+    // Every view refreshes into the new mode, and the open screen (title or how-to) stays where it is.
+    if (this.screen === 'title' && this.konami(e.key)) {
+      this.root = !this.root;
+      this.refresh();
+      return;
+    }
     const el = e.target as HTMLElement | null;
     const inField = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
     const action = routeKey({

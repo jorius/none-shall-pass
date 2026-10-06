@@ -223,3 +223,32 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 #ui.reduced .title, #ui.reduced h1, #ui.reduced .urar.LEGENDARY { animation: none; }
 #ui.reduced .hpstrip.tear { animation-duration: .2s; }
 #ui.reduced .scanlines { display: none; }
+
+/* ---------- root mode: amber phosphor ---------- */
+body.root, #ui.root {
+  --paper: #1a1408; --sub: #241b0a; --soft: #120d05; --mute: #3a2c10; --rule: #ffb000;
+  --ink: #ffb000; --dim: #b07a00; --r: #ff5a1f; --b: #ffcc4d; --gold: #ffd27a;
+}
+#ui.root .scanlines { background: repeating-linear-gradient(to bottom, transparent 0 2px, rgba(30,15,0,.28) 2px 3px); }
+/* The backdrops and the dark text on light chips are fixed colours, not variables: they go amber here too. */
+#ui.root .ov { background: rgba(18,13,5,.95); }
+#ui.root .ov.ov-title { background: rgba(18,13,5,.82); }
+#ui.root .ov.ov-howto, #ui.root .ov.ov-debrief { background: rgba(18,13,5,.97); }
+#ui.root .glabel.cur .name, #ui.root .bubble small { color: #5c3d00; }
+#ui.root .segs i.lost { background: repeating-linear-gradient(135deg, #7a5200 0 2px, transparent 2px 4px); }
+/* The pixel-art icons (loadout, draft) carry their own colours, like the canvas they go through an amber tint. */
+#ui.root img.px { filter: grayscale(1) sepia(1) saturate(5) brightness(1.05); }
+
+/* ---------- hidden console ---------- */
+.term { position: absolute; left: 130px; top: 76px; width: 760px; height: 400px; z-index: 45; background: rgba(10,10,10,.96); border: 1px solid var(--b); display: none; flex-direction: column; pointer-events: auto; box-shadow: -3px 0 0 var(--r), 3px 0 0 var(--b); }
+.term.show { display: flex; }
+.term .bar { font-size: 13px; color: var(--paper); background: var(--b); padding: 2px 10px; }
+.term pre { flex: 1; margin: 0; padding: 10px 12px; overflow-y: auto; font-family: var(--code); font-size: 14px; line-height: 1.45; color: var(--ink); white-space: pre-wrap; }
+.term .in { display: flex; gap: 8px; padding: 8px 12px; border-top: 1px solid var(--mute); font-family: var(--code); font-size: 14px; }
+.term .in span { color: var(--b); }
+.term input { flex: 1; background: transparent; border: 0; outline: 0; color: var(--ink); font-family: var(--code); font-size: 14px; caret-color: var(--b); }
+#ui.root .term { background: rgba(12,8,2,.96); }
+#ui.glitch-hard { animation: hardglitch .9s steps(1); }
+@keyframes hardglitch { 0% { transform-origin: 0 0; filter: hue-rotate(90deg) saturate(3); } 20% { clip-path: inset(10% 0 40% 0); } 40% { clip-path: inset(50% 0 5% 0); filter: invert(1); } 60% { clip-path: none; filter: hue-rotate(200deg); } 80% { filter: contrast(3); } 100% { filter: none; clip-path: none; } }
+/* Reduced effects skip the inverting flash; the "No." still answers. */
+#ui.reduced.glitch-hard { animation: none; }

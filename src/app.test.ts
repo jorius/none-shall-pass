@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // core
-import type { Screen } from './core/keys';
+import { KONAMI, type Screen } from './core/keys';
 import type { Run } from './core/run';
 
 // game
@@ -28,6 +28,7 @@ describe('App', () => {
   afterEach(() => vi.useRealTimers());
 
   const end = (): void => app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
+  const konami = (): void => { for (const key of KONAMI) window.dispatchEvent(new KeyboardEvent('keydown', { key })); };
 
   it('reports the ended run at once and opens the debrief a moment later', () => {
     app.startRun('campaign');
@@ -61,6 +62,50 @@ describe('App', () => {
     vi.advanceTimersByTime(5000);
     expect(app.screen).toBe('playing');
     expect(ended).toEqual([run]);
+  });
+
+  it('keeps a console opened just before the debrief, and closing it lands on the debrief', () => {
+    app.startRun('campaign');
+    end();
+    app.act('console');
+    vi.advanceTimersByTime(5000);
+    expect(app.screen).toBe('console');
+    app.act('closeConsole');
+    expect(app.screen).toBe('debrief');
+  });
+
+  it('still opens the debrief when that console closes before it is due', () => {
+    app.startRun('campaign');
+    end();
+    app.act('console');
+    vi.advanceTimersByTime(300);
+    app.act('closeConsole');
+    expect(app.screen).toBe('playing');
+    vi.advanceTimersByTime(900);
+    expect(app.screen).toBe('debrief');
+  });
+
+  it('switches root mode with the Konami code on the title, for every run after it', () => {
+    let refreshed = 0;
+    app.add({ refresh: () => { refreshed++; } });
+    app.quit();
+    konami();
+    expect([app.root, app.screen, refreshed]).toEqual([true, 'title', 1]);
+    app.startRun('campaign');
+    expect(app.run!.state.cfg).toMatchObject({ root: true, hints: false });
+    // Quitting keeps the mode; the code again switches it back off.
+    app.quit();
+    expect(started.at(-1)!.state.cfg.root).toBe(true);
+    konami();
+    expect([app.root, refreshed]).toEqual([false, 2]);
+    app.startRun('campaign');
+    expect(app.run!.state.cfg.root).toBe(false);
+  });
+
+  it('ignores the Konami code during a run', () => {
+    app.startRun('campaign');
+    konami();
+    expect(app.root).toBe(false);
   });
 
   it('quits to the title behind a calm, idle field', () => {

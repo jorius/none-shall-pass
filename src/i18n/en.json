@@ -47,6 +47,6 @@
     "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "selected": "SELECTED · {k}", "again": "PLAY AGAIN", "toTitle": "TITLE"
   },
   "phone": { "title": "This one needs a keyboard.", "body": "None Shall Pass is a desktop game played with the arrow keys, Tab and Space. Send yourself the link and play it on a computer.", "copy": "COPY LINK", "copied": "COPIED ✓" },
-  "console": { "title": "root@firewall:~", "greeting": "Type help." },
+  "console": { "title": "root@firewall:~", "greeting": "Type help.", "ended": "The run is over: nothing left to cheat." },
   "lang": { "toggle": "ES" }
 }
