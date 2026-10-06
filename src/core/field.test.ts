@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 
 // core
-import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, STUFF_IP, TAR_X0 } from './constants';
+import { BASE_SPEED, DESTRIER_SLOW, ENTER_MULT, FW_X, LANE_X0, LOCK_X, PKT_W, RESOLVE_DELAY, SPAWN_GAP, STUFF_IP, TAR_MULT, TAR_X0 } from './constants';
 import { CAMPAIGN } from './content/waves';
 import type { Difficulty } from './difficulty';
 import type { RunEvent } from './events';
@@ -178,13 +178,21 @@ describe('queueing', () => {
     // The head starts in the tar (x + PKT_W > TAR_X0) and stays in it (x < TAR_X1) all the way to the fire at x = FW_X - PKT_W.
     // The follower starts 50 px short of the gap: it closes in, is held behind the head, and is let go only once the head is entering.
     const head = place(s, 'brute-stuffing', TAR_X0, STUFF_IP), next = place(s, 'legit-login', TAR_X0 - PKT_W - SPAWN_GAP - 50);
-    let held = 0;
+    let held = 0, move = 0, moveBefore = 0;
     for (let i = 0; i < 300 && !head.entering; i++) {
+      const before = next.x;
       stepPackets(s, 1 / 60, []);
+      moveBefore = move;
+      move = next.x - before;
       if (!head.entering && head.slowed && Math.abs(next.x - (head.x - PKT_W - SPAWN_GAP)) <= 1e-6) held++;
     }
     expect(head.entering).toBe(true);
     expect(held).toBeGreaterThan(0);
+    // The step before the head entered, the follower crept at the tarred head's pace; the step the head entered, it was already
+    // free, though the head had only moved its tarred 0.48 px first. That step is the release: once the head is entering it
+    // recedes at ENTER_MULT, so from the next step on the bound could never bite, with or without the release.
+    expect(moveBefore).toBeCloseTo(TAR_MULT * BASE_SPEED / 60, 6);
+    expect(move).toBeCloseTo(BASE_SPEED / 60, 6);
     const x = next.x;
     stepPackets(s, 1 / 60, []);
     expect(next.x - x).toBeCloseTo(BASE_SPEED / 60, 6);

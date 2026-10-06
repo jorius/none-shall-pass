@@ -205,4 +205,13 @@ describe('v2 bests', () => {
     st.setPrefs({ volume: 2, difficulty: 'intern' });
     expect(createStore(backend).prefs()).toMatchObject({ volume: 2, difficulty: 'intern' });
   });
+
+  it('reads a save from a later version through the v1 path and writes it back as v2', () => {
+    const backend = fakeStorage();
+    backend.setItem('nsp.v1', JSON.stringify({ version: 3, bests: { campaign: { normal: { score: 10, grade: 'B' }, 'intern-root': { score: 20, grade: 'C' } } } }));
+    const st = createStore(backend);
+    expect(st.bests().campaign).toEqual({ 'analyst-normal': { score: 10, grade: 'B' }, 'intern-root': { score: 20, grade: 'C' } });
+    st.setPrefs({ hints: true });
+    expect(JSON.parse(backend.getItem('nsp.v1')!).version).toBe(2);
+  });
 });

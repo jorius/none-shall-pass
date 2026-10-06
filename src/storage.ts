@@ -17,6 +17,8 @@ export interface Prefs { lang?: Lang; hints?: boolean; reducedFx?: boolean; coac
 interface Saved { version: 2; bests: Bests; prefs: Prefs }
 
 // The key never changed: a v1 save (no version, one difficulty) reads into the Analyst's slots and is written back as v2.
+// Any other version, a later one included, takes the same path: its 'normal'/'root' go to the Analyst's slots, its other
+// slot keys survive the rename untouched, and the next save rewrites it as version 2 (this build knows no newer schema).
 const KEY = 'nsp.v1';
 const SLOTS: readonly Slot[] = DIFFICULTY_IDS.flatMap((d) => [`${d}-normal`, `${d}-root`] as Slot[]);
 const GRADES: readonly string[] = ['S', 'A', 'B', 'C', 'D', 'F'] satisfies Grade[];
@@ -26,6 +28,15 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const isSlot = (k: string): k is Slot => (SLOTS as readonly string[]).includes(k);
 const oneOf = (ids: readonly string[], x: unknown): boolean => typeof x === 'string' && ids.includes(x);
+const isVolume = (x: unknown): x is 0 | 1 | 2 | 3 => Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 3;
+const isFlag = (x: unknown): boolean => typeof x === 'boolean';
+// The prefs with a shape of their own; every other pref is a flag, including ones added later.
+const PREF_SHAPE = new Map<string, (x: unknown) => boolean>([
+  ['lang', (x) => x === 'en' || x === 'es'],
+  ['knight', (x) => oneOf(KNIGHT_IDS, x)],
+  ['difficulty', (x) => oneOf(DIFFICULTY_IDS, x)],
+  ['volume', isVolume],
+]);
 
 // A hand-edited or corrupted save keeps only the fields that still have the right shape.
 const parse = (raw: string | null): Saved => {
@@ -49,15 +60,9 @@ const parse = (raw: string | null): Saved => {
     if (isSlot(slot) && isObj(o) && isNum(o.wave) && isNum(o.score)) out.bests.overtime[slot] = { wave: o.wave, score: o.score };
   }
   out.bests.won = b.won === true;
-  // The prefs named here have a shape of their own; every other pref is a flag, including ones added later.
   const prefs = out.prefs as Record<string, unknown>;
   for (const [k, x] of Object.entries(isObj(v.prefs) ? v.prefs : {})) {
-    const ok = k === 'lang' ? x === 'en' || x === 'es'
-      : k === 'knight' ? oneOf(KNIGHT_IDS, x)
-        : k === 'difficulty' ? oneOf(DIFFICULTY_IDS, x)
-          : k === 'volume' ? Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 3
-            : typeof x === 'boolean';
-    if (ok) prefs[k] = x;
+    if ((PREF_SHAPE.get(k) ?? isFlag)(x)) prefs[k] = x;
   }
   return out;
 };
