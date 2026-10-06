@@ -4,11 +4,15 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 // core
 import { cardById } from '../core/content/cards';
+import { TEMPLATES } from '../core/content/packets';
 import type { LogEntry } from '../core/events';
 import { Run } from '../core/run';
 import type { Packet } from '../core/state';
 import { cfg, place } from '../core/testkit';
 import type { Template } from '../core/types';
+
+// game
+import { CHIP_COLOR } from '../game/cards';
 
 // i18n
 import { setLang } from '../i18n';
@@ -120,6 +124,26 @@ describe('Inspector', () => {
     run.state.locked = null;
     ins.frame(run);
     expect(box().querySelector('.empty')).not.toBeNull();
+  });
+
+  // jsdom reads a colour back in its own notation (rgb(...)), so the colours expected go through it too.
+  const asCss = (hex: string): string => { const e = document.createElement('i'); e.style.background = hex; return e.style.background; };
+
+  it('puts the protocol chip in the title, in the colour its card wears on the field', () => {
+    const chip = (): HTMLElement => box().querySelector<HTMLElement>('.ptitle .chip')!;
+    // One packet of every protocol: the badge reads GET, POST, SSH, SMTP or TCP, in the colour the card on the field has.
+    for (const name of Object.keys(CHIP_COLOR) as (keyof typeof CHIP_COLOR)[]) {
+      const p = place(run.state, TEMPLATES.find((t) => t.chip === name)!.id, 300);
+      ins.hover(p);
+      expect([name, chip().textContent, chip().style.background], name).toEqual([name, name, asCss(CHIP_COLOR[name])]);
+    }
+    // The colours differ from one protocol to the next, so the check above says something.
+    expect(new Set(Object.values(CHIP_COLOR).map(asCss)).size).toBe(5);
+    // It leads the title, ahead of the tags and the source, and a verdict from the log shows the same chip.
+    const first = box().querySelector('.ptitle')!.children[0];
+    expect(first).toBe(chip());
+    ins.verdict({ seq: 1, wave: 1, outcome: 'breach', packet: place(run.state, 'brute-ssh-root', 300), points: 0, damage: 6 });
+    expect([chip().textContent, chip().style.background]).toEqual(['SSH', asCss(CHIP_COLOR.SSH)]);
   });
 
   it('flags bugged attacks and shows the decode only with the lens', () => {

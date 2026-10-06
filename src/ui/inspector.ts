@@ -11,6 +11,7 @@ import type { MaliciousKind } from '../core/types';
 import { BUG_OF } from '../art/sprites';
 
 // game
+import { CHIP_COLOR } from '../game/cards';
 import type { View } from '../game/view';
 
 // i18n
@@ -104,7 +105,9 @@ export class Inspector implements View {
       if (s?.locked === p.id) tags += `<span class="lk">${t('inspector.target')}</span>`;
       if (s && isBugged(p.t, s.owned)) tags += `<span class="fl">${esc(t('inspector.bugged', { bug: t(`bug.${BUG_OF[p.t.kind as MaliciousKind]}`) }))}</span>`;
     }
-    const title = `<div class="ptitle">${t('inspector.title')}${tags}<span class="ip">${esc(t('inspector.src', { ip: p.src }))}</span><span class="as">${esc(loc(NETWORKS[p.t.net]))}</span><span class="ln">${esc(t('inspector.lane', { lane: PORT[p.lane] }))}</span></div>`;
+    // The protocol badge the card wears on the field, in the card's own colour (protocol only: it never says whether the packet is an attack).
+    const chip = `<span class="chip" style="background:${CHIP_COLOR[p.t.chip]}">${esc(p.t.chip)}</span>`;
+    const title = `<div class="ptitle">${t('inspector.title')}${chip}${tags}<span class="ip">${esc(t('inspector.src', { ip: p.src }))}</span><span class="as">${esc(loc(NETWORKS[p.t.net]))}</span><span class="ln">${esc(t('inspector.lane', { lane: PORT[p.lane] }))}</span></div>`;
     let req = `<pre class="req">${mark(p.t.request.join('\n'), p.t.hints, hintsOn)}</pre>`;
     if (lens) req += `<div class="ctx">${t('inspector.decoded')} · ${mark(p.t.decoded!, p.t.decodedHints, hintsOn)}</div>`;
     if (p.t.context) req += `<div class="ctx">${mark(loc(p.t.context), p.t.hints, hintsOn)}</div>`;

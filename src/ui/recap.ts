@@ -12,7 +12,21 @@ import { button, el } from './dom';
 // when the entries are themselves a capped list (the debrief's).
 export interface MistakesOpts { empty?: string; total?: number }
 
-// Breaches and false positives as a list: family, the full request with its tells underlined, and why.
+// Puts `text` into `parent` as text nodes, each tell wrapped in a <mark> wherever it occurs (the earliest first, and where two start
+// together the one listed first), exactly as the inspector marks it with the hints on.
+const markTells = (parent: HTMLElement, text: string, tells: string[]): void => {
+  let i = 0;
+  while (i < text.length) {
+    let best: string | null = null, at = Infinity;
+    for (const h of tells) { const j = text.indexOf(h, i); if (j >= 0 && j < at) { at = j; best = h; } }
+    if (!best) { parent.append(text.slice(i)); break; }
+    parent.append(text.slice(i, at), el('mark', '', undefined, best));
+    i = at + best.length;
+  }
+};
+
+// Breaches and false positives as a list: family, the full request with its tells underlined, the context line (the tells of credential
+// stuffing live there: 41 logins in 60 s from one IP) and why.
 // Text nodes only (el(..., text) and append(string)): the requests are attack strings by design and never touch innerHTML.
 export const renderMistakes = (parent: HTMLElement, entries: LogEntry[], max: number, opts: MistakesOpts = {}): void => {
   const list = el('div', 'mistakes', parent);
@@ -24,18 +38,11 @@ export const renderMistakes = (parent: HTMLElement, entries: LogEntry[], max: nu
     el('span', 'tag', head, t(`log.${e.outcome}`));
     el('span', 'fam', head, t(`family.${e.packet.t.kind}`));
     el('span', 'wv', head, `W${e.wave}`);
-    const pre = el('pre', 'req', m);
     // The tells are authored against the whole request (the text the inspector marks), underlined here for free:
-    // this is the lesson, not the test.
-    const text = e.packet.t.raw, tells = (e.packet.t.hints ?? []).filter((h) => h.length);
-    let i = 0;
-    while (i < text.length) {
-      let best: string | null = null, at = Infinity;
-      for (const h of tells) { const j = text.indexOf(h, i); if (j >= 0 && j < at) { at = j; best = h; } }
-      if (!best) { pre.append(text.slice(i)); break; }
-      pre.append(text.slice(i, at), el('mark', '', undefined, best));
-      i = at + best.length;
-    }
+    // this is the lesson, not the test. The context line is marked by the same tells.
+    const tells = (e.packet.t.hints ?? []).filter((h) => h.length);
+    markTells(el('pre', 'req', m), e.packet.t.raw, tells);
+    if (e.packet.t.context) markTells(el('div', 'ctx', m), loc(e.packet.t.context), tells);
     el('p', 'why', m, loc(e.packet.t.why));
   }
   const total = opts.total ?? entries.length;

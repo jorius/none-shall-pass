@@ -117,6 +117,8 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ptitle span { color: var(--ink); letter-spacing: 0; }
 .ptitle .lk { color: var(--paper); background: var(--r); padding: 0 6px; font-weight: 700; }
 .ptitle .fl { color: var(--ink); background: var(--r); padding: 0 6px; font-weight: 700; }
+/* The protocol chip leads the title; its background is the card's chip colour (Inspector.render), so the dark text sits on it as on the card. */
+.ptitle .chip { color: var(--paper); padding: 0 6px; font-weight: 700; }
 /* When the tags crowd the title, the lane goes first (the field shows it), then the network; the tags and the IP stay whole. */
 .ins .ptitle > span { flex-shrink: 0; }
 .ins .ptitle .as, .ins .ptitle .ln { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -393,8 +395,8 @@ body.root, #ui.root {
 #ui.root .ov-armory .cx:hover, #ui.root .ov-armory .cx.sel { background: #2a2010; }
 #ui.root .glabel.cur .name, #ui.root .bubble small { color: #5c3d00; }
 #ui.root .segs i.lost { background: repeating-linear-gradient(135deg, #7a5200 0 2px, transparent 2px 4px); }
-/* The pixel-art icons (loadout, draft) carry their own colours, like the canvas they go through an amber tint. */
-#ui.root img.px { filter: grayscale(1) sepia(1) saturate(5) brightness(1.05); }
+/* The pixel-art icons (loadout, draft) and the inspector's protocol chip carry their own colours, like the canvas they go through an amber tint. */
+#ui.root img.px, #ui.root .ptitle .chip { filter: grayscale(1) sepia(1) saturate(5) brightness(1.05); }
 
 /* ---------- hidden console ---------- */
 .term { position: absolute; left: 130px; top: 76px; width: 760px; height: 400px; z-index: 45; background: rgba(10,10,10,.96); border: 1px solid var(--b); display: none; flex-direction: column; pointer-events: auto; box-shadow: -3px 0 0 var(--r), 3px 0 0 var(--b); }
