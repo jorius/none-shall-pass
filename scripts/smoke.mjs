@@ -32,8 +32,7 @@ const play = async (page, mode = 'campaign') => {
 const freeze = (page, on = true) => page.evaluate((p) => {
   const app = window.__nsp.app, menu = app.onScreen;
   app.onScreen = null;
-  app.setScreen(p ? 'paused' : 'playing');
-  app.onScreen = menu;
+  try { app.setScreen(p ? 'paused' : 'playing'); } finally { app.onScreen = menu; }
 }, on);
 
 // Nothing on the open screen spills out of it, no row of buttons breaks in two, and no label or button wraps.
@@ -436,7 +435,7 @@ const CHECKS = {
     await page.waitForSelector('#ui .ov-howto kbd');
     await fits(page, 'Spanish how-to');
     await page.screenshot({ path: `${OUT}/howto-es.png` });
-    await page.click('#ui .ov-howto .btn');
+    await page.keyboard.press('Escape');
     // By keyboard: Tab stays on the title's buttons (the layer behind is inert) and Enter plays.
     await page.waitForSelector('#ui .ov-title .btn');
     await page.keyboard.press('Tab');
@@ -457,14 +456,29 @@ const CHECKS = {
     await everyCardFits(page, 'draft');
     await page.click('#ui .ucard:first-child .btn');
     await page.waitForFunction(() => window.__nsp.app.run.state.owned.length === 2);
-    // By keyboard, with credits for more: Enter buys, and the redraw keeps the focus on the panel.
+    // By keyboard, with credits for more: Enter buys the last card, and the focus wraps back to the card still for sale,
+    // not on to NEXT WAVE.
     await page.evaluate(() => { const a = window.__nsp.app; a.run.state.credits = 5000; a.refresh(); });
     await page.keyboard.press('Tab');
-    const buy = await page.evaluate(() => document.activeElement?.textContent);
-    if (!/^BUY/.test(buy)) throw new Error(`Tab went to ${buy}`);
+    await page.keyboard.press('Tab');
+    const focusedCard = () => page.evaluate(() => {
+      const f = document.activeElement, cards = [...document.querySelectorAll('#ui .ov-draft .ucard')];
+      return { card: cards.indexOf(f?.closest('.ucard')), text: f?.textContent };
+    });
+    const third = await focusedCard();
+    if (third.card !== 2 || !/^BUY/.test(third.text)) throw new Error(`Tab went to ${JSON.stringify(third)}`);
     await page.keyboard.press('Enter');
-    const after = await page.evaluate(() => ({ owned: window.__nsp.app.run.state.owned.length, focus: !!document.activeElement?.closest('#ui .ov-draft') }));
-    if (after.owned !== 3 || !after.focus) throw new Error(`keyboard buy: ${JSON.stringify(after)}`);
+    const back = await focusedCard();
+    if (back.card !== 1 || !/^BUY/.test(back.text)) throw new Error(`after buying the last card the focus went to ${JSON.stringify(back)}`);
+    // A held Enter is one click: it buys this card, and its repeats neither reroll nor start the wave.
+    const hand = () => page.evaluate(() => { const d = window.__nsp.app.run.state.draft; return JSON.stringify({ taken: d.taken, picks: d.picks.map((c) => c.id) }); });
+    await page.keyboard.down('Enter');
+    const held = await hand();
+    await page.keyboard.down('Enter');
+    await page.keyboard.down('Enter');
+    await page.keyboard.up('Enter');
+    const kept = { hand: await hand(), screen: await page.evaluate(() => window.__nsp.app.screen) };
+    if (JSON.parse(held).taken.length !== 3 || kept.hand !== held || kept.screen !== 'draft') throw new Error(`a held Enter: ${JSON.stringify({ held, ...kept })}`);
     // Space on NEXT WAVE starts the wave once and throws nothing; the next Space is a spear key again, not the button.
     for (let i = 0; i < 6 && !/NEXT WAVE/.test(await page.evaluate(() => document.activeElement?.textContent)); i++) await page.keyboard.press('Tab');
     await page.keyboard.press('Space');
@@ -533,7 +547,8 @@ const CHECKS = {
     // A last wave at its widest numbers.
     const widest = (p) => p.evaluate(() => {
       const s = window.__nsp.app.run.state;
-      Object.assign(s.stats, { hits: { 1: 188, 2: 88, 3: 28 }, squireHits: 188, ruleBlocks: 188, served: 1888, decoysKept: 88, neutralized: 88, falsePositives: 18 });
+      Object.assign(s.stats, { hits: { 1: 188, 2: 88, 3: 28 }, squireHits: 188, ruleBlocks: 188, served: 1888, decoysKept: 88, neutralized: 88, falsePositives: 18,
+        breaches: { sqli: 18, xss: 14, brute: 16, scan: 12, flood: 18 } });
       Object.assign(s, { score: 188888, wave: 6 });
     });
     await play(page);
@@ -556,9 +571,7 @@ const CHECKS = {
     await page.waitForFunction(() => window.__nsp.app.screen === 'playing');
     const fresh = await page.evaluate(() => ({ s: window.__nsp.app.run.state, rows: document.querySelectorAll('#ui .rows .row').length }));
     if (fresh.s.wave !== 1 || fresh.s.uptime !== 100 || fresh.s.log.length || fresh.rows || fresh.s.phase !== 'playing') throw new Error('PLAY AGAIN kept the last run');
-    // A quit in the moment before the debrief opens: the next run keeps its screen, and the abandoned run saves nothing.
-    const bests = () => JSON.parse(localStorage.getItem('nsp.v1')).bests;
-    const saved = JSON.stringify(await page.evaluate(bests));
+    // A quit in the moment before the debrief opens: the next run keeps its screen (the ended run's result is already saved).
     await lose(page);
     await page.evaluate(() => {
       const app = window.__nsp.app;
@@ -568,8 +581,7 @@ const CHECKS = {
     });
     await page.waitForTimeout(1800);
     const kept = await page.evaluate(() => ({ screen: window.__nsp.app.screen, shown: !!document.querySelector('#ui .ov.show') }));
-    const same = JSON.stringify(await page.evaluate(bests)) === saved;
-    if (kept.screen !== 'playing' || kept.shown || !same) throw new Error(`a stale debrief: ${JSON.stringify({ ...kept, same })}`);
+    if (kept.screen !== 'playing' || kept.shown) throw new Error(`a stale debrief: ${JSON.stringify(kept)}`);
     // In Spanish (switched from the pause menu), then back to the title.
     await page.keyboard.press('p');
     await page.click('#ui .ov-pause .btn:nth-child(3)');
@@ -580,6 +592,12 @@ const CHECKS = {
     await stepUntil(page, (s) => s.phase === 'ended');
     await page.waitForSelector('#ui .ov-debrief .grade');
     await fits(page, 'Spanish debrief');
+    // How far the campaign got, the breaches by family and the best it had to beat.
+    const es = await page.evaluate(() => ({
+      reached: document.querySelector('#ui .statlist > div').textContent, fams: [...document.querySelectorAll('#ui .fams span')].map((e) => e.textContent),
+      prev: [...document.querySelectorAll('#ui .ov-debrief .note')].map((e) => e.textContent).find((x) => /^Récord anterior/.test(x)),
+    }));
+    if (es.reached !== 'Oleada alcanzada6 / 6' || es.fams.length !== 5 || !es.fams[2].startsWith('fuerza bruta ') || !es.prev) throw new Error(`Spanish debrief: ${JSON.stringify(es)}`);
     await page.screenshot({ path: `${OUT}/debrief-es.png` });
     await page.click('#ui .ov-debrief .row-btns .btn:nth-child(3)');
     await page.waitForSelector('#ui .ov-title');

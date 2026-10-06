@@ -39,10 +39,12 @@
     "lesson": "Packets that reach the wall of fire burn into your server. Spear the attacks, let real users through, and spend each wave's credits on upgrades that teach real defences. Cheap rules leak and misfire; root-cause fixes cost more and stay clean."
   },
   "debrief": {
-    "won": "SERVER HELD", "serverDown": "SERVER DOWN", "usersGone": "USERS GONE", "overtimeOver": "OVERTIME OVER", "grade": "GRADE", "score": "SCORE", "waves": "WAVES",
+    "won": "SERVER HELD", "serverDown": "SERVER DOWN", "usersGone": "USERS GONE", "overtimeOver": "OVERTIME OVER", "grade": "GRADE", "score": "SCORE", "reachedTitle": "WAVE REACHED", "reached": "Wave reached",
+    "prevCampaign": "Previous best {s} pts · grade {g}", "prevOvertime": "Previous best wave {w} · {s} pts",
     "newBest": "NEW BEST", "tampered": "TAMPERED · not saved", "hits": "Hits · obvious / tricky / sneaky", "decoys": "Decoys let through", "squire": "Squire hits",
     "rules": "Rule blocks", "served": "Users served", "neutralized": "Neutralized at the server", "fps": "False positives", "breaches": "Breaches", "uptime": "Uptime left",
-    "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "selected": "SELECTED · CTRL+C", "again": "PLAY AGAIN", "toTitle": "TITLE"
+    "fam": { "sqli": "SQLi", "xss": "XSS", "brute": "brute force", "scan": "scan", "flood": "flood" },
+    "mistakes": "YOUR MISTAKES", "noMistakes": "No mistakes. None shall pass, indeed.", "copy": "COPY RESULT", "copied": "COPIED ✓", "selected": "SELECTED · {k}", "again": "PLAY AGAIN", "toTitle": "TITLE"
   },
   "phone": { "title": "This one needs a keyboard.", "body": "None Shall Pass is a desktop game played with the arrow keys, Tab and Space. Send yourself the link and play it on a computer.", "copy": "COPY LINK", "copied": "COPIED ✓" },
   "console": { "title": "root@firewall:~", "greeting": "Type help." },

@@ -13,7 +13,7 @@ import { lang, setLang } from '../i18n';
 
 // local
 import type { App } from '../app';
-import { renderDebrief } from './debrief';
+import { renderDebrief, type PrevBest } from './debrief';
 import { el } from './dom';
 import { renderDraft } from './draftPanel';
 import { renderPause } from './pausePanel';
@@ -25,23 +25,32 @@ type Kind = 'none' | 'title' | 'howto' | 'draft' | 'pause' | 'debrief';
 export class Overlays implements View {
   private readonly box: HTMLElement;
   private kind: Kind = 'none';
-  private ended: { run: Run; newBest: boolean } | null = null;
+  private ended: { run: Run; newBest: boolean; prev: PrevBest } | null = null;
 
   constructor(private readonly ui: HTMLElement, private readonly app: App, private readonly opts: { effects: EffectsView }) {
     this.box = el('div', 'ov', ui);
     app.onScreen = (s) => this.onScreen(s);
+    // Saved the moment the run ends, once; the debrief comes up later with the best it had to beat.
     app.onEnd = (run) => {
-      const r = resultOf(run.state);
+      const r = resultOf(run.state), slot = r.root ? 'root' : 'normal', bests = app.store.bests();
+      const before = r.mode === 'campaign' ? bests.campaign[slot] : bests.overtime[slot];
+      const prev = before ? { ...before } : null;
       const { newBest } = app.store.recordResult(r);
-      this.ended = { run, newBest };
-      this.show('debrief');
+      this.ended = { run, newBest, prev };
     };
+    // The how-to is one screen deep: Esc goes back, as BACK does.
+    window.addEventListener('keydown', (e) => {
+      if (this.kind !== 'howto' || e.key !== 'Escape' || e.repeat) return;
+      e.preventDefault();
+      this.show('title');
+    });
   }
 
   private onScreen(s: Screen): void {
     if (s === 'title') this.show('title');
     else if (s === 'draft') this.show('draft');
     else if (s === 'paused') this.show('pause');
+    else if (s === 'debrief') this.show('debrief');
     else if (s === 'playing' || s === 'console') this.hide();
   }
 
@@ -60,9 +69,13 @@ export class Overlays implements View {
     return this.buttons().indexOf(document.activeElement as HTMLButtonElement);
   }
 
+  // The same place if it is still open; otherwise, after a pick, the next affordable card (wrapping round)
+  // before REROLL or NEXT WAVE; otherwise the next open button.
   private focusFrom(i: number): void {
-    const open = this.buttons().filter((b, n) => n >= i && !b.disabled);
-    (open[0] ?? this.buttons().filter((b) => !b.disabled).at(-1))?.focus();
+    const all = this.buttons();
+    const open = [...all.slice(i), ...all.slice(0, i)].filter((b) => !b.disabled);
+    const here = all[i] && !all[i].disabled ? all[i] : undefined;
+    (here ?? open.find((b) => b.closest('.ucard')) ?? open[0])?.focus();
   }
 
   private show(kind: Kind): void {
@@ -131,7 +144,7 @@ export class Overlays implements View {
       case 'debrief':
         if (this.ended) {
           const s = this.ended.run.state;
-          renderDebrief(this.box, s, resultOf(s), this.ended.newBest, { again: () => a.startRun(s.cfg.mode), title: () => a.quit() });
+          renderDebrief(this.box, s, resultOf(s), this.ended, { again: () => a.startRun(s.cfg.mode), title: () => a.quit() });
         }
         break;
       default:

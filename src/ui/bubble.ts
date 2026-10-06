@@ -2,6 +2,7 @@
 import { FIELD_TOP } from '../core/constants';
 import { LINES } from '../core/content/lines';
 import type { RunEvent } from '../core/events';
+import type { Screen } from '../core/keys';
 import type { Run } from '../core/run';
 import { mounted } from '../core/state';
 import type { Localized } from '../core/types';
@@ -39,6 +40,14 @@ export class Bubble implements View {
     this.shown = '';
     this.hideAt = 0;
     this.box.classList.remove('show');
+  }
+
+  // Only over the live field: under a menu, a draft or a debrief the line would show through the backdrop.
+  // A line said just before keeps its time and comes back when play resumes.
+  screen(s: Screen): void {
+    this.box.hidden = s !== 'playing';
+    // A line said while hidden measured nothing; measure it now it shows.
+    if (!this.box.hidden) this.h = this.box.offsetHeight;
   }
 
   // A language switch (the pause menu has one) rewrites the line that is up.

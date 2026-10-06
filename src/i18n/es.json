@@ -39,10 +39,12 @@
     "lesson": "Los paquetes que llegan al muro de fuego se queman dentro de tu servidor. Lancea los ataques, deja pasar a los usuarios reales y gasta los créditos de cada oleada en mejoras que enseñan defensas reales. Las reglas baratas fallan y se equivocan; las soluciones de raíz cuestan más y no dejan fugas."
   },
   "debrief": {
-    "won": "SERVIDOR A SALVO", "serverDown": "SERVIDOR CAÍDO", "usersGone": "SIN USUARIOS", "overtimeOver": "FIN DEL TIEMPO EXTRA", "grade": "NOTA", "score": "PUNTAJE", "waves": "OLEADAS",
+    "won": "SERVIDOR A SALVO", "serverDown": "SERVIDOR CAÍDO", "usersGone": "SIN USUARIOS", "overtimeOver": "FIN DEL TIEMPO EXTRA", "grade": "NOTA", "score": "PUNTAJE", "reachedTitle": "OLEADA ALCANZADA", "reached": "Oleada alcanzada",
+    "prevCampaign": "Récord anterior {s} pts · nota {g}", "prevOvertime": "Récord anterior oleada {w} · {s} pts",
     "newBest": "NUEVO RÉCORD", "tampered": "TAMPERED · no se guarda", "hits": "Impactos · obvios / engañosos / sigilosos", "decoys": "Señuelos que dejaste pasar", "squire": "Impactos del escudero",
     "rules": "Bloqueos por reglas", "served": "Usuarios atendidos", "neutralized": "Neutralizados en el servidor", "fps": "Falsos positivos", "breaches": "Brechas", "uptime": "Disponibilidad restante",
-    "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "selected": "SELECCIONADO · CTRL+C", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
+    "fam": { "sqli": "SQLi", "xss": "XSS", "brute": "fuerza bruta", "scan": "escaneo", "flood": "inundación" },
+    "mistakes": "TUS ERRORES", "noMistakes": "Sin errores. Nadie pasó, de verdad.", "copy": "COPIAR RESULTADO", "copied": "COPIADO ✓", "selected": "SELECCIONADO · {k}", "again": "JUGAR DE NUEVO", "toTitle": "INICIO"
   },
   "phone": { "title": "Este necesita un teclado.", "body": "None Shall Pass es un juego de escritorio que se juega con las flechas, Tab y Espacio. Envíate el enlace y juégalo en un computador.", "copy": "COPIAR ENLACE", "copied": "COPIADO ✓" },
   "console": { "title": "root@firewall:~", "greeting": "Escribe help." },

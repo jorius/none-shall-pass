@@ -43,7 +43,7 @@ describe('Overlays', () => {
     store = createStore(null);
     effects = { reduced: false };
   });
-  afterEach(() => { unLang(); vi.useRealTimers(); setLang('en'); });
+  afterEach(() => { unLang(); vi.restoreAllMocks(); vi.useRealTimers(); setLang('en'); });
 
   it('opens on the title, Overtime locked until a campaign is won', () => {
     boot();
@@ -130,11 +130,97 @@ describe('Overlays', () => {
     expect(ui.classList.contains('reduced')).toBe(true);
     expect(store.prefs().reducedFx).toBe(true);
     expect(named(/REDUCED EFFECTS · ON/)).toBeTruthy();
+    named(/^ES$/).click();
+    expect(box().querySelector('h2')?.textContent).toBe('EN PAUSA');
+    expect([store.prefs().lang, app.screen]).toEqual(['es', 'paused']);
+    named(/^EN$/).click();
     named(/RESUME/).click();
     expect(app.screen).toBe('playing');
     app.act('pause');
     named(/QUIT TO TITLE/).click();
     expect([app.screen, app.run]).toEqual(['title', null]);
+    expect(box().className).toBe('ov show ov-title');
+  });
+
+  it('keeps a win that is quit before its debrief opens: recorded once, Overtime unlocked', () => {
+    boot();
+    const record = vi.spyOn(store, 'recordResult');
+    app.startRun('campaign');
+    app.run!.state.endReason = 'won';
+    app.dispatch([{ type: 'runEnded', reason: 'won' }]);
+    vi.advanceTimersByTime(500);
+    app.quit();
+    expect(store.bests().won).toBe(true);
+    expect(named(/^OVERTIME$/).disabled).toBe(false);
+    app.startRun('campaign');
+    vi.advanceTimersByTime(5000);
+    expect(record).toHaveBeenCalledTimes(1);
+    expect([app.screen, box().className]).toEqual(['playing', 'ov']);
+  });
+
+  it('shows the best it had to beat and how far a lost campaign got', () => {
+    const stats = { hits: { 1: 0, 2: 0, 3: 0 }, squireHits: 0, ruleBlocks: 0, served: 0, decoysKept: 0, neutralized: 0, falsePositives: 0, breaches: { sqli: 0, xss: 0, brute: 0, scan: 0, flood: 0 }, wavesCleared: 2 };
+    store.recordResult({ mode: 'campaign', root: false, tampered: false, won: false, reason: 'serverDown', score: 4210, wave: 2, wavesCleared: 1, uptime: 0, rep: 9, stats });
+    boot();
+    app.startRun('campaign');
+    Object.assign(app.run!.state, { wave: 3, score: 5030 });
+    app.run!.state.stats.breaches.brute = 2;
+    app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
+    vi.advanceTimersByTime(1200);
+    const notes = [...box().querySelectorAll('.note')].map((e) => e.textContent);
+    expect(notes).toEqual(['GRADE', 'Previous best 4,210 pts · grade F']);
+    expect(box().querySelector('.newbest')?.textContent).toBe('NEW BEST');
+    const rows = [...box().querySelectorAll('.statlist > div:not(.fams)')].map((e) => [e.firstChild?.textContent, e.querySelector('b')?.textContent]);
+    expect(rows[0]).toEqual(['Wave reached', '3 / 6']);
+    expect(box().querySelector('.fams')?.textContent).toBe('SQLi 0XSS 0brute force 2scan 0flood 0');
+  });
+
+  it('keeps a keyboard pick among the affordable cards, wrapping back before NEXT WAVE', () => {
+    boot();
+    app.startRun('campaign');
+    app.run!.state.credits = 5000;
+    app.dispatch(app.run!.cheat('skip'));
+    const cards = (): HTMLButtonElement[] => [...box().querySelectorAll<HTMLButtonElement>('.ucard .btn')];
+    cards()[0].click();
+    const last = cards()[2];
+    last.focus();
+    last.click();
+    expect(document.activeElement).toBe(cards()[1]);
+  });
+
+  it('lets one Enter or Space be one click: a held key repeats nothing', () => {
+    boot();
+    const play = named(/PLAY CAMPAIGN/);
+    for (const [key, repeat, blocked] of [['Enter', true, true], [' ', true, true], ['Enter', false, false], ['Tab', true, false]] as const) {
+      const ev = new KeyboardEvent('keydown', { key, repeat, cancelable: true });
+      play.dispatchEvent(ev);
+      expect(ev.defaultPrevented, `${key} ${repeat}`).toBe(blocked);
+    }
+  });
+
+  it('selects the share line without a clipboard, and says which keys copy it', () => {
+    boot();
+    app.startRun('campaign');
+    app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
+    vi.advanceTimersByTime(1200);
+    expect(navigator.clipboard).toBeUndefined();
+    named(/COPY RESULT/).click();
+    expect(named(/SELECTED/).textContent).toBe('SELECTED · CTRL+C');
+    expect(document.activeElement).toBe(box().querySelector('.share'));
+    vi.spyOn(navigator, 'platform', 'get').mockReturnValue('MacIntel');
+    app.refresh();
+    named(/COPY RESULT/).click();
+    expect(named(/SELECTED/).textContent).toBe('SELECTED · ⌘C');
+  });
+
+  it('goes back from the how-to with BACK or Esc', () => {
+    boot();
+    named(/HOW TO PLAY/).click();
+    expect(box().className).toBe('ov show ov-howto');
+    named(/BACK/).click();
+    expect(box().className).toBe('ov show ov-title');
+    named(/HOW TO PLAY/).click();
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(box().className).toBe('ov show ov-title');
   });
 
@@ -149,6 +235,8 @@ describe('Overlays', () => {
     vi.advanceTimersByTime(1200);
     expect(box().className).toBe('ov show ov-debrief');
     expect(box().querySelector('h2')?.textContent).toBe('OVERTIME OVER');
+    expect([box().querySelector('.note')?.textContent, box().querySelector('.grade')?.textContent]).toEqual(['WAVE REACHED', '1']);
+    expect([...box().querySelectorAll('.fams span')].map((e) => e.textContent)).toEqual(['SQLi 0', 'XSS 0', 'brute force 0', 'scan 0', 'flood 0']);
     expect(box().querySelector('.mistake code')?.textContent).toBe('W1 · FALSE POSITIVE · <img src=x onerror="window.__pwned=1">');
     expect(box().querySelector('img')).toBeNull();
     expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('OVERTIME');

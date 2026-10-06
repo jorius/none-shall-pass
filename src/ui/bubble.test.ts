@@ -81,4 +81,13 @@ describe('Bubble', () => {
     bubble.refresh();
     expect(box.classList.contains('show')).toBe(false);
   });
+
+  it('hides under every screen but play, and keeps its line for the return', () => {
+    bubble.event({ type: 'say', line: 'waveStart', wave: 1 }, run);
+    bubble.screen('paused');
+    expect(box.hidden).toBe(true);
+    bubble.screen('playing');
+    expect([box.hidden, box.classList.contains('show')]).toEqual([false, true]);
+    for (const s of ['draft', 'debrief', 'title', 'console'] as const) { bubble.screen(s); expect(box.hidden, s).toBe(true); }
+  });
 });

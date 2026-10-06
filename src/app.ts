@@ -51,19 +51,18 @@ export class App {
       for (const v of this.views) v.event?.(ev, run);
       if (ev.type === 'draftOpened') this.setScreen('draft');
       if (ev.type === 'waveStarted' && this.screen === 'draft') this.setScreen('playing');
-      if (ev.type === 'runEnded') this.endLater(run);
+      if (ev.type === 'runEnded') { this.onEnd?.(run); this.endLater(run); }
     }
   }
 
-  // The last shatter plays out before the debrief. A quit or a new run in the meantime cancels it,
-  // so an abandoned run neither takes over the next one's screen nor gets its result saved.
+  // The result is reported the moment the run ends (onEnd above), so quitting straight after a win still keeps it.
+  // Only the debrief waits for the last shatter, and a quit or a new run in the meantime cancels it,
+  // so the ended run cannot take over the next one's screen.
   private endLater(run: Run): void {
     this.cancelEnd();
     this.endTimer = setTimeout(() => {
       this.endTimer = null;
-      if (this.run !== run) return;
-      this.setScreen('debrief');
-      this.onEnd?.(run);
+      if (this.run === run) this.setScreen('debrief');
     }, 1200);
   }
 

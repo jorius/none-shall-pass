@@ -52,7 +52,8 @@ const boot = async (): Promise<void> => {
   const store = createStore();
   setLang(store.prefs().lang ?? detectLang());
   // Phones get a card instead of the game, before Phaser ever starts.
-  const coarseOnly = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches;
+  // `pointer` is only the primary input; `any-pointer` spares a tablet with a trackpad or a mouse.
+  const coarseOnly = window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(any-pointer: fine)').matches;
   if (shouldGate(Math.min(window.screen.width, window.screen.height), coarseOnly)) { renderPhoneGate(document.getElementById('app')!); return; }
   const game = new Phaser.Game({
     type: Phaser.WEBGL,

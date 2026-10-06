@@ -29,10 +29,11 @@ describe('App', () => {
 
   const end = (): void => app.dispatch([{ type: 'runEnded', reason: 'serverDown' }]);
 
-  it('opens the debrief a moment after the run ends', () => {
+  it('reports the ended run at once and opens the debrief a moment later', () => {
     app.startRun('campaign');
     const run = app.run;
     end();
+    expect(ended).toEqual([run]);
     vi.advanceTimersByTime(1199);
     expect(app.screen).toBe('playing');
     vi.advanceTimersByTime(1);
@@ -40,24 +41,26 @@ describe('App', () => {
     expect(ended).toEqual([run]);
   });
 
-  it('drops the pending debrief when the player quits and starts a new run', () => {
+  it('drops the pending debrief, not the result, when the player quits and starts a new run', () => {
     app.startRun('campaign');
+    const run = app.run;
     end();
     vi.advanceTimersByTime(500);
     app.quit();
     app.startRun('campaign');
     vi.advanceTimersByTime(5000);
     expect(app.screen).toBe('playing');
-    expect(ended).toEqual([]);
+    expect(ended).toEqual([run]);
   });
 
   it('drops the pending debrief when a new run starts', () => {
     app.startRun('campaign');
+    const run = app.run;
     end();
     app.startRun('overtime');
     vi.advanceTimersByTime(5000);
     expect(app.screen).toBe('playing');
-    expect(ended).toEqual([]);
+    expect(ended).toEqual([run]);
   });
 
   it('quits to the title behind a calm, idle field', () => {

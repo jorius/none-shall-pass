@@ -1,6 +1,8 @@
 // core
-import { grade, shareText, type RunResult } from '../core/score';
+import { CAMPAIGN } from '../core/content/waves';
+import { grade, shareText, type Grade, type RunResult } from '../core/score';
 import { breachTotal, type RunState } from '../core/state';
+import type { MaliciousKind } from '../core/types';
 
 // i18n
 import { fmtNum, lang, loc, t } from '../i18n';
@@ -8,23 +10,38 @@ import { fmtNum, lang, loc, t } from '../i18n';
 // local
 import { button, el } from './dom';
 
+// The best this slot held before the run's own result was saved: what the run had to beat.
+export type PrevBest = { score: number; grade: Grade } | { wave: number; score: number } | null;
+
+const FAMILIES: MaliciousKind[] = ['sqli', 'xss', 'brute', 'scan', 'flood'];
+
+// Cmd on a Mac, Ctrl elsewhere, for the copy-it-yourself hint.
+const copyKeys = (): string => {
+  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
+  return /mac/i.test(nav.userAgentData?.platform || nav.platform || '') ? '⌘C' : 'CTRL+C';
+};
+
 // Every run-derived string (payloads, explanations, the share line) goes in as text, never as markup.
-export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, newBest: boolean, act: { again(): void; title(): void }): void => {
+export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, best: { newBest: boolean; prev: PrevBest }, act: { again(): void; title(): void }): void => {
   box.innerHTML = '';
   const head = r.won ? t('debrief.won') : r.mode === 'overtime' ? t('debrief.overtimeOver') : r.reason === 'usersGone' ? t('debrief.usersGone') : t('debrief.serverDown');
   el('h2', '', box, head);
   const wrap = el('div', 'debrief', box);
   const left = el('div', '', wrap);
   const g = grade(r);
+  // One wave number everywhere (here, the share line, the title's best): the wave the run reached.
   if (g) { el('div', 'note', left, t('debrief.grade')); el('div', 'grade', left, g); }
-  else { el('div', 'note', left, t('debrief.waves')); el('div', 'grade', left, String(r.wavesCleared)); }
+  else { el('div', 'note', left, t('debrief.reachedTitle')); el('div', 'grade', left, String(r.wave)); }
   const sc = el('div', 'best', left);
   sc.append(el('b', '', undefined, `${t('debrief.score')} ${fmtNum(r.score)}`));
-  if (newBest && !r.tampered) sc.append(' ', el('span', 'newbest', undefined, t('debrief.newBest')));
+  if (best.newBest && !r.tampered) sc.append(' ', el('span', 'newbest', undefined, t('debrief.newBest')));
+  const prev = best.prev;
+  if (prev) el('div', 'note', left, 'grade' in prev ? t('debrief.prevCampaign', { s: fmtNum(prev.score), g: prev.grade }) : t('debrief.prevOvertime', { w: prev.wave, s: fmtNum(prev.score) }));
   if (r.tampered) el('div', 'note', left, t('debrief.tampered'));
   const st = r.stats;
   const list = el('div', 'statlist', left);
   const line = (k: string, v: string) => { const d = el('div', '', list, t(k)); d.append(el('b', '', undefined, v)); };
+  if (r.mode === 'campaign') line('debrief.reached', `${r.wave} / ${CAMPAIGN.length}`);
   line('debrief.hits', `${st.hits[1]} / ${st.hits[2]} / ${st.hits[3]}`);
   line('debrief.decoys', String(st.decoysKept));
   line('debrief.squire', String(st.squireHits));
@@ -33,6 +50,12 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, newBe
   line('debrief.neutralized', String(st.neutralized));
   line('debrief.fps', String(st.falsePositives));
   line('debrief.breaches', String(breachTotal(st)));
+  // The breaches by family, under their total.
+  const fams = el('div', 'fams', list);
+  for (const f of FAMILIES) {
+    const item = el('span', '', fams, `${t(`debrief.fam.${f}`)} `);
+    item.append(el('b', '', undefined, String(st.breaches[f])));
+  }
   line('debrief.uptime', `${r.uptime}%`);
   const right = el('div', '', wrap);
   el('div', 'draft-h', right, t('debrief.mistakes'));
@@ -51,7 +74,7 @@ export const renderDebrief = (box: HTMLElement, s: RunState, r: RunResult, newBe
   const row = el('div', 'row-btns', box);
   const copy = button(row, 'btn', t('debrief.copy'), () => {
     // Without clipboard access the line is only selected, and the button says so instead of claiming a copy.
-    const fallback = (): void => { ta.focus(); ta.select(); copy.textContent = t('debrief.selected'); };
+    const fallback = (): void => { ta.focus(); ta.select(); copy.textContent = t('debrief.selected', { k: copyKeys() }); };
     if (navigator.clipboard) navigator.clipboard.writeText(text).then(() => { copy.textContent = t('debrief.copied'); }, fallback);
     else fallback();
   });

@@ -196,13 +196,15 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .uirl b { color: var(--b); font-family: var(--mono); font-size: 13px; } .ucatch b { color: var(--r); font-family: var(--mono); font-size: 13px; }
 .ucard .btn { margin-top: auto; align-self: flex-start; }
 
-/* The stats column takes the longest Spanish label beside three-digit hit counts. */
-.debrief { width: 1160px; display: grid; grid-template-columns: 460px 1fr; gap: 28px; text-align: left; }
+/* The stats column takes the longest Spanish label beside three-digit hit counts, and the Spanish breach families on one row. */
+.debrief { width: 1180px; display: grid; grid-template-columns: 480px 1fr; gap: 28px; text-align: left; }
 .grade { font-size: 120px; font-weight: 700; line-height: 1; text-shadow: -5px 0 var(--r), 5px 0 var(--b); }
 .statlist { font-size: 13px; color: var(--dim); line-height: 1.75; }
 /* A row, not a float: a label too long for the column wraps in place instead of pushing its number onto the next stat. */
 .statlist > div { display: flex; justify-content: space-between; gap: 12px; }
 .statlist b { color: var(--ink); flex: none; }
+.statlist > .fams { justify-content: flex-end; flex-wrap: wrap; gap: 0; }
+.fams span + span::before { content: '·'; margin: 0 5px; color: var(--dim); }
 .mistakes { max-height: 330px; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 8px; padding-right: 6px; }
 .mistake { border-left: 3px solid var(--r); padding: 4px 10px; background: var(--sub); }
 .mistake code { font-family: var(--code); font-size: 13px; color: var(--ink); word-break: break-all; }
