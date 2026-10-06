@@ -46,14 +46,16 @@ describe('packet catalogue', () => {
     expect(STUFF_IP).toMatch(DOC_IP);
   });
 
-  it('anchors every hint in the text the player can see, in both languages', () => {
+  it('anchors every hint where it can be underlined, in both languages', () => {
     for (const t of TEMPLATES) {
-      const shown = [t.card, ...t.request].join('\n');
+      // The card underlines its payload line and the inspector its request lines; the card's top row (chip, path, source) never does,
+      // so a hint that straddles the path and the payload would mark nothing anywhere.
+      const shown = [t.payload, ...t.request];
       // An empty hint is found everywhere and underlines nothing; the renderers skip it, the catalogue must not have one.
       for (const h of [...(t.hints ?? []), ...(t.decodedHints ?? [])]) expect(h.length, `${t.id} empty hint`).toBeGreaterThan(0);
       for (const h of t.hints ?? []) {
         const inBothContexts = !!t.context && t.context.en.includes(h) && t.context.es.includes(h);
-        expect(shown.includes(h) || inBothContexts, `${t.id} hint ${h}`).toBe(true);
+        expect(shown.some((s) => s.includes(h)) || inBothContexts, `${t.id} hint ${h}`).toBe(true);
       }
       for (const h of t.decodedHints ?? []) expect(t.decoded, `${t.id} decoded hint`).toContain(h);
     }

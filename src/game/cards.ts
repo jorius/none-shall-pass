@@ -27,10 +27,11 @@ const fit = (ctx: CanvasRenderingContext2D, text: string, max: number): string =
   return `${text.slice(0, lo)}…`;
 };
 
-// %XX escapes and the + that stands for a space: what the decoding lens would turn back into text.
-export const encodedSpans = (text: string): [number, number][] => {
+// %XX escapes, and inside a GET query string the + that stands for a space: what the decoding lens would turn back into text.
+// In a POST body a + is an operator or a plain character, so only the escapes count there.
+export const encodedSpans = (text: string, chip: Chip): [number, number][] => {
   const out: [number, number][] = [];
-  const re = /%[0-9A-Fa-f]{2}|\+/g;
+  const re = chip === 'GET' ? /%[0-9A-Fa-f]{2}|\+/g : /%[0-9A-Fa-f]{2}/g;
   for (let m = re.exec(text); m; m = re.exec(text)) out.push([m.index, m.index + m[0].length]);
   return out;
 };
@@ -74,7 +75,7 @@ export const drawCard = (ctx: CanvasRenderingContext2D, o: { chip: Chip; path: s
   // Encoding, always on and free: the same glyphs drawn again in cyan, with a dotted underline.
   ctx.fillStyle = ENCODED; ctx.strokeStyle = ENCODED; ctx.lineWidth = 2;
   ctx.setLineDash([2 * S, 2 * S]);
-  for (const [a, b] of encodedSpans(shown)) {
+  for (const [a, b] of encodedSpans(shown, o.chip)) {
     const x0 = x + ctx.measureText(shown.slice(0, a)).width, w = ctx.measureText(shown.slice(a, b)).width;
     ctx.fillText(shown.slice(a, b), x0, 44 * S);
     ctx.beginPath(); ctx.moveTo(x0, 48 * S); ctx.lineTo(x0 + w, 48 * S); ctx.stroke();

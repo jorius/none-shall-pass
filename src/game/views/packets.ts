@@ -206,6 +206,6 @@ export class PacketsView implements View {
     this.overlay.lineStyle(3, parseInt(targetColor(run.state.cfg.root).slice(1), 16), 1);
     this.corner(x - 9, y - 9 + r, x - 9, y - 9, x - 9 + r, y - 9);
     this.corner(x + PKT_W + 9 - r, y + PKT_H + 9, x + PKT_W + 9, y + PKT_H + 9, x + PKT_W + 9, y + PKT_H + 9 - r);
-    this.tag.setPosition(x, y - 19).setVisible(true);
+    this.tag.setPosition(x, y - 18).setVisible(true);
   }
 }

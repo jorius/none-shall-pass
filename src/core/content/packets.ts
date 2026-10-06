@@ -112,15 +112,15 @@ const LIST: PacketTemplate[] = [
 
   // ---------- port scans ----------
   { id: 'scan-telnet', lane: 4, kind: 'scan', tier: 1, port: 23, net: 'vps', weight: 4, card: 'SYN → :23 telnet',
-    request: ['TCP SYN → port 23 (telnet)', 'flags: S   window: 1024', 'no payload'], hints: [':23 telnet', 'window: 1024'],
+    request: ['TCP SYN → port 23 (telnet)', 'flags: S   window: 1024', 'no payload'], hints: ['telnet', 'window: 1024'],
     why: { en: 'Port scan: one probe of many, checking whether telnet is open. Recon before the real attack.',
       es: 'Escaneo de puertos: una sonda de muchas, revisando si telnet está abierto. Reconocimiento antes del ataque real.' } },
   { id: 'scan-smb', lane: 4, kind: 'scan', tier: 1, port: 445, net: 'vps', weight: 2, card: 'SYN → :445 smb',
-    request: ['TCP SYN → port 445 (smb)', 'flags: S   window: 1024', 'no payload'], hints: [':445 smb', 'window: 1024'],
+    request: ['TCP SYN → port 445 (smb)', 'flags: S   window: 1024', 'no payload'], hints: ['smb', 'window: 1024'],
     why: { en: 'Port scan for Windows file sharing: the door WannaCry walked through in 2017.',
       es: 'Escaneo buscando el uso compartido de archivos de Windows: la puerta por la que entró WannaCry en 2017.' } },
   { id: 'scan-rdp', lane: 4, kind: 'scan', tier: 1, port: 3389, net: 'vps', weight: 3, card: 'SYN → :3389 rdp',
-    request: ['TCP SYN → port 3389 (rdp)', 'flags: S   window: 1024', 'no payload'], hints: [':3389 rdp', 'window: 1024'],
+    request: ['TCP SYN → port 3389 (rdp)', 'flags: S   window: 1024', 'no payload'], hints: ['rdp', 'window: 1024'],
     why: { en: 'Port scan looking for Windows Remote Desktop, a favourite ransomware entry point.',
       es: 'Escaneo buscando Escritorio Remoto de Windows, una entrada favorita del ransomware.' } },
 

