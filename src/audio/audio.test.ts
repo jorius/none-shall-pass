@@ -15,7 +15,7 @@ import { play, studio } from './testkit';
 const fakeCtx = () => {
   const started: string[] = [];
   const node = () => ({ connect: vi.fn((to) => to), disconnect: vi.fn(), start: vi.fn((t) => started.push(String(t))), stop: vi.fn(), frequency: { value: 440, setValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn() }, gain: { value: 1, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() }, type: 'square', buffer: null });
-  const ctx = { currentTime: 0, state: 'suspended', destination: {}, createOscillator: node, createGain: node, createBufferSource: node, createBuffer: () => ({ getChannelData: () => new Float32Array(2205) }), resume: vi.fn().mockResolvedValue(undefined) };
+  const ctx = { currentTime: 0, state: 'suspended', destination: {}, createOscillator: node, createGain: node, createBufferSource: node, createBuffer: () => ({ getChannelData: () => new Float32Array(2205) }), resume: vi.fn().mockResolvedValue(undefined), suspend: vi.fn().mockResolvedValue(undefined) };
   return { ctx: ctx as unknown as AudioContext, started };
 };
 

@@ -955,6 +955,23 @@ const CHECKS = {
     });
     if (failed.length) throw new Error(`effects on the real context: ${failed.join('; ')}`);
 
+    // A hidden tab goes silent: the loop would otherwise play on at full level under the title, which no pause ducks. Headless Chromium has no tab to hide,
+    // so the browser's switch is thrown by hand (`document.hidden` stubbed, the event dispatched) over the real context: it is suspended while the tab is
+    // hidden, and asked to run again when the tab is shown. The calls are counted, and the state read once the suspend is through.
+    const tab = await page.evaluate(async () => {
+      const ctx = window.__nsp.audio.ctx, calls = [];
+      for (const m of ['suspend', 'resume']) { const real = ctx[m]; ctx[m] = (...a) => { calls.push(m); return real.apply(ctx, a); }; }
+      const hide = (on) => { Object.defineProperty(document, 'hidden', { configurable: true, get: () => on }); document.dispatchEvent(new Event('visibilitychange')); };
+      try {
+        hide(true);
+        for (let i = 0; i < 100 && ctx.state !== 'suspended'; i++) await new Promise((r) => setTimeout(r, 20));
+        const hidden = { state: ctx.state, calls: [...calls] };
+        hide(false);
+        return { hidden, shown: [...calls] };
+      } finally { delete document.hidden; delete ctx.suspend; delete ctx.resume; }
+    });
+    if (tab.hidden.state !== 'suspended' || tab.hidden.calls.join() !== 'suspend' || tab.shown.join() !== 'suspend,resume') throw new Error(`the context in a hidden tab: ${JSON.stringify(tab)}`);
+
     // The limiter on the real engine, with no output device (an offline render of the real view): four breaches at once at the top volume
     // are past full scale without a limiter and under it with one (the first 45 ms, before the breach's noise: nothing random in it),
     // and one breach plays as loud with the limiter as without, its makeup gain taken back out. The node fades in over its first quarter

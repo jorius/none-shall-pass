@@ -14,6 +14,7 @@ describe('AudioView in the page', () => {
   });
   afterEach(() => {
     detach();
+    Reflect.deleteProperty(document, 'hidden');
     vi.clearAllTimers();
     vi.useRealTimers();
   });
@@ -46,6 +47,73 @@ describe('AudioView in the page', () => {
     detach();
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'x' }));
     expect(view.unlocked).toBe(false);
+  });
+
+  // The browser's own switch for a tab nobody can see; a test throws it and says so, and the afterEach puts the browser's back.
+  const hide = (on: boolean): void => {
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => on });
+    document.dispatchEvent(new Event('visibilitychange'));
+  };
+
+  it('suspends its context while the tab is hidden and resumes it when the tab is shown again, even straight after a gesture asked', () => {
+    const { view, resume, suspend } = attached();
+    view.unlock();
+    expect([resume.mock.calls.length, suspend.mock.calls.length]).toEqual([1, 0]);
+    hide(true);
+    expect([resume.mock.calls.length, suspend.mock.calls.length]).toEqual([1, 1]);
+    // A gesture would not ask a context again for 500 ms; a tab coming back asks at once.
+    hide(false);
+    expect([resume.mock.calls.length, suspend.mock.calls.length]).toEqual([2, 1]);
+  });
+
+  it('resumes a context it suspended even when the context still says it is running, the suspend not through yet', () => {
+    const kit = studio('running');
+    const view = new AudioView(() => kit.ctx, { sound: true, music: false, volume: 2 });
+    detach = view.attach(window);
+    view.unlock();
+    expect(kit.resume).not.toHaveBeenCalled();
+    hide(true);
+    hide(false);
+    expect([kit.suspend.mock.calls.length, kit.resume.mock.calls.length]).toEqual([1, 1]);
+  });
+
+  it('leaves a running context alone when a tab that was never hidden is shown', () => {
+    const kit = studio('running');
+    const view = new AudioView(() => kit.ctx, { sound: true, music: false, volume: 2 });
+    detach = view.attach(window);
+    view.unlock();
+    hide(false);
+    expect([kit.suspend.mock.calls.length, kit.resume.mock.calls.length]).toEqual([0, 0]);
+  });
+
+  it('has nothing to suspend before the first gesture, and builds its context as usual after', () => {
+    const { view, suspend, resume } = attached();
+    hide(true);
+    hide(false);
+    expect([suspend.mock.calls.length, resume.mock.calls.length, view.unlocked]).toEqual([0, 0, false]);
+    view.unlock();
+    expect([view.unlocked, resume.mock.calls.length]).toEqual([true, 1]);
+  });
+
+  it('survives a suspend that is refused, or that the context does not have', async () => {
+    const { view, suspend, ctx } = attached();
+    view.unlock();
+    suspend.mockRejectedValue(new Error('closed'));
+    expect(() => hide(true)).not.toThrow();
+    await vi.advanceTimersByTimeAsync(0);
+    suspend.mockImplementation(() => { throw new Error('gone'); });
+    expect(() => hide(true)).not.toThrow();
+    delete (ctx as { suspend?: unknown }).suspend;
+    expect(() => hide(true)).not.toThrow();
+    expect(() => hide(false)).not.toThrow();
+  });
+
+  it('listens no more to the tab once it is detached', () => {
+    const { view, suspend } = attached();
+    view.unlock();
+    detach();
+    hide(true);
+    expect(suspend).not.toHaveBeenCalled();
   });
 
   it('ticks on a click on an overlay button, even one that redraws its screen away, and on nothing else', () => {

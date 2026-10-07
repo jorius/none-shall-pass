@@ -45,6 +45,8 @@ export class AudioView implements View {
   private limited = false;
   // When a suspended context was last asked to resume.
   private woke = -Infinity;
+  // Whether a hidden tab suspended the context, so that the tab coming back resumes it.
+  private hushed = false;
 
   constructor(private readonly make: () => AudioContext | null, prefs: Partial<AudioPrefs>, private readonly onChange?: (p: AudioPrefs) => void) {
     this.prefs = { sound: prefs.sound ?? true, music: prefs.music ?? true, volume: prefs.volume ?? 2 };
@@ -59,13 +61,21 @@ export class AudioView implements View {
       const button = (e.target as Element | null)?.closest?.<HTMLButtonElement>('.ov button');
       if (button && !button.disabled) this.sfx('button');
     };
+    // A tab nobody can see goes silent: the pause only ducks the loop (to 40%) during play, and under the title, the setup, the recap and the
+    // draft nothing pauses at all, so a hidden tab would play on at full level. Coming back resumes only a context the hiding suspended.
+    const visibility = (): void => {
+      if (win.document.hidden) this.hush();
+      else if (this.hushed) { this.hushed = false; this.wake(true); }
+    };
     win.addEventListener('keydown', gesture);
     win.addEventListener('pointerdown', gesture);
     win.document.addEventListener('click', click, true);
+    win.document.addEventListener('visibilitychange', visibility);
     return () => {
       win.removeEventListener('keydown', gesture);
       win.removeEventListener('pointerdown', gesture);
       win.document.removeEventListener('click', click, true);
+      win.document.removeEventListener('visibilitychange', visibility);
     };
   }
 
@@ -109,11 +119,21 @@ export class AudioView implements View {
 
   // A context still suspended is asked again by each later gesture (the first may not have counted), though not by every repeat of
   // a held key. A resume that is refused, or never answers because there is no output device, leaves the game silent, not broken.
-  private wake(): void {
+  // `force` is a tab coming back to a context it had suspended: asked at once, whatever the context says (the suspend may not be through
+  // yet) and however recent the last ask. The loop's timer kept its place, and plays on from the clock (see createMusic's pump).
+  private wake(force = false): void {
     const ctx = this.ctx, now = Date.now();
-    if (!ctx || ctx.state === 'running' || now - this.woke < 500) return;
+    if (!ctx || (!force && (ctx.state === 'running' || now - this.woke < 500))) return;
     this.woke = now;
     try { void Promise.resolve(ctx.resume?.()).catch(() => undefined); } catch { /* silent */ }
+  }
+
+  // Before the first gesture there is no context to suspend, and the first gesture builds one.
+  private hush(): void {
+    const ctx = this.ctx;
+    if (!ctx) return;
+    this.hushed = true;
+    try { void Promise.resolve(ctx.suspend?.()).catch(() => undefined); } catch { /* silent */ }
   }
 
   private apply(): void {

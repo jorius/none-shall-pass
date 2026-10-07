@@ -37,9 +37,9 @@ export const studio = (state: string = 'suspended', opts: { limiter?: boolean } 
     compressors.push(c);
     return c;
   };
-  const resume = vi.fn().mockResolvedValue(undefined);
+  const resume = vi.fn().mockResolvedValue(undefined), suspend = vi.fn().mockResolvedValue(undefined);
   const ctx = {
-    get currentTime() { return clock.now; }, state, destination: {}, resume,
+    get currentTime() { return clock.now; }, state, destination: {}, resume, suspend,
     createOscillator: oscillator, createBufferSource: source, createGain: gain,
     createBuffer: () => ({ getChannelData: () => new Float32Array(2205) }),
     ...(opts.limiter ? { createDynamicsCompressor: compressor } : {}),
@@ -63,7 +63,7 @@ export const studio = (state: string = 'suspended', opts: { limiter?: boolean } 
   };
   // The envelope gain a voice feeds: the first node it was connected to.
   const envelopeOf = (voice: unknown): { gain: { value: number } } => (voice as { connect: { mock: { calls: unknown[][] } } }).connect.mock.calls[0][0] as { gain: { value: number } };
-  return { ctx: ctx as unknown as AudioContext, clock, voices, ramps, gains, compressors, resume, heard, reaches, envelopeOf };
+  return { ctx: ctx as unknown as AudioContext, clock, voices, ramps, gains, compressors, resume, suspend, heard, reaches, envelopeOf };
 };
 
 // Moves the fake clock on in 0.1 s ticks and lets the loop's 100 ms timer fire after each, as a page does.
