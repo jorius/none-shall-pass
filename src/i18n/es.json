@@ -27,14 +27,14 @@
     "cat": { "KNIGHT": "CABALLERO", "FIREWALL": "FIREWALL", "SERVER": "SERVIDOR" },
     "rarity": { "COMMON": "COMÚN", "RARE": "RARA", "LEGENDARY": "LEGENDARIA" }, "clean": "Oleada limpia", "armoryHint": "T · mira todas las mejoras en la Armería"
   },
-  "recap": { "title": "OLEADA {n} SUPERADA", "breach": "1 brecha", "breaches": "{n} brechas", "fp": "1 falsa alarma", "fps": "{n} falsas alarmas", "what": "LO QUE PASÓ", "clean": "Oleada limpia. No se te escapó nada.", "more": "+{n} más", "continue": "CONTINUAR ▸" },
+  "recap": { "title": "OLEADA {n} SUPERADA", "breach": "1 brecha", "breaches": "{n} brechas", "fp": "1 falsa alarma", "fps": "{n} falsas alarmas", "what": "QUÉ SALIÓ MAL", "clean": "Oleada limpia. No se te escapó nada.", "more": "+{n} más", "continue": "CONTINUAR ▸" },
   "pause": { "title": "EN PAUSA", "hint": "P para continuar", "resume": "CONTINUAR", "quit": "SALIR AL INICIO", "armory": "ARMERÍA · T", "reducedOn": "EFECTOS REDUCIDOS · SÍ", "reducedOff": "EFECTOS REDUCIDOS · NO",
     "sound": "SONIDO · {s}", "music": "MÚSICA · {s}", "volume": "VOLUMEN · {n}/3", "on": "SÍ", "off": "NO" },
   "title": {
     "tagline": "Protege el servidor. Lee los paquetes. Deja pasar a los usuarios reales.", "play": "JUGAR CAMPAÑA", "overtime": "TIEMPO EXTRA",
     "overtimeLocked": "gana la campaña para desbloquearlo", "howto": "CÓMO JUGAR", "armory": "ARMERÍA", "best": "MEJOR", "bestCampaign": "Campaña · nota {g} · {s} pts",
     "bestOvertime": "Tiempo extra · oleada {w} · {s} pts", "rootOn": "MODO ROOT · paquetes más rápidos, sin pistas, puntaje ×1,5", "site": "jorius.github.io ↗",
-    "asKnight": "Jugando como {k} · {d}", "soundHint": "♪ pulsa cualquier tecla para el sonido"
+    "asKnight": "Jugando como {k} · {d}", "soundHint": "♪ oprime cualquier tecla para el sonido"
   },
   "setup": {
     "title": "ELIGE A TU CABALLERO", "sub": "Todos sostienen la misma puerta. Solo que cada uno a su manera.", "knights": "CABALLEROS", "difficulty": "DIFICULTAD",

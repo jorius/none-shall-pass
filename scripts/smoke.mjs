@@ -1109,7 +1109,7 @@ const CHECKS = {
     await page.reload({ waitUntil: 'networkidle' });
     await page.waitForSelector('#ui .ov-title .sound-hint');
     const hintEs = await hint();
-    if (hintEs.text !== '\u266A pulsa cualquier tecla para el sonido' || hintEs.size < 13) throw new Error(`the Spanish sound hint: ${JSON.stringify(hintEs)}`);
+    if (hintEs.text !== '\u266A oprime cualquier tecla para el sonido' || hintEs.size < 13) throw new Error(`the Spanish sound hint: ${JSON.stringify(hintEs)}`);
     await fits(page, 'Spanish title with the sound hint');
     await page.screenshot({ path: `${OUT}/title-hint-es.png` });
   },

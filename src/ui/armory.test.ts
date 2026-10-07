@@ -184,7 +184,7 @@ describe('renderArmory', () => {
     const rows = (id: string): (string | null)[][] => [...card(id).querySelectorAll('.tiers > span')].map((r) => [r.className, text('b', r) ?? null, text('.tx', r) ?? null, text('.pr', r) ?? null]);
     expect(rows('destrier')).toEqual([
       ['on', 'I', 'Every packet in your lane slows to 70%. You gallop between lanes.', null],
-      ['next', 'II', "The knight's lane slows to 50%.", '600'],
+      ['next', 'II', 'Your lane slows to 50%.', '600'],
       ['', 'III', 'C: you gallop down your lane and spear every attack in it. Real users pass untouched. Once per wave.', '1,000'],
     ]);
     // Nothing owned of the other chain: its first level is the next one.

@@ -100,7 +100,7 @@ describe('Overlays', () => {
   it('hints in Spanish, and not at all to a player who has muted everything', () => {
     setLang('es');
     boot();
-    expect(box().querySelector('.sound-hint')?.textContent).toBe('♪ pulsa cualquier tecla para el sonido');
+    expect(box().querySelector('.sound-hint')?.textContent).toBe('♪ oprime cualquier tecla para el sonido');
     // The sound and the music both off (a muted save): no key will bring a sound, so the title promises none.
     audio.set({ sound: false, music: false });
     app.refresh();
@@ -778,6 +778,8 @@ describe('Overlays', () => {
     expect(box().className).toBe('ov show ov-recap');
     expect(box().querySelector('h2')?.textContent).toBe('WAVE 1 CLEARED');
     expect(box().querySelector('p.note')?.textContent).toBe('2 breaches · 1 false alarm');
+    // The list holds the breaches and the false alarms both, so what it says is what went wrong, not only what got through.
+    expect(box().querySelector('.draft-h')?.textContent).toBe('WHAT WENT WRONG');
     const rows = [...box().querySelectorAll('.mistake')];
     expect(rows.map((r) => r.className)).toEqual(['mistake breach', 'mistake breach', 'mistake fp']);
     expect([...rows[0].querySelectorAll('.mhead span')].map((e) => e.textContent)).toEqual(['BREACH', 'PORT SCAN', 'W1']);
@@ -794,6 +796,7 @@ describe('Overlays', () => {
     app.refresh();
     expect(box().querySelector('h2')?.textContent).toBe('OLEADA 1 SUPERADA');
     expect(box().querySelector('p.note')?.textContent).toBe('2 brechas · 1 falsa alarma');
+    expect(box().querySelector('.draft-h')?.textContent).toBe('QUÉ SALIÓ MAL');
     expect(named(/CONTINUAR/)).toBeTruthy();
     run.state.waveMistakes = [breach];
     app.refresh();

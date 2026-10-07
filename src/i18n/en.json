@@ -27,7 +27,7 @@
     "cat": { "KNIGHT": "KNIGHT", "FIREWALL": "FIREWALL", "SERVER": "SERVER" },
     "rarity": { "COMMON": "COMMON", "RARE": "RARE", "LEGENDARY": "LEGENDARY" }, "clean": "Clean wave", "armoryHint": "T · see every upgrade in the Armory"
   },
-  "recap": { "title": "WAVE {n} CLEARED", "breach": "1 breach", "breaches": "{n} breaches", "fp": "1 false alarm", "fps": "{n} false alarms", "what": "WHAT GOT THROUGH", "clean": "Clean wave. Nothing got past you.", "more": "+{n} more", "continue": "CONTINUE ▸" },
+  "recap": { "title": "WAVE {n} CLEARED", "breach": "1 breach", "breaches": "{n} breaches", "fp": "1 false alarm", "fps": "{n} false alarms", "what": "WHAT WENT WRONG", "clean": "Clean wave. Nothing got past you.", "more": "+{n} more", "continue": "CONTINUE ▸" },
   "pause": { "title": "PAUSED", "hint": "P to resume", "resume": "RESUME", "quit": "QUIT TO TITLE", "armory": "ARMORY · T", "reducedOn": "REDUCED EFFECTS · ON", "reducedOff": "REDUCED EFFECTS · OFF",
     "sound": "SOUND · {s}", "music": "MUSIC · {s}", "volume": "VOLUME · {n}/3", "on": "ON", "off": "OFF" },
   "title": {

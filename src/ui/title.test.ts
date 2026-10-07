@@ -90,7 +90,7 @@ describe('renderTitle', () => {
   it('hints in Spanish too', () => {
     setLang('es');
     renderTitle(box, deps());
-    expect(box.querySelector('.sound-hint')?.textContent).toBe('♪ pulsa cualquier tecla para el sonido');
+    expect(box.querySelector('.sound-hint')?.textContent).toBe('♪ oprime cualquier tecla para el sonido');
   });
 
   it('keeps the hint out of the row of buttons, so no button changes place with it', () => {
