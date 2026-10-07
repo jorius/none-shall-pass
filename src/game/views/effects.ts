@@ -22,6 +22,9 @@ const PALETTES = {
 type PaletteName = keyof typeof PALETTES;
 type BurstName = Exclude<PaletteName, 'stream'>;
 const ORANGE = '#ff8a2f';
+// The white veil of a knight's hit comes at most this often, in seconds of the view clock: three flashes a second is the most a photosensitive
+// player can be asked for, and spears land 0.25 s apart and a charge kills about every 0.28 s.
+const VEIL_GAP = 0.35;
 
 // Extra 0s and 1s weight the pick so about three glyphs in four are binary, as in the mock.
 const BITS = '01'.repeat(16);
@@ -38,6 +41,9 @@ export class EffectsView implements View {
   private readonly emitted = new Map<number, number>();
   // The snap's white flashes that are still on the field (each lives 60 ms); the smoke counts them.
   private readonly flashes = new Set<Phaser.GameObjects.Rectangle>();
+  // The view clock (the app's, frozen under the pause) as of the last frame, and where on it the last veil was drawn.
+  private clock = 0;
+  private veiled = -Infinity;
 
   constructor(private readonly scene: FieldScene) {
     this.buildGlyphs();
@@ -98,10 +104,13 @@ export class EffectsView implements View {
     this.spark.explode(this.reduced ? 0 : 24, x, y);
   }
 
-  // A knight's hit lands with a thud: the camera jolts about 3 px and the field flashes white for 60 ms. Reduced effects get neither.
+  // A knight's hit lands with a thud: the camera jolts about 3 px on every hit, and the field flashes white for 60 ms, though no more than once
+  // every VEIL_GAP (the gap runs from the last veil drawn, so a charge's kills flash every other one). Reduced effects get neither.
   snap(): void {
     if (this.reduced) return;
     this.scene.cameras.main.shake(60, 0.0015);
+    if (this.clock - this.veiled < VEIL_GAP) return;
+    this.veiled = this.clock;
     const f = this.scene.add.rectangle(0, 0, FIELD_W, FIELD_H, 0xffffff, 0.35).setOrigin(0, 0);
     this.scene.layers.fx.add(f);
     this.flashes.add(f);
@@ -215,7 +224,8 @@ export class EffectsView implements View {
     });
   }
 
-  frame(run: Run | null): void {
+  frame(run: Run | null, _dt: number, time: number): void {
+    this.clock = time;
     if (!run) return;
     for (const p of run.state.packets) {
       if (!p.entering) continue;

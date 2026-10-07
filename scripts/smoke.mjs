@@ -1502,6 +1502,21 @@ const CHECKS = {
     }
     const idle = await flare('lockdown');
     if (idle.alpha !== 0 || idle.duration !== null || idle.snaps) throw new Error(`the fire on the lockdown's shatter: ${JSON.stringify(idle)}`);
+    // No more than three flashes a second: every knight's hit shakes the camera, but the white veil comes once in 350 ms of the view clock. Two hits at the
+    // same instant and a third 100 ms of frames later flash once and shake three times; a fourth 400 ms on from the first flashes again. The frames go through
+    // the scene's own hook, so the clock moves by the frame and the run's own time does not matter; 400 ms of them first, to let the hit before this one's gap run out.
+    const cap = await page.evaluate(() => {
+      const app = window.__nsp.app, scene = window.__nsp.game.scene.getScene('field'), fx = window.__nsp.effects, cam = scene.cameras.main, packet = app.run.state.packets[0];
+      const shake = cam.shake;
+      let shakes = 0;
+      cam.shake = (...a) => { shakes++; return shake.apply(cam, a); };
+      const veils = [], base = fx.debugFlashes(), land = () => { app.dispatch([{ type: 'shattered', packet, by: 'knight' }]); veils.push(fx.debugFlashes() - base); };
+      const frames = (n) => { for (let i = 0; i < n; i++) scene.onFrame(1000 / 60); };
+      try { frames(24); land(); land(); frames(6); land(); frames(18); land(); } finally { cam.shake = shake; }
+      return { veils, shakes };
+    });
+    if (JSON.stringify(cap) !== JSON.stringify({ veils: [1, 1, 1, 2], shakes: 4 })) throw new Error(`the hit flash is not capped at one in 350 ms: ${JSON.stringify(cap)}`);
+    await page.waitForFunction(() => window.__nsp.effects.debugFlashes() === 0);
     // A card is full size on its way out from under the gutter and pops once it is wholly clear of it: to 90% about its centre, and back to full size,
     // overshooting a little, inside ten frames; it rides a pixel up or down on its own phase.
     const born = await newcomer(), peak = Math.max(...born.after);
