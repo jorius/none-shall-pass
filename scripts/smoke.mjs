@@ -344,6 +344,15 @@ const CHECKS = {
       fx.crumbs = (x, y, n) => { if (n > 0) window.__smokeDust++; real(x, y, n); };
       document.querySelectorAll('#ui .float').forEach((f) => { f.dataset.old = '1'; });
     });
+    // Destrier III bought with the charge unspent: its tile wears a gold C (13px or more) and says CHARGE READY on its tooltip, until C uses it.
+    const ready = () => page.evaluate(() => {
+      const c = document.querySelector('#ui .loadout .ltile .rdy'), css = c && getComputedStyle(c);
+      return c && { text: c.textContent, size: parseFloat(css.fontSize), colour: css.color, title: c.closest('.ltile').title };
+    });
+    const unspent = await ready();
+    if (!unspent || unspent.text !== 'C' || unspent.size < 13 || unspent.colour !== 'rgb(217, 180, 74)' || unspent.title !== 'Destrier III · charge · CHARGE READY · C') {
+      throw new Error(`the Destrier III tile before the charge: ${JSON.stringify(unspent)}`);
+    }
     // Wave 1's only attacks are the scans, all on the ports lane: the knight goes down to it first, as a player would.
     const attack = (s) => s.packets.find((p) => p.t.kind !== 'legit' && p.x > 300 && p.x < 600 && !p.entering && !p.doomed);
     await stepUntil(page, (s, find) => !!new Function('s', `return (${find})(s);`)(s), attack.toString());
@@ -353,6 +362,7 @@ const CHECKS = {
     await page.keyboard.press('c');
     const started = await page.evaluate(() => window.__nsp.app.run.state.knight.charge.t);
     if (!(started > 0)) throw new Error(`C did not start the charge (charge.t ${started})`);
+    if (await ready()) throw new Error('the CHARGE READY mark stayed on the Destrier III tile after C');
     // Frozen on the way out, so the shot catches the gallop mid-lane however long the capture takes.
     await stepUntil(page, (s) => s.knight.charge.t > 0 && s.knight.x < 700);
     await freeze(page);

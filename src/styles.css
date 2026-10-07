@@ -117,6 +117,8 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ptitle span { color: var(--ink); letter-spacing: 0; }
 .ptitle .lk { color: var(--paper); background: var(--r); padding: 0 6px; font-weight: 700; }
 .ptitle .fl { color: var(--ink); background: var(--r); padding: 0 6px; font-weight: 700; }
+/* The Destrier III card with its charge in hand (Inspector.render): a gold tag, like the TARGET and BUGGED ones. */
+.ptitle .rdy { color: var(--paper); background: var(--gold); padding: 0 6px; font-weight: 700; }
 /* The protocol chip leads the title; its background is the card's chip colour (Inspector.render), so the dark text sits on it as on the card. */
 .ptitle .chip { color: var(--paper); padding: 0 6px; font-weight: 700; }
 /* When the tags crowd the title, the lane goes first (the field shows it), then the network; the tags and the IP stay whole. */
@@ -172,6 +174,9 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 .ltile .lvl { position: absolute; bottom: 4px; display: flex; gap: 2px; }
 .ltile .lvl i { width: 6px; height: 3px; background: #4a4843; }
 .ltile .lvl i.on { background: var(--ink); }
+/* Destrier III with its charge in hand (LoadoutTiles): a gold border and a gold C in the corner, off the moment C is pressed and back with the next wave. */
+.ltile.ready { border-color: var(--gold); }
+.ltile .rdy { position: absolute; top: 0; right: 0; padding: 0 3px; font-size: 13px; line-height: 14px; color: var(--gold); background: var(--soft); }
 /* A tile the loadout just gained, or a level just bought, lights up once; its name floats beside it (LoadoutTiles.flash). */
 .ltile.flash { animation: tileflash .6s steps(4); }
 @keyframes tileflash { 0% { background: var(--ink); } 100% { background: var(--soft); } }

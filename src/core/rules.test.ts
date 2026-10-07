@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 // core
 import type { CardId } from './content/cards';
 import { templateById as T } from './content/packets';
-import { destrierLevel, firewallRule, isBugged, lockdownBlocks, obsLevel, serverFix, tarpitSlows } from './rules';
+import { chargeReady, destrierLevel, firewallRule, isBugged, lockdownBlocks, obsLevel, serverFix, tarpitSlows } from './rules';
 
 const p = (id: string, src = '192.0.2.10', x = 0) => ({ t: T(id), src, x });
 
@@ -71,6 +71,13 @@ describe('destrier', () => {
     expect(destrierLevel(['destrier'])).toBe(1);
     expect(destrierLevel(['destrier', 'destrier2'])).toBe(2);
     expect(destrierLevel(['destrier', 'destrier2', 'destrier3'])).toBe(3);
+  });
+
+  it('has its charge ready from level III until the charge is used', () => {
+    expect(chargeReady([], false)).toBe(false);
+    expect(chargeReady(['destrier', 'destrier2'], false)).toBe(false);
+    expect(chargeReady(['destrier', 'destrier2', 'destrier3'], false)).toBe(true);
+    expect(chargeReady(['destrier', 'destrier2', 'destrier3'], true)).toBe(false);
   });
 });
 

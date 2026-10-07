@@ -8,6 +8,7 @@
   "family": { "legit": "REAL USER", "sqli": "SQL INJECTION", "xss": "XSS", "brute": "BRUTE FORCE", "scan": "PORT SCAN", "flood": "BOTNET FLOOD" },
   "tier": { "1": "obvious", "2": "tricky", "3": "sneaky" },
   "bug": { "spider": "spider", "worm": "worm", "beetle": "beetle", "fly": "fly", "gnat": "gnats" },
+  "loadout": { "chargeReady": "CHARGE READY · C" },
   "inspector": {
     "title": "INSPECTOR", "target": "TARGET", "bugged": "BUGGED · {bug}", "src": "SRC {ip}", "lane": "LANE {lane}",
     "decoded": "DECODED", "ask": "Malicious or legit? Tab or click to target it.", "askLocked": "Space to throw. Esc to let it go. Do nothing and it passes.",

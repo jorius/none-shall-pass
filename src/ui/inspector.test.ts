@@ -200,6 +200,29 @@ describe('Inspector', () => {
     expect(box().querySelector('.empty')).not.toBeNull();
   });
 
+  it('tags the Destrier III card CHARGE READY while its charge is unspent, and goes on reading the run while the pointer stays on it', () => {
+    const tag = (): string => text(box(), '.ptitle .rdy');
+    ins.card(cardById('destrier3'));
+    expect(tag()).toBe('');
+    run.state.owned.push('destrier', 'destrier2', 'destrier3');
+    ins.frame(run);
+    expect(tag()).toBe('CHARGE READY · C');
+    // The tag sits in the title row, with the other tags, and leaves the card's own text alone.
+    expect(text(box(), '.ptitle')).toBe('LOADOUTKNIGHTLEGENDARYCHARGE READY · C');
+    expect(text(box(), '.cname')).toBe('Destrier III · charge');
+    run.state.knight.charge.used = true;
+    ins.frame(run);
+    expect(tag()).toBe('');
+    run.state.knight.charge.used = false;
+    ins.frame(run);
+    setLang('es');
+    ins.refresh();
+    expect(tag()).toBe('CARGA LISTA · C');
+    // Only the level III card is ever tagged.
+    ins.card(cardById('destrier2'));
+    expect(tag()).toBe('');
+  });
+
   it('starts a new run clean', () => {
     const p = place(run.state, 'sqli-tautology', 300);
     ins.hover(p);

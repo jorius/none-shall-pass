@@ -18,13 +18,13 @@ import { familyOf, levelOf, LoadoutTiles, tileFit } from './loadout';
 vi.mock('../art/dataurl', () => ({ iconUrl: (icon: string, size: string) => `data:image/png;${icon}-${size}` }));
 
 describe('LoadoutTiles', () => {
-  let ui: HTMLElement, tiles: LoadoutTiles, run: Run;
+  let ui: HTMLElement, ins: Inspector, tiles: LoadoutTiles, run: Run;
   const all = (): HTMLElement[] => [...ui.querySelectorAll<HTMLElement>('.loadout .ltile')];
   beforeEach(() => {
     ui = document.createElement('div');
     const bottom = document.createElement('div');
     ui.appendChild(bottom);
-    const ins = new Inspector(bottom);
+    ins = new Inspector(bottom);
     tiles = new LoadoutTiles(ui, ins);
     run = new Run(cfg());
     ins.start(run);
@@ -43,7 +43,8 @@ describe('LoadoutTiles', () => {
 
   it('shows the highest Destrier tier on one tile, as the observability tiers do', () => {
     tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2', 'destrier3', 'obs1'] });
-    expect(all().map((t) => t.title)).toEqual(['Port lockdown', 'Destrier III · charge', 'Observability I · logs']);
+    // Nothing has used the charge yet, so the Destrier III tile says it is ready.
+    expect(all().map((t) => t.title)).toEqual(['Port lockdown', 'Destrier III · charge · CHARGE READY · C', 'Observability I · logs']);
     tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2'] });
     expect(all().map((t) => t.title)).toEqual(['Port lockdown', 'Destrier II']);
   });
@@ -157,6 +158,58 @@ describe('LoadoutTiles', () => {
     tiles.event({ type: 'owned', owned: ['lockdown', 'destrier', 'destrier2'] });
     expect(flashed()).toEqual(['Destrero II']);
     expect(floats()).toEqual(['Destrero II']);
+  });
+
+  // Destrier III's charge is ready from the moment III is bought until C uses it, and ready again with each wave: the tile wears a gold C and
+  // says so on its tooltip and in the inspector, and every one of those goes when the charge starts.
+  const badge = (): string | null => ui.querySelector('.ltile .rdy')?.textContent ?? null;
+  const destrier = (): HTMLElement => all()[1];
+  const buy = (...ids: CardId[]): void => { run.state.owned.push(...ids); tiles.event({ type: 'owned', owned: [...run.state.owned] }); };
+
+  it('shows CHARGE READY on the Destrier III tile from the buy until the charge is used, and again with the next wave', () => {
+    buy('destrier', 'destrier2');
+    expect([badge(), destrier().title, destrier().classList.contains('ready')]).toEqual([null, 'Destrier II', false]);
+    // Bought mid-wave with the charge unspent: ready at once.
+    buy('destrier3');
+    expect([badge(), destrier().title, destrier().classList.contains('ready')]).toEqual(['C', 'Destrier III · charge · CHARGE READY · C', true]);
+    // C: the core marks the charge used and says so; the tile is a plain one again.
+    for (const ev of run.charge()) tiles.event(ev);
+    expect(run.state.knight.charge.used).toBe(true);
+    expect([badge(), destrier().title, destrier().classList.contains('ready')]).toEqual([null, 'Destrier III · charge', false]);
+    // The next wave gives the charge back, and the tile says so.
+    run.state.phase = 'draft';
+    for (const ev of run.nextWave()) tiles.event(ev);
+    expect(run.state.knight.charge.used).toBe(false);
+    expect([badge(), destrier().title]).toEqual(['C', 'Destrier III · charge · CHARGE READY · C']);
+  });
+
+  it('keeps the other tiles free of the ready mark, and the Destrier below level III', () => {
+    buy('destrier', 'destrier2', 'squire', 'obs1');
+    expect(all().map((t) => t.querySelector('.rdy')).filter(Boolean)).toHaveLength(0);
+    expect(all().map((t) => t.title)).toEqual(['Port lockdown', 'Destrier II', 'Squire', 'Observability I · logs']);
+    buy('destrier3');
+    expect(all().filter((t) => t.querySelector('.rdy')).map((t) => t.title)).toEqual(['Destrier III · charge · CHARGE READY · C']);
+  });
+
+  it('adds CHARGE READY to the tile\'s inspector text, and takes it off when the charge starts under a pointer that stays on the tile', () => {
+    buy('destrier', 'destrier2', 'destrier3');
+    destrier().dispatchEvent(new MouseEvent('mouseenter'));
+    expect(ui.querySelector('.ins .cname')?.textContent).toBe('Destrier III · charge');
+    expect(ui.querySelector('.ins .ptitle .rdy')?.textContent).toBe('CHARGE READY · C');
+    for (const ev of run.charge()) tiles.event(ev);
+    ins.frame(run);
+    expect(ui.querySelector('.ins .cname')?.textContent).toBe('Destrier III · charge');
+    expect(ui.querySelector('.ins .rdy')).toBeNull();
+  });
+
+  it('says CARGA LISTA · C in Spanish, on the tooltip and in the inspector', () => {
+    setLang('es');
+    buy('destrier', 'destrier2', 'destrier3');
+    expect(destrier().title).toBe('Destrero III · carga · CARGA LISTA · C');
+    destrier().dispatchEvent(new MouseEvent('mouseenter'));
+    expect(ui.querySelector('.ins .ptitle .rdy')?.textContent).toBe('CARGA LISTA · C');
+    for (const ev of run.charge()) tiles.event(ev);
+    expect(destrier().title).toBe('Destrero III · carga');
   });
 
   it('tells a card\'s family and its level from the loadout', () => {

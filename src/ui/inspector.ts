@@ -2,7 +2,7 @@
 import type { Card } from '../core/content/cards';
 import { NETWORKS } from '../core/content/networks';
 import type { LogEntry } from '../core/events';
-import { isBugged } from '../core/rules';
+import { chargeReady, isBugged } from '../core/rules';
 import type { Run } from '../core/run';
 import type { Packet } from '../core/state';
 import type { MaliciousKind } from '../core/types';
@@ -81,8 +81,10 @@ export class Inspector implements View {
 
   private render(): void {
     const f = this.focus(), s = this.run?.state;
+    // The Destrier III card says its charge is ready while it is, read from the run so it goes the moment C is pressed under a pointer that stays on the tile.
+    const ready = f.kind === 'card' && f.c.id === 'destrier3' && !!s && chargeReady(s.owned, s.knight.charge.used);
     const key = f.kind === 'packet' ? `p${f.p.id}|${s?.locked}|${s?.hints}|${s?.owned.length}`
-      : f.kind === 'verdict' ? `v${f.e.seq}` : f.kind === 'card' ? `c${f.c.id}` : 'empty';
+      : f.kind === 'verdict' ? `v${f.e.seq}` : f.kind === 'card' ? `c${f.c.id}|${ready}` : 'empty';
     if (key === this.shownKey) return;
     this.shownKey = key;
     this.box.scrollTop = 0;
@@ -92,7 +94,8 @@ export class Inspector implements View {
     }
     if (f.kind === 'card') {
       const c = f.c;
-      this.box.innerHTML = `<div class="ptitle">${t('inspector.loadout')}<span>${t(`draft.cat.${c.cat}`)}</span><span>${t(`draft.rarity.${c.rarity}`)}</span></div>
+      const tag = ready ? `<span class="rdy">${esc(t('loadout.chargeReady'))}</span>` : '';
+      this.box.innerHTML = `<div class="ptitle">${t('inspector.loadout')}<span>${t(`draft.cat.${c.cat}`)}</span><span>${t(`draft.rarity.${c.rarity}`)}</span>${tag}</div>
         <div class="cname">${esc(loc(c.name))}</div><p class="why">${esc(loc(c.does))}</p>
         <p class="why dim"><b class="irl">${t('inspector.irl')}</b> ${esc(loc(c.irl))}</p><p class="why dim"><b class="catch">${t('inspector.catch')}</b> ${esc(loc(c.catch))}</p>`;
       return;

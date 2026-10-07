@@ -11,6 +11,9 @@ export const obsLevel = (owned: readonly CardId[]): 0 | 1 | 2 | 3 =>
 export const destrierLevel = (owned: readonly CardId[]): 0 | 1 | 2 | 3 =>
   owns(owned, 'destrier3') ? 3 : owns(owned, 'destrier2') ? 2 : owns(owned, 'destrier') ? 1 : 0;
 
+// Destrier III's charge is ready from the moment it is bought until C uses it, and again with each wave (Run.nextWave hands it back).
+export const chargeReady = (owned: readonly CardId[], used: boolean): boolean => destrierLevel(owned) === 3 && !used;
+
 // Decoys are legit, so they never carry bugs: a clean packet only means "clean"
 // once you own the level that would have flagged it.
 export const isBugged = (t: Template, owned: readonly CardId[]): boolean =>

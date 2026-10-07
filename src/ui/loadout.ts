@@ -3,7 +3,7 @@ import { FIELD_H, FIELD_TOP, FIELD_W } from '../core/constants';
 import { cardById, type Card, type CardId } from '../core/content/cards';
 import type { RunEvent } from '../core/events';
 import type { Screen } from '../core/keys';
-import { destrierLevel, obsLevel } from '../core/rules';
+import { chargeReady, destrierLevel, obsLevel } from '../core/rules';
 import type { Run } from '../core/run';
 
 // art
@@ -13,7 +13,7 @@ import { iconUrl } from '../art/dataurl';
 import type { View } from '../game/view';
 
 // i18n
-import { loc } from '../i18n';
+import { loc, t } from '../i18n';
 
 // local
 import { el } from './dom';
@@ -47,6 +47,8 @@ export const tileFit = (n: number): { h: number; gap: number } => {
 export class LoadoutTiles implements View {
   private readonly box: HTMLElement;
   private owned: CardId[] = [];
+  // Whether the charge is spent is the knight's, so the run is read for it at each draw.
+  private run: Run | null = null;
   // A card is bought under the draft screen, which covers the column: its tile flashes once the field is back in view.
   private pending = new Set<CardId>();
   private inView = true;
@@ -59,14 +61,16 @@ export class LoadoutTiles implements View {
 
   private render(owned: readonly CardId[], flash: ReadonlySet<CardId> = new Set()): void {
     this.owned = [...owned];
-    const ids = shown(owned), fit = tileFit(ids.length);
+    const ids = shown(owned), fit = tileFit(ids.length), used = !!this.run?.state.knight.charge.used;
     this.box.replaceChildren();
     this.box.style.gap = `${fit.gap}px`;
     ids.forEach((id, i) => {
       const c = cardById(id), family = familyOf(id);
-      const tile = el('div', `ltile ${c.cat}`, this.box);
+      // Destrier III with its charge in hand: a gold C on the tile and the words on its tooltip (the inspector says them too).
+      const ready = id === 'destrier3' && chargeReady(owned, used);
+      const tile = el('div', `ltile ${c.cat}${ready ? ' ready' : ''}`, this.box);
       tile.style.height = `${fit.h}px`;
-      tile.title = loc(c.name);
+      tile.title = ready ? `${loc(c.name)} · ${t('loadout.chargeReady')}` : loc(c.name);
       const img = el('img', 'px', tile);
       img.src = iconUrl(c.icon, 'tile');
       img.alt = loc(c.name);
@@ -74,6 +78,7 @@ export class LoadoutTiles implements View {
         const lvl = el('div', 'lvl', tile), level = levelOf(owned, family);
         for (let n = 1; n <= 3; n++) el('i', n <= level ? 'on' : '', lvl);
       }
+      if (ready) el('b', 'rdy', tile, 'C');
       tile.addEventListener('mouseenter', () => this.inspector.card(c));
       if (flash.has(id)) this.flash(tile, c, COLUMN_TOP + i * (fit.h + fit.gap));
     });
@@ -90,8 +95,8 @@ export class LoadoutTiles implements View {
     f.addEventListener('animationend', () => f.remove());
   }
 
-  start(run: Run): void { this.pending.clear(); this.render(run.state.owned); }
-  refresh(run: Run | null): void { if (run) this.render(run.state.owned); }
+  start(run: Run): void { this.run = run; this.pending.clear(); this.render(run.state.owned); }
+  refresh(run: Run | null): void { if (run) { this.run = run; this.render(run.state.owned); } }
 
   screen(s: Screen): void {
     this.inView = s === 'playing';
@@ -101,6 +106,8 @@ export class LoadoutTiles implements View {
   }
 
   event(ev: RunEvent): void {
+    // The charge is spent when it starts and handed back with the wave: the ready mark follows it, and nothing flashes.
+    if (ev.type === 'chargeStarted' || ev.type === 'waveStarted') { this.render(this.owned); return; }
     if (ev.type !== 'owned') return;
     // A tile is new when its id was not shown before: a card just bought, or a tier that replaced the one below it.
     const before = shown(this.owned);

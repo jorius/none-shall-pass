@@ -8,6 +8,7 @@
   "family": { "legit": "USUARIO REAL", "sqli": "INYECCIÓN SQL", "xss": "XSS", "brute": "FUERZA BRUTA", "scan": "ESCANEO DE PUERTOS", "flood": "INUNDACIÓN DE BOTNET" },
   "tier": { "1": "obvio", "2": "engañoso", "3": "sigiloso" },
   "bug": { "spider": "araña", "worm": "gusano", "beetle": "escarabajo", "fly": "mosca", "gnat": "mosquitos" },
+  "loadout": { "chargeReady": "CARGA LISTA · C" },
   "inspector": {
     "title": "INSPECTOR", "target": "OBJETIVO", "bugged": "CON BICHOS · {bug}", "src": "ORIGEN {ip}", "lane": "CARRIL {lane}",
     "decoded": "DECODIFICADO", "ask": "¿Malicioso o legítimo? Tab o clic para apuntarle.", "askLocked": "Espacio para lanzar. Esc para soltarlo. Si no haces nada, pasa.",
