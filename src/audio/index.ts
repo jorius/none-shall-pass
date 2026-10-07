@@ -205,6 +205,12 @@ export class AudioView implements View {
         this.sfx(destrierLevel(ev.owned) > destrierLevel(this.owned) || obsLevel(ev.owned) > obsLevel(this.owned) ? 'levelUp' : 'pick');
         this.owned = [...ev.owned];
         break;
+      case 'uptime':
+        // The backup heals instead of owning anything, so it says so here where every other card says it with `owned`. Nothing else raises the
+        // uptime (a breach lowers it, or leaves it as it was under god mode); a backup bought with the rack already full heals nothing, and only
+        // the draft sells one.
+        if (ev.after > ev.before || this.screenNow === 'draft') this.sfx('pick');
+        break;
     }
   }
 

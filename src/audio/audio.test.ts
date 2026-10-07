@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // core
+import { cardById } from '../core/content/cards';
 import type { RunEvent } from '../core/events';
 import { Run } from '../core/run';
 import { cfg, freshState, place } from '../core/testkit';
@@ -299,6 +300,43 @@ describe('AudioView', () => {
     // A new run has bought nothing yet: its first Destrier is a rise again.
     view.start(new Run(cfg()));
     expect(hear(['lockdown', 'destrier'])).toEqual(UP);
+  });
+
+  // The backup heals instead of owning anything, so it says so with `uptime` where every other card does with `owned`.
+  it('plays the pick for the backup, and for no other change of the uptime', () => {
+    const { view, heard } = effects();
+    const hear = (ev: RunEvent): string[] => { view.event(ev); return heard(); };
+    // In play the uptime only ever drops (a breach, which has its sound), or stays where it was (a breach under god mode, or none).
+    view.screen('playing');
+    expect(hear({ type: 'uptime', before: 100, after: 90 })).toEqual([]);
+    expect(hear({ type: 'uptime', before: 30, after: 0 })).toEqual([]);
+    expect(hear({ type: 'uptime', before: 100, after: 100 })).toEqual([]);
+    // In the draft the backup brings it up.
+    view.screen('draft');
+    expect(hear({ type: 'uptime', before: 40, after: 70 })).toEqual(SOUND.pick);
+    // Bought with the rack at full uptime it heals nothing, but it is bought all the same.
+    expect(hear({ type: 'uptime', before: 100, after: 100 })).toEqual(SOUND.pick);
+    // A rise is a rise on whatever screen it comes.
+    view.screen('playing');
+    expect(hear({ type: 'uptime', before: 40, after: 70 })).toEqual(SOUND.pick);
+  });
+
+  it('plays the pick when a real draft sells the backup, at any uptime, and nothing when the core refuses the same pick again', () => {
+    for (const uptime of [40, 85, 100]) {
+      const { view, heard } = effects();
+      const run = new Run(cfg());
+      run.state.uptime = uptime;
+      run.state.phase = 'draft';
+      run.state.draft = { picks: [cardById('backup')], free: true, taken: [] };
+      view.start(run);
+      view.screen('draft');
+      for (const ev of run.pick(0)) view.event(ev);
+      expect(run.state.uptime, `uptime ${uptime}`).toBe(Math.min(100, uptime + 30));
+      expect(heard(), `uptime ${uptime}`).toEqual(SOUND.pick);
+      // Taken already: the core refuses it, says nothing, and nothing is heard.
+      for (const ev of run.pick(0)) view.event(ev);
+      expect(heard(), `uptime ${uptime}, again`).toEqual([]);
+    }
   });
 
   it('plays the effects only while SOUND is on', () => {
