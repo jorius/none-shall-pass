@@ -55,9 +55,11 @@ export const grade = (r: RunResult): Grade | null => {
 const fmt = (n: number, lang: Lang): string => n.toLocaleString(lang === 'es' ? 'es-CO' : 'en-US');
 const plural = (n: number, one: string, many: string): string => `${n} ${n === 1 ? one : many}`;
 
-// The line to paste: the result, then who held the gate and at what, then the ROOT and TAMPERED tags.
+// The line to paste: the result, then who held the gate (the knight and their motto, which carries its own quotes) and at what, as the debrief's
+// line names them, then the ROOT and TAMPERED tags.
 export const shareText = (r: RunResult, lang: Lang): string => {
-  const tail = ` · ${KNIGHTS[r.knight].name[lang]} · ${DIFFICULTIES[r.difficulty].name[lang]}${r.root ? ' · ROOT' : ''}${r.tampered ? ' · TAMPERED' : ''}`;
+  const knight = KNIGHTS[r.knight];
+  const tail = ` · ${knight.name[lang]} · ${knight.motto[lang]} · ${DIFFICULTIES[r.difficulty].name[lang]}${r.root ? ' · ROOT' : ''}${r.tampered ? ' · TAMPERED' : ''}`;
   if (r.mode === 'overtime') {
     const head = lang === 'es' ? `⚔ NONE SHALL PASS · TIEMPO EXTRA — oleada ${r.wave}` : `⚔ NONE SHALL PASS · OVERTIME — wave ${r.wave}`;
     return `${head} · ${fmt(r.score, lang)} pts${tail}\n${SHARE_URL}`;

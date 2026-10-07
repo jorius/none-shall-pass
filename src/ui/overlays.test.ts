@@ -941,19 +941,19 @@ describe('Overlays', () => {
     vi.advanceTimersByTime(1200);
     expect(box().classList.contains('ov-debrief')).toBe(true);
     expect(box().querySelector('h2')?.textContent).toBe('OVERTIME OVER');
-    // The knight and the difficulty under the head, in the share line too.
+    // The knight, their motto and the difficulty under the head, in the share line too.
     expect(box().querySelector('p.note')?.textContent).toBe('Raider · "Think like the attacker." · Zero-day');
     expect([box().querySelector('.debrief .note')?.textContent, box().querySelector('.grade')?.textContent]).toEqual(['WAVE REACHED', '1']);
     expect([...box().querySelectorAll('.fams span')].map((e) => e.textContent)).toEqual(['SQLi 0', 'XSS 0', 'brute force 0', 'scan 0', 'flood 0']);
     expect([...box().querySelectorAll('.mistake .mhead span')].map((e) => e.textContent)).toEqual(['FALSE POSITIVE', 'REAL USER', 'W1']);
     expect(box().querySelector('.mistake pre')?.textContent).toBe('<img src=x onerror="window.__pwned=1">');
     expect(box().querySelector('img')).toBeNull();
-    expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('OVERTIME — wave 1 · 0 pts · Raider · Zero-day');
+    expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('OVERTIME — wave 1 · 0 pts · Raider · "Think like the attacker." · Zero-day');
     expect(store.bests().overtime['zeroday-normal']).toEqual({ wave: 1, score: 0 });
     setLang('es');
     app.refresh();
     expect(box().querySelector('p.note')?.textContent).toBe('Asaltante · "Piensa como el atacante." · Día cero');
-    expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('oleada 1 · 0 pts · Asaltante · Día cero');
+    expect(box().querySelector<HTMLTextAreaElement>('.share')?.value).toContain('oleada 1 · 0 pts · Asaltante · "Piensa como el atacante." · Día cero');
     setLang('en');
     app.refresh();
     named(/PLAY AGAIN/).click();

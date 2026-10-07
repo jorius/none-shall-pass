@@ -1362,7 +1362,7 @@ const CHECKS = {
       best: JSON.parse(localStorage.getItem('nsp.v1')).bests.campaign['analyst-normal'], grade: document.querySelector('#ui .grade').textContent,
     }));
     if (!shown.share.includes('jorius.github.io/none-shall-pass')) throw new Error('share text missing link');
-    if (!shown.share.includes(' · The Black Knight · Analyst')) throw new Error(`the share line does not name the pair: ${shown.share}`);
+    if (!shown.share.includes(' · The Black Knight · "None shall pass." · Analyst')) throw new Error(`the share line does not name the knight, their motto and the difficulty: ${shown.share}`);
     if (!shown.mistakes || shown.grade !== 'F' || !shown.best) throw new Error(`debrief: ${JSON.stringify(shown)}`);
     await fits(page, 'debrief');
     await widest(page);
@@ -1403,7 +1403,7 @@ const CHECKS = {
       who: document.querySelector('#ui .ov-debrief p.note')?.textContent, share: document.querySelector('#ui .share').value,
     }));
     if (es.reached !== 'Oleada alcanzada6 / 6' || es.fams.length !== 5 || !es.fams[2].startsWith('fuerza bruta ') || !es.prev) throw new Error(`Spanish debrief: ${JSON.stringify(es)}`);
-    if (es.who !== 'El Caballero Negro · "Nadie pasará." · Analista' || !es.share.includes(' · El Caballero Negro · Analista')) throw new Error(`the Spanish debrief's pair: ${JSON.stringify(es)}`);
+    if (es.who !== 'El Caballero Negro · "Nadie pasará." · Analista' || !es.share.includes(' · El Caballero Negro · "Nadie pasará." · Analista')) throw new Error(`the Spanish debrief's pair: ${JSON.stringify(es)}`);
     await page.screenshot({ path: `${OUT}/debrief-es.png` });
     await page.click('#ui .ov-debrief .row-btns .btn:nth-child(3)');
     await page.waitForSelector('#ui .ov-title');
