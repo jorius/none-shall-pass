@@ -37,6 +37,11 @@ html, body { margin: 0; height: 100%; background: var(--soft); color: var(--ink)
 /* Green while most of the reputation is left, gold under 70%, red under 40% (Hud.frame); the spent pips stay grey. */
 .pips.good i { background: var(--green); } .pips.mid i { background: var(--gold); } .pips.low i { background: var(--r); }
 .pips i.off { background: var(--mute); }
+/* A cap above 10 (the Intern's 14, Hud.frame) draws narrower pips: 14 at full width are 137px (124 in Spanish) and leave the bar's two halves
+   touching at its widest, in Spanish PAUSA past the bar. These are 82px in both languages, under the Analyst's 10 (97px, 88 in Spanish); 5px
+   ones with the same 2px gap (96px) still left the Spanish bar 2px between its halves, short of the 8px it keeps. */
+.pips.dense { gap: 2px; }
+.pips.dense i { width: 4px; }
 .toggle { font-family: var(--mono); font-size: 13px; color: var(--dim); background: transparent; border: 1px solid var(--mute); padding: 3px 8px; cursor: pointer; }
 .toggle.on { color: var(--paper); background: var(--b); border-color: var(--b); }
 .badge-root { font-size: 13px; font-weight: 700; color: var(--paper); background: var(--r); padding: 1px 6px; }

@@ -111,9 +111,10 @@ export class Hud implements View {
     this.waveEl.replaceChildren(`${t('hud.wave')} `, el('b', '', undefined, n), ' · ', el('b', '', undefined, name), ' · ', el('b', '', undefined, clock));
     this.score.textContent = fmtNum(s.score);
     this.credits.textContent = fmtNum(s.credits);
-    // Green with 70% or more of the cap left, gold from 40%, red below: the same shares at every difficulty's cap.
+    // Green with 70% or more of the cap left, gold from 40%, red below: the same shares at every difficulty's cap. A cap above 10 (the Intern's
+    // 14) gets narrower pips, or the Spanish bar at its widest has no room left between its two halves.
     const cap = repCap(s.cfg);
-    this.pips.className = `pips ${s.rep * 10 >= cap * 7 ? 'good' : s.rep * 10 >= cap * 4 ? 'mid' : 'low'}`;
+    this.pips.className = `pips ${s.rep * 10 >= cap * 7 ? 'good' : s.rep * 10 >= cap * 4 ? 'mid' : 'low'}${cap > 10 ? ' dense' : ''}`;
     this.pips.innerHTML = Array.from({ length: cap }, (_, i) => `<i class="${i < s.rep ? '' : 'off'}"></i>`).join('');
     this.hints.textContent = s.hints ? t('hud.hintsOn') : t('hud.hintsOff');
     this.hints.classList.toggle('on', s.hints);

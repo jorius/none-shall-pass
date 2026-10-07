@@ -3,6 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 // core
+import { DIFFICULTY_IDS, type Difficulty } from '../core/difficulty';
 import { Run } from '../core/run';
 import type { RunState } from '../core/state';
 import { cfg } from '../core/testkit';
@@ -77,6 +78,19 @@ describe('Hud', () => {
 
   const pips = (): string => ui.querySelector('.pips')!.className;
 
+  // The Intern's 14 pips ran the Spanish HUD at its widest past its bar: a cap above 10 draws narrower ones (the CSS), whatever the colour.
+  it('marks the pips dense for a cap above 10, the Intern\'s 14, and for no other difficulty', () => {
+    const dense = (difficulty: Difficulty): boolean => {
+      hud.start(new Run(cfg({ difficulty })));
+      return ui.querySelector('.pips')!.classList.contains('dense');
+    };
+    expect(DIFFICULTY_IDS.map(dense)).toEqual([true, false, false, false]);
+    // And it follows a run: back to ten pips, the class goes.
+    hud.start(new Run(cfg({ difficulty: 'intern' })));
+    hud.start(run);
+    expect(pips()).toBe('pips good');
+  });
+
   it('colours the reputation pips by how many are left', () => {
     const at = (rep: number): string => { run.state.rep = rep; hud.event({ type: 'reputation', value: rep }, run); return pips(); };
     expect(pips()).toBe('pips good');
@@ -98,7 +112,7 @@ describe('Hud', () => {
       return pips();
     };
     expect([5, 4, 3, 2, 1].map((rep) => at('zeroday', rep))).toEqual(['pips good', 'pips good', 'pips mid', 'pips mid', 'pips low']);
-    expect([14, 10, 9, 6, 5].map((rep) => at('intern', rep))).toEqual(['pips good', 'pips good', 'pips mid', 'pips mid', 'pips low']);
+    expect([14, 10, 9, 6, 5].map((rep) => at('intern', rep))).toEqual(['pips good dense', 'pips good dense', 'pips mid dense', 'pips mid dense', 'pips low dense']);
     // A cap of 8, where neither share is a whole number: 70% of 8 is 5.6, so green starts at 6; 40% is 3.2, so gold starts at 4.
     expect([8, 7, 6, 5, 4, 3, 2, 1].map((rep) => at('incident', rep))).toEqual(
       ['pips good', 'pips good', 'pips good', 'pips mid', 'pips mid', 'pips low', 'pips low', 'pips low']);

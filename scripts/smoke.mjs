@@ -415,7 +415,8 @@ const CHECKS = {
     if (cur !== 1) throw new Error('lane highlight missing');
     // Spanish runs about 110px longer: at its widest (wave 5, hints on, five-digit score) the HUD stays on one line, with the clock counting
     // and with it saying DESPEJE (time up mid-wave, the last packets still landing: a word where a clock was). The run is held, so neither
-    // a step nor the wave clearing can change the HUD between the figures and the shot.
+    // a step nor the wave clearing can change the HUD between the figures and the shot. The Intern's 14 reputation pips (drawn narrower, from a cap above
+    // 10) are the longest the bar gets, so it is held once as an Analyst, with 10, and once as an Intern.
     await spanish(page);
     await page.reload({ waitUntil: 'networkidle' });
     await play(page);
@@ -427,13 +428,27 @@ const CHECKS = {
       const hud = document.querySelector('#ui .hud'), k = hud.getBoundingClientRect().width / 1280;
       const l = hud.querySelector('.hud-l').getBoundingClientRect(), r = hud.querySelector('.hud-r').getBoundingClientRect();
       const tall = [...hud.querySelectorAll('.hud-l > *, .hud-r > *')].filter((e) => e.getBoundingClientRect().height / k > 32).length;
-      return { clock: hud.querySelector('.wave b:last-child').textContent, hints: hud.querySelector('.toggle').textContent, tall, room: Math.round((r.left - l.right) / k), over: Math.round((r.right - hud.getBoundingClientRect().right) / k) };
+      return {
+        pips: hud.querySelectorAll('.pips i').length, clock: hud.querySelector('.wave b:last-child').textContent, hints: hud.querySelector('.toggle').textContent, tall,
+        room: Math.round((r.left - l.right) / k), over: Math.round((r.right - hud.getBoundingClientRect().right) / k),
+      };
     }, timeLeft);
-    for (const [left, clock] of [[42, '0:42'], [0, 'DESPEJE']]) {
-      const fit = await widest(left);
-      // The hints switch is on (the widest the bar gets) and says SÍ, like the pause menu's switches.
-      if (fit.hints !== 'PISTAS SÍ ×0,75' || fit.clock !== clock || fit.tall || fit.room < 8 || fit.over > 0) throw new Error(`Spanish HUD does not fit with the clock at ${clock}: ${JSON.stringify(fit)}`);
-      await page.screenshot({ path: `${OUT}/${clock === 'DESPEJE' ? 'hud-es-clearing' : 'hud-es'}.png` });
+    for (const [difficulty, pips] of [['analyst', 10], ['intern', 14]]) {
+      if (difficulty === 'intern') {
+        // The same save with the Intern marked: PLAY and START take the pair the setup opens on.
+        await page.evaluate(() => localStorage.setItem('nsp.v1', JSON.stringify({ prefs: { lang: 'es', coached: true, difficulty: 'intern' } })));
+        await page.reload({ waitUntil: 'networkidle' });
+        await play(page);
+        await freeze(page);
+      }
+      for (const [left, clock] of [[42, '0:42'], [0, 'DESPEJE']]) {
+        const fit = await widest(left);
+        // The hints switch is on (the widest the bar gets) and says SÍ, like the pause menu's switches.
+        if (fit.pips !== pips || fit.hints !== 'PISTAS SÍ ×0,75' || fit.clock !== clock || fit.tall || fit.room < 8 || fit.over > 0) {
+          throw new Error(`Spanish HUD does not fit as ${difficulty} with the clock at ${clock}: ${JSON.stringify(fit)}`);
+        }
+        await page.screenshot({ path: `${OUT}/hud-es${difficulty === 'intern' ? '-intern' : ''}${clock === 'DESPEJE' ? '-clearing' : ''}.png` });
+      }
     }
   },
   async panels(page) {
