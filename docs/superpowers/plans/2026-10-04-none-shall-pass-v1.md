@@ -6477,7 +6477,6 @@ export const renderDraft = (box: HTMLElement, run: Run, act: { pick(i: number): 
     const taken = d.taken.includes(c.id);
     const card = el('div', `ucard ${c.rarity}${taken ? ' taken' : ''}`, cards);
     const h = el('div', 'uhead', card);
-    el('span', `ucat ${c.cat}`, h, `${{ KNIGHT: '♞', FIREWALL: '▦', SERVER: '◆' }[c.cat]} ${t(`draft.cat.${c.cat}`)}`);
     el('span', `urar ${c.rarity}`, h, t(`draft.rarity.${c.rarity}`));
     const icon = el('div', 'uicon', card);
     const img = el('img', 'px', icon);
