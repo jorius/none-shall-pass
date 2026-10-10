@@ -4,3 +4,4 @@ coverage
 smoke-out
 .superpowers
 *.log
+docs/**
